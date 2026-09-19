@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 — 2026-09-19
+- Reviewer vendor RULE (no hardcoded version in source): dev team = Anthropic, so
+  devcrew-reviewer runs the strongest OpenAI model currently available. The
+  installer resolves this to a concrete model version at install time by querying
+  the host's model catalog and pins that version into the generated agent
+  artifact only. A future clone re-resolves to whatever is strongest then.
+
 ## 0.3.0 — 2026-09-19
 - Removed the GitHub Action / Bedrock external-review path.
 - Self-evolution review now happens INSIDE AIDLC via a new role, devcrew-reviewer,

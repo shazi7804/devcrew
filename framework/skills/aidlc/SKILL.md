@@ -171,11 +171,14 @@ periodic meta-review:
      its own change.** Self-merge or in-place rewriting of operating instructions
      is forbidden — that is the failure mode this guards against.
    - **Review is done by the `devcrew-reviewer` role, dispatched on a different
-     model family than the author** (`spawn_run(agents=["devcrew-reviewer"],
-     model=<different-family>)`) and with `framework/memory/` NOT mounted. That
-     model difference + no shared memory is what makes an in-team reviewer
-     unbiased. It checks the diff against the design invariants and returns
-     APPROVE / REQUEST-CHANGES / REJECT.
+     VENDOR than the author** (`spawn_run(agents=["devcrew-reviewer"],
+     model=<other-vendor>)`) and with `framework/memory/` NOT mounted. The dev
+     team runs Anthropic, so the reviewer runs the strongest OpenAI model
+     available. This is a RULE — the installer resolves it to a concrete model
+     version at install time by querying the host's current model catalog; the
+     framework source never hardcodes a version. That cross-vendor difference + no shared
+     memory is what makes an in-team reviewer unbiased. It checks the diff against
+     the design invariants and returns APPROVE / REQUEST-CHANGES / REJECT.
    - **The reviewer never reviews its own change.** If the change touches
      `devcrew-reviewer` itself, route it to a second independent reviewer (yet
      another model) or an adversarial `llm-council` pass instead.

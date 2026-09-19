@@ -83,3 +83,15 @@ For each `framework/agents/<name>.md`:
 Parse every generated JSON, confirm each `prompt`, `skill://`, and `file://`
 memory path resolves, and confirm `devcrew` is listed by the host's agent
 listing. Then tell the user to pick **devcrew** in the dashboard agent switcher.
+
+## Reviewer model pin
+
+`devcrew-reviewer` must run on a DIFFERENT vendor than the dev team. The dev
+team runs Anthropic (`auto` resolves to Claude), so pin the reviewer JSON's
+`model` to the strongest OpenAI model available rather than `auto`. Resolve
+this at INSTALL time: query the host's model catalog (e.g.
+`kiro-cli chat --list-models --format json`), pick the strongest OpenAI id
+currently offered, and WRITE THAT CONCRETE VERSION into the generated
+`devcrew-reviewer.json`. The pinned version lives only in the install artifact,
+never in the framework source — so a future clone re-resolves to whatever is
+strongest then.

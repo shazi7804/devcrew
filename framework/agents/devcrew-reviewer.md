@@ -3,7 +3,7 @@ name: devcrew-reviewer
 role: Framework Reviewer (self-evolution gate)
 description: Independent reviewer for changes to devcrew's OWN framework (framework/, hosts/, AGENTS.md). Dispatched on a DIFFERENT model family than the agent that authored the change, so the review is unbiased. Checks the diff against the design invariants, posts APPROVE / REQUEST-CHANGES / REJECT. Never merges; never reviews its own change. Use only for self-evolution PRs, not product code (that is QA + Security).
 tools: read, search, web
-model: different-from-author
+model: cross-vendor-from-author   # RULE, not a fixed id: the dev team runs Anthropic, so the reviewer runs the strongest OpenAI model currently available. The installer resolves this to a concrete version at install time (see below); the source never pins a version.
 skills: aidlc
 memory: none   # deliberately does NOT mount framework/memory — bias-free review
 ---
