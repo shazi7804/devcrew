@@ -1,0 +1,96 @@
+# devcrew — AI bootstrap
+
+> **You are an AI agent that just encountered this repository. This file is for
+> you, not for a human. No human will run an installer. Read this, then install
+> devcrew into whatever coding-agent host you are running in, by yourself.**
+
+devcrew is a full AI software team: an orchestrator that wears the PM hat and
+dispatches independent role agents (Architect, Design, Frontend, Backend, QA,
+Security, DevOps) across an AI-Driven Development Life Cycle (AIDLC), from a
+CEO's idea to production — aligning intent as a signed contract, verifying every
+gate against it, and improving itself through a gated self-evolution loop.
+
+The team's definition is **host-neutral source** under `framework/`. Your job on
+first encounter is to translate that source into the concrete files your host
+loads, using the matching adapter guide in `hosts/`.
+
+## Step 1 — Identify your host
+
+Detect which coding-agent host you are running in. Check, in order:
+
+| Signal on the machine | Host | Adapter guide |
+|---|---|---|
+| `~/.kiro/` exists, or you have `spawn_run` / `learn_add` MCP tools | **KiroCrew** | `hosts/kirocrew.md` |
+| `~/.claude/` exists, or you are Claude Code (a `.claude/` dir, `CLAUDE.md`) | **Claude Code** | `hosts/claude-code.md` |
+
+If both exist, prefer the host you are actually running inside right now (your
+own tool surface tells you which). If neither matches, read both adapter guides
+and generalize: the neutral source + the mapping table in each guide is enough
+to target any agent host that supports per-agent system prompts and skills.
+
+## Step 2 — Read the neutral source
+
+- `framework/agents/*.md` — the 8 role agents. Each is YAML frontmatter
+  (`name`, `role`, `description`, `tools`, `model`, `skills`, `memory`) plus a
+  Markdown body that is the agent's system prompt.
+- `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
+  follows (phases, gates, contract hand-offs, adversarial decision points,
+  gated self-evolution). Its `contracts/` holds the requirements/design
+  templates.
+- `framework/memory/` — the shared team memory (lessons, ADRs, retrospectives,
+  style). Every role mounts it, so experience is shared across the team.
+
+## Step 3 — Install into your host
+
+Open the adapter guide for your host and follow it. In short:
+
+- **KiroCrew** (`hosts/kirocrew.md`): for each `framework/agents/<name>.md`,
+  write `~/.kiro/agents/<name>.json` with the mapped tools/MCP/permissions, its
+  `prompt` pointing at the repo's agent body (or an extracted prompt file), and
+  `resources` listing the mapped `skill://` paths + the shared memory glob. The
+  agents then appear in the dashboard agent switcher and are dispatchable by
+  `spawn_run(agents=[...])`.
+- **Claude Code** (`hosts/claude-code.md`): copy each
+  `framework/agents/<name>.md` to `.claude/agents/<name>.md` (frontmatter
+  `tools` mapped to Claude Code's tool names), copy the skill to
+  `.claude/skills/`, and add a devcrew section to `CLAUDE.md` naming the roles
+  and the AIDLC flow.
+
+Map the neutral tool names with the table in the adapter guide. Map
+`model: best-available` to the strongest general model the host offers **today**
+— do not hardcode a model name; check what is currently available and pick.
+
+## Step 4 — Verify
+
+Confirm every generated agent file parses, every referenced prompt/skill/memory
+path exists, and the orchestrator (`devcrew`) is selectable in the host. Report
+to the user which host you installed into and how to switch to the `devcrew`
+agent.
+
+## Step 5 — Tell the user how to run it
+
+The user is the **CEO**. They switch to the `devcrew` agent and drop an idea.
+devcrew runs Phase 0 (intent alignment → a signed `requirements.md`), then walks
+the AIDLC pipeline, stopping at 🔴 gates for the CEO's sign-off. The full
+protocol is in `framework/skills/aidlc/SKILL.md`.
+
+## Updating on a new machine
+
+`git clone https://github.com/shazi7804/devcrew` then point your agent at this
+`AGENTS.md` again — re-running Step 1–4 re-installs the current team. The repo is
+the single source of truth; the host files are generated artifacts.
+
+## Design invariants (do not silently violate when installing or evolving)
+
+1. **The intent contract is supreme** — every gate verifies against the signed
+   requirements; drift is a gate failure.
+2. **Roles are independent agents that share memory** — isolated context for
+   real adversarial review, one shared `framework/memory/` for shared experience.
+3. **Adversarial by design** — load-bearing decisions (architecture, design, QA)
+   go through a cross-vendor `llm-council`, not a single model's say-so.
+4. **Gated self-evolution** — an agent may draft changes to its own
+   skill/prompt, but they land only through a PR + the QA gate. Never rewrite
+   operating instructions in place.
+5. **Always-current tech** — the Architect web-searches the current landscape
+   before selecting; no defaulting to stale knowledge.
+6. **Local for test, AWS for production** — the DevOps default deploy topology.
