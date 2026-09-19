@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-09-19
+- Removed the GitHub Action / Bedrock external-review path.
+- Self-evolution review now happens INSIDE AIDLC via a new role, devcrew-reviewer,
+  dispatched on a DIFFERENT model family than the change's author and with no team
+  memory mounted (unbiased). It never reviews its own change and never merges; the
+  CEO makes the final merge.
+
 ## 0.2.0 — 2026-09-19
 - Self-evolution is now reviewed by an INDEPENDENT external reviewer, not by
   devcrew itself: a GitHub Action (.github/workflows/framework-review.yml) runs

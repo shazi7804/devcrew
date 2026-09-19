@@ -30,7 +30,7 @@ to target any agent host that supports per-agent system prompts and skills.
 
 ## Step 2 — Read the neutral source
 
-- `framework/agents/*.md` — the 8 role agents. Each is YAML frontmatter
+- `framework/agents/*.md` — the 9 role agents. Each is YAML frontmatter
   (`name`, `role`, `description`, `tools`, `model`, `skills`, `memory`) plus a
   Markdown body that is the agent's system prompt.
 - `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
@@ -88,13 +88,13 @@ the single source of truth; the host files are generated artifacts.
    real adversarial review, one shared `framework/memory/` for shared experience.
 3. **Adversarial by design** — load-bearing decisions (architecture, design, QA)
    go through a cross-vendor `llm-council`, not a single model's say-so.
-4. **Gated self-evolution, reviewed externally** — an agent may draft changes to
-   the framework, but it opens a PR and NEVER pushes to `main` or merges its own
-   change. Review is done by an INDEPENDENT reviewer outside devcrew: a GitHub
-   Action (`.github/workflows/framework-review.yml`) using an AWS Bedrock model
-   from a different family than the devcrew agents. The CEO makes the final
-   merge. Never rewrite operating instructions in place; never let devcrew review
-   or merge its own evolution.
+4. **Gated self-evolution, reviewed by a different model** — an agent may draft
+   changes to the framework, but it opens a PR and NEVER pushes `main` or merges
+   its own change. Review is done inside AIDLC by the `devcrew-reviewer` role,
+   dispatched on a DIFFERENT model family than the author and with no team memory
+   mounted (that is what makes it unbiased). The reviewer never reviews its own
+   change and never merges; the CEO makes the final merge. Never rewrite
+   operating instructions in place.
 5. **Always-current tech** — the Architect web-searches the current landscape
    before selecting; no defaulting to stale knowledge.
 6. **Local for test, AWS for production** — the DevOps default deploy topology.

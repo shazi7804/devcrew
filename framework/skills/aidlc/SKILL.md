@@ -41,6 +41,7 @@ do not stand up a role agent for a one-line change.
 | `devcrew-be` | Backend R&D | APIs, data, services | code + PR + unit/integration tests |
 | `devcrew-qa` | QA | Test strategy, acceptance vs contract | QA report, pass/fail per requirement |
 | `devcrew-security` | Security | Threat model, dependency + secret scan | security report, blocker list |
+| `devcrew-reviewer` | Framework Reviewer | Self-evolution gate (different model, no team memory) | APPROVE / REQUEST-CHANGES / REJECT on framework PRs |
 | `devcrew-devops` | DevOps / SRE | CI/CD, infra, deploy, smoke tests | live URL + smoke evidence |
 
 Dispatch with `spawn_run(agents=["devcrew-architect"], task="...")`. Hand each
@@ -62,7 +63,7 @@ intent contract (does this still do what the CEO signed?), or (c) needs the
 | 3 | Implementation | FE + BE (parallel) | code + PRs + tests | Self-tests green, PR opened |
 | 4 | Verification | QA + Security (parallel) | QA report + security report | CI green + every requirement met + no security blocker |
 | 5 | Deployment | DevOps | live URL + smoke evidence | Production smoke tests green |
-| ∞ | Evolution | all | retrospective + framework PRs | Independent external (Bedrock) review + CEO merge before any self-change lands |
+| ∞ | Evolution | all + reviewer | retrospective + framework PRs | `devcrew-reviewer` (different model) review + CEO merge before any self-change lands |
 
 **Phase 3 and Phase 4 fan out**: FE and BE are independent → dispatch in one
 `spawn_run` batch. QA and Security likewise. Never dispatch a role whose input
@@ -163,26 +164,26 @@ periodic meta-review:
    - A behavior correction that generalizes → `learn_add` (a saved lesson).
    - A gap in a role's procedure → an edit to that role's skill / prompt.
    - A missing capability → propose a new skill.
-3. **GATED self-update — reviewed by an INDEPENDENT reviewer, not by devcrew.**
-   An agent may DRAFT a change to the framework (anything under `framework/`,
-   `hosts/`, or `AGENTS.md` — its own skill, prompt, or config), but:
-   - **It opens a PR. It NEVER pushes to `main`, and it NEVER merges its own
-     change.** Self-merge or in-place rewriting of operating instructions is
-     forbidden — that is the whole failure mode this guards against.
-   - **The reviewer is external to devcrew, on purpose.** devcrew must not review
-     its own evolution — same-family models sharing this memory are biased toward
-     approving their own work. The repo carries a GitHub Action
-     (`.github/workflows/framework-review.yml`) that reviews every such PR with a
-     model on **AWS Bedrock deliberately chosen from a different family** than the
-     devcrew agents, running outside the framework with no access to its shared
-     memory. It checks the diff against the design invariants and posts
+3. **GATED self-update — reviewed inside AIDLC by `devcrew-reviewer` on a
+   DIFFERENT model.** An agent may DRAFT a change to the framework (anything
+   under `framework/`, `hosts/`, or `AGENTS.md`), but:
+   - **It opens a PR / change proposal. It NEVER pushes `main` and NEVER merges
+     its own change.** Self-merge or in-place rewriting of operating instructions
+     is forbidden — that is the failure mode this guards against.
+   - **Review is done by the `devcrew-reviewer` role, dispatched on a different
+     model family than the author** (`spawn_run(agents=["devcrew-reviewer"],
+     model=<different-family>)`) and with `framework/memory/` NOT mounted. That
+     model difference + no shared memory is what makes an in-team reviewer
+     unbiased. It checks the diff against the design invariants and returns
      APPROVE / REQUEST-CHANGES / REJECT.
-   - **The CEO makes the final merge decision.** The Action is an advisory,
-     blocking gate (branch protection keeps `main` un-mergeable without a passing
-     review); the human merges. The reviewer never merges.
+   - **The reviewer never reviews its own change.** If the change touches
+     `devcrew-reviewer` itself, route it to a second independent reviewer (yet
+     another model) or an adversarial `llm-council` pass instead.
+   - **The CEO makes the final merge decision.** The reviewer is a blocking
+     advisory gate; the human merges.
    - `learn_add` lessons and appends to `framework/memory/*.md` are the exception
-     (additive, audited corrections that do not change operating instructions);
-     structural edits to an agent/skill/prompt file are always PR-gated.
+     (additive, audited corrections); structural edits to an agent/skill/prompt
+     file are always review-gated.
 4. **Meta-loop** — a periodic review (a `cron` digest is a good fit) scans
    recent retrospectives for repeated failure modes and opens a self-improvement
    proposal to the CEO. Repeated pain becomes a tracked fix, not folklore.
