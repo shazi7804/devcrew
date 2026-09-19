@@ -1,0 +1,72 @@
+name: framework-review
+
+# Independent, external review of every self-evolution PR.
+# The reviewer runs on AWS Bedrock — a DIFFERENT model family from the devcrew
+# agents whose change is under review — so it cannot rubber-stamp its own work.
+# It NEVER merges: it posts a verdict; a human (the CEO) merges.
+
+on:
+  pull_request:
+    paths:
+      - "framework/**"
+      - "hosts/**"
+      - "AGENTS.md"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  bedrock-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR (full history for diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install boto3
+
+      - name: Configure AWS credentials (OIDC — no long-lived keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_REVIEW_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REVIEW_REGION }}
+
+      - name: Compute diff
+        run: |
+          git diff --unified=3 "origin/${{ github.base_ref }}...HEAD" \
+            -- framework hosts AGENTS.md > /tmp/pr.diff || true
+          echo "diff bytes: $(wc -c < /tmp/pr.diff)"
+
+      - name: Bedrock review
+        id: review
+        env:
+          BEDROCK_MODEL_ID: ${{ vars.BEDROCK_REVIEW_MODEL_ID }}
+          AWS_REGION: ${{ vars.AWS_REVIEW_REGION }}
+        run: python .github/scripts/bedrock_review.py /tmp/pr.diff /tmp/review.md
+
+      - name: Post review comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/review.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Fail the check on REQUEST-CHANGES / REJECT
+        run: |
+          verdict=$(head -1 /tmp/verdict.txt 2>/dev/null || echo UNKNOWN)
+          echo "verdict=$verdict"
+          if [ "$verdict" = "APPROVE" ]; then exit 0; else exit 1; fi

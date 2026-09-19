@@ -62,7 +62,7 @@ intent contract (does this still do what the CEO signed?), or (c) needs the
 | 3 | Implementation | FE + BE (parallel) | code + PRs + tests | Self-tests green, PR opened |
 | 4 | Verification | QA + Security (parallel) | QA report + security report | CI green + every requirement met + no security blocker |
 | 5 | Deployment | DevOps | live URL + smoke evidence | Production smoke tests green |
-| ∞ | Evolution | all | retrospective + skill/lesson PRs | QA gate before any self-change lands |
+| ∞ | Evolution | all | retrospective + framework PRs | Independent external (Bedrock) review + CEO merge before any self-change lands |
 
 **Phase 3 and Phase 4 fan out**: FE and BE are independent → dispatch in one
 `spawn_run` batch. QA and Security likewise. Never dispatch a role whose input
@@ -163,14 +163,26 @@ periodic meta-review:
    - A behavior correction that generalizes → `learn_add` (a saved lesson).
    - A gap in a role's procedure → an edit to that role's skill / prompt.
    - A missing capability → propose a new skill.
-3. **GATED self-update — the safety rule that keeps the team from breaking
-   itself.** An agent may DRAFT a change to its own skill/prompt/config, but the
-   change is treated exactly like product code: it goes through a **PR + the QA
-   gate** (a second role, or an `llm-council` review, checks it does not regress
-   behavior) before it lands. **Never let an agent silently rewrite its own
-   operating instructions in place.** `learn_add` lessons are the one exception
-   (they are additive corrections, already audited), but structural edits to a
-   skill or prompt file are PR-gated.
+3. **GATED self-update — reviewed by an INDEPENDENT reviewer, not by devcrew.**
+   An agent may DRAFT a change to the framework (anything under `framework/`,
+   `hosts/`, or `AGENTS.md` — its own skill, prompt, or config), but:
+   - **It opens a PR. It NEVER pushes to `main`, and it NEVER merges its own
+     change.** Self-merge or in-place rewriting of operating instructions is
+     forbidden — that is the whole failure mode this guards against.
+   - **The reviewer is external to devcrew, on purpose.** devcrew must not review
+     its own evolution — same-family models sharing this memory are biased toward
+     approving their own work. The repo carries a GitHub Action
+     (`.github/workflows/framework-review.yml`) that reviews every such PR with a
+     model on **AWS Bedrock deliberately chosen from a different family** than the
+     devcrew agents, running outside the framework with no access to its shared
+     memory. It checks the diff against the design invariants and posts
+     APPROVE / REQUEST-CHANGES / REJECT.
+   - **The CEO makes the final merge decision.** The Action is an advisory,
+     blocking gate (branch protection keeps `main` un-mergeable without a passing
+     review); the human merges. The reviewer never merges.
+   - `learn_add` lessons and appends to `framework/memory/*.md` are the exception
+     (additive, audited corrections that do not change operating instructions);
+     structural edits to an agent/skill/prompt file are always PR-gated.
 4. **Meta-loop** — a periodic review (a `cron` digest is a good fit) scans
    recent retrospectives for repeated failure modes and opens a self-improvement
    proposal to the CEO. Repeated pain becomes a tracked fix, not folklore.

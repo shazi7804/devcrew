@@ -88,9 +88,13 @@ the single source of truth; the host files are generated artifacts.
    real adversarial review, one shared `framework/memory/` for shared experience.
 3. **Adversarial by design** — load-bearing decisions (architecture, design, QA)
    go through a cross-vendor `llm-council`, not a single model's say-so.
-4. **Gated self-evolution** — an agent may draft changes to its own
-   skill/prompt, but they land only through a PR + the QA gate. Never rewrite
-   operating instructions in place.
+4. **Gated self-evolution, reviewed externally** — an agent may draft changes to
+   the framework, but it opens a PR and NEVER pushes to `main` or merges its own
+   change. Review is done by an INDEPENDENT reviewer outside devcrew: a GitHub
+   Action (`.github/workflows/framework-review.yml`) using an AWS Bedrock model
+   from a different family than the devcrew agents. The CEO makes the final
+   merge. Never rewrite operating instructions in place; never let devcrew review
+   or merge its own evolution.
 5. **Always-current tech** — the Architect web-searches the current landscape
    before selecting; no defaulting to stale knowledge.
 6. **Local for test, AWS for production** — the DevOps default deploy topology.
