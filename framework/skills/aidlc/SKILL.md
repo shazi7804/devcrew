@@ -35,6 +35,7 @@ do not stand up a role agent for a one-line change.
 | Agent name | Role | Owns | Produces |
 |---|---|---|---|
 | `devcrew` | Orchestrator + PM | Loop, intent contract, gates | `requirements.md`, gate verdicts |
+| `devcrew-analyst` | Market Analyst | Market/demand validation, charts | market analysis + GO/PIVOT/NO-GO |
 | `devcrew-architect` | Architect | Tech selection, system design | `design.md` + ADRs |
 | `devcrew-design` | Design (UI/UX) | Design system, IA, hi-fi prototype, a11y | `design-system.md` + clickable prototype |
 | `devcrew-fe` | Frontend R&D | UI implementation | code + PR + component tests |
@@ -58,6 +59,7 @@ intent contract (does this still do what the CEO signed?), or (c) needs the
 | # | Phase | Role | Contract out | Gate |
 |---|---|---|---|---|
 | 0 | Intent alignment | PM (you) | `requirements.md` | 🔴 CEO signs the requirements |
+| 0.5 | Market validation (if commercial) | Market Analyst | market analysis + charts | 🔴 CEO reads verdict, decides GO/PIVOT/NO-GO |
 | 1 | Architecture & tech selection | Architect | `design.md` + ADRs | Design maps to every requirement |
 | 2 | UI/UX design | Design | `design-system.md` + prototype | 🔴 CEO signs the prototype |
 | 3 | Implementation | FE + BE (parallel) | code + PRs + tests | Self-tests green, PR opened |
@@ -87,6 +89,32 @@ The CEO gives an idea, often a sentence. Do NOT start building. Wear the PM hat:
 
 Every later gate re-reads `requirements.md`. If a phase's output drifts from a
 signed requirement, that is a gate failure — loop back, do not paper over it.
+
+## Phase 0.5 — Market validation (Market Analyst, conditional)
+
+Runs only when the idea has a **commercial or product dimension** — something
+meant to be sold, adopted by users, or to move revenue/retention. The
+orchestrator decides whether this phase applies and records that decision; a
+purely internal tool or a one-off script with no market question skips it.
+
+When it applies, it runs AFTER the intent is signed and BEFORE the Architect
+spends effort — so the team validates that the feature is worth building before
+burning design/engineering budget on it.
+
+1. Dispatch `devcrew-analyst` with `requirements.md`. It researches the LIVE
+   market (web-search, not training memory): demand evidence, target segment,
+   rough TAM/SAM, competitors/substitutes, trend direction — with sources.
+2. It renders **charts** (market size, competitor positioning, demand trend) so
+   the verdict is visual, and returns **GO / PIVOT / NO-GO** with confidence and
+   the gaps it could not verify.
+3. **This is a 🔴 gate.** The CEO reads the analysis and decides:
+   - **GO** → proceed to Phase 1.
+   - **PIVOT** → loop back to Phase 0 with the analyst's adjusted framing.
+   - **NO-GO** → stop. The feature is not worth building; that is a successful
+     outcome of this gate, not a failure — it saved the build cost.
+
+This phase is the cheap "should we even build this?" check that guards the
+expensive Phases 1–5.
 
 ## Phase 1 — Architecture & tech selection (Architect)
 
@@ -190,6 +218,82 @@ periodic meta-review:
 4. **Meta-loop** — a periodic review (a `cron` digest is a good fit) scans
    recent retrospectives for repeated failure modes and opens a self-improvement
    proposal to the CEO. Repeated pain becomes a tracked fix, not folklore.
+
+## Harness — stop conditions, loops, and drift control
+
+This is the execution skeleton. Without it the pipeline above runs forever, burns
+budget, or drifts. These rules are not optional.
+
+### Loop bounds (fixes finding: unbounded fix loop)
+There are exactly THREE loops (see `ARCHITECTURE.md` §3):
+- **Fix loop** (a gate failed → loop back to the owning phase): **hard bound of
+  3 attempts on the same gate without the failure count dropping, OR 5 total
+  attempts**, then STOP and escalate to the CEO with the specific blockers.
+  Never loop back to Phase 0. Track the attempt count in the ledger so the bound
+  survives a compaction.
+- **Reflection loop**: bounded by task end; the periodic meta-review is a
+  scheduled `cron`, not an open loop.
+- **Self-evolution loop**: one review pass per proposal; the reviewer verdict is
+  terminal for that round.
+
+### Budgets (fixes finding: no resource ceiling)
+Before each heavy step, check `resource_status`. Enforce:
+- the fix-loop attempt bound above;
+- a fan-out cap — serialize role agents on a memory-tight host; a wide parallel
+  wave only when headroom is ample;
+- a token/time budget — a run that blows its stated budget STOPS and reports to
+  the CEO rather than pressing on;
+- cost awareness — a remote gateway bills hourly; pause a long-idle run.
+
+### CEO-gate suspension (fixes finding: 🔴 gates had no pause mechanism)
+A 🔴 gate is a HARD STOP for automation. The orchestrator must genuinely suspend
+and hand control to the human — it MUST NOT self-approve a 🔴 gate. Mechanism:
+post the artifact for sign-off with `ask_question` (or an `[OPTIONS:]` line) and
+END THE TURN; the CEO's reply is the signal to proceed. For a long wait, arm a
+monitor loop or `register_hook`. Record the signed decision in the ledger before
+advancing. "The CEO signed" is only true when a CEO message says so.
+
+### Intent hash (fixes finding: contract had no version lock)
+On the Phase 0 sign-off, record the **content hash** of the signed
+`requirements.md` (the "intent hash") in the ledger. Every later gate re-reads
+the file and re-checks the hash. A hash change mid-run without a fresh CEO
+sign-off is a **drift failure**: halt and ask the CEO to re-sign. Downstream
+roles are handed the contract path AND the expected hash, so they build against
+the signed version, not a moved target.
+
+### Independent gate verification (fixes finding: orchestrator self-verifies)
+The orchestrator verifies most gates, but for a HIGH-STAKES gate (architecture
+selection, the final Phase 4 verdict) it must get a second opinion from a
+different model — an `llm-council` pass or a dispatched reviewer — not rely on
+its own read alone. Confirmation bias in the dispatcher is a real failure mode.
+
+### Contract schema check (fixes finding: contracts unvalidated)
+A contract is only accepted at its gate if it is structurally complete:
+`requirements.md` — every `Rn`/`Nn` has an explicit acceptance clause;
+`design.md` — the requirement→design map covers every `Rn` (no blank row).
+A structurally incomplete contract fails the gate; it is not waved through.
+
+### Integration ownership (fixes finding: FE/BE PR race)
+In Phase 3 the orchestrator owns merge order and arbitrates the FE↔BE interface.
+If the two PRs disagree on a contract (an API shape, a field name), the
+orchestrator resolves it against `design.md` before either merges — the roles do
+not silently diverge.
+
+### Security left-shift (fixes finding: security only at Phase 4)
+Phase 1 output includes a design-stage threat model, so an insecure architecture
+is caught before it is built, not after. Phase 4 Security then checks the delta.
+
+### Reviewer availability fallback (fixes finding: no degrade path)
+If no cross-vendor model is available for `devcrew-reviewer` at review time, do
+NOT skip the self-evolution gate: fall back to an adversarial `llm-council` pass
+across whatever distinct models ARE available; if none, HOLD the change unmerged
+and tell the CEO the gate cannot run. A held change is never auto-merged.
+
+### Retrospective capture (fixes finding: retros silently skipped)
+The reflection loop only works if retros actually land. The orchestrator is
+responsible for writing each role's 3-line retro into `framework/memory/retro.md`
+after a task — a subagent that vanished without one does not excuse a missing
+entry. No retro written = the task is not closed.
 
 ## Cross-cutting rules
 

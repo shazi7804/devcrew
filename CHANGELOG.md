@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — 2026-09-20
+- Harness hardening: closed 11 AIDLC audit findings — loop bounds (3/5 fix-loop
+  cap), budgets, CEO-gate suspension mechanism, intent hash (drift lock),
+  contract schema checks, independent gate verification, security left-shift,
+  reviewer availability fallback, retrospective capture.
+- Added ARCHITECTURE.md (flow, harness layers, the three loops).
+- New role devcrew-analyst (Market Analyst): Phase 0.5 market-validation gate
+  with live research, charts, and a GO/PIVOT/NO-GO verdict before build spend.
+
 ## 0.3.1 — 2026-09-19
 - Reviewer vendor RULE (no hardcoded version in source): dev team = Anthropic, so
   devcrew-reviewer runs the strongest OpenAI model currently available. The

@@ -30,7 +30,7 @@ to target any agent host that supports per-agent system prompts and skills.
 
 ## Step 2 — Read the neutral source
 
-- `framework/agents/*.md` — the 9 role agents. Each is YAML frontmatter
+- `framework/agents/*.md` — the 10 role agents. Each is YAML frontmatter
   (`name`, `role`, `description`, `tools`, `model`, `skills`, `memory`) plus a
   Markdown body that is the agent's system prompt.
 - `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
