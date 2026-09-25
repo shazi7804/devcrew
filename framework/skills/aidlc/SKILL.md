@@ -45,9 +45,34 @@ do not stand up a role agent for a one-line change.
 | `devcrew-reviewer` | Framework Reviewer | Self-evolution gate (different model, no team memory) | APPROVE / REQUEST-CHANGES / REJECT on framework PRs |
 | `devcrew-devops` | DevOps / SRE | CI/CD, infra, deploy, smoke tests | live URL + smoke evidence |
 
-Dispatch with `spawn_run(agents=["devcrew-architect"], task="...")`. Hand each
+Dispatch with your host's **spawn** capability (see the host capability contract
+below — `spawn_run` on KiroCrew, the Task/Agent tool on Claude Code). Hand each
 role the **upstream contract path**, not a re-summary — contracts are the
 single source of truth so nothing gets lost in a paraphrase.
+
+## Host capability contract
+
+This protocol needs nine capabilities. **No host has all nine.** Tool names below
+are examples, not requirements — the installer (`AGENTS.md` Step 1) resolves each
+row against the real host and writes the result into a **host-notes table that
+ships with the install**. A role that cannot find its capability reads that table
+to learn the substitute, instead of guessing or silently skipping the step.
+
+| Capability | Needed by | If the host lacks it |
+|---|---|---|
+| **spawn** — run a role in its own context | every fan-out phase | Run the role in-session and say so; an in-session "role" is not an independent reviewer |
+| **durable ledger** — state that survives restart/compaction | the whole harness | A plain-text append-only file in the repo. **Read it first on resume** |
+| **ask-human** — suspend and hand control over | every 🔴 gate | Post the artifact, ask ONE question, END THE TURN |
+| **cross-vendor model** — a different vendor's model | reviewer, `llm-council` | Degrade to same-vendor-different-model, no team memory, and mark it |
+| **web** — read the live internet | Architect stack choice, Analyst | Label every claim "based on training knowledge, not verified against current reality". **Never fake having checked** |
+| **browser/screenshot** — see the rendered product | Phase 2 options, Phase 4 UI | Text-level assertions only; the human's own eyes are the final visual judge |
+| **resource check** — headroom before a heavy step | budgets | Set a fixed fan-out cap instead. Name the scarce resource: context, not RAM, on most hosts |
+| **memory write** — durable lessons | Phase ∞ | Append to `framework/memory/*.md`; do not rely on the host remembering |
+| **PR / branch** — propose without merging | Phase ∞ self-evolution | Commit to a non-default branch, or hold the diff uncommitted. **Never commit a framework change straight to the default branch** |
+
+Fill this table in **before Phase 0**, not when a gate trips over a missing tool.
+A host whose reality you have not mapped will produce a run that looks like it
+passed gates it never actually ran.
 
 ## The AIDLC pipeline — phases and gates
 
@@ -68,7 +93,7 @@ intent contract (does this still do what the CEO signed?), or (c) needs the
 | ∞ | Evolution | all + reviewer | retrospective + framework PRs | `devcrew-reviewer` (different model) review + CEO merge before any self-change lands |
 
 **Phase 3 and Phase 4 fan out**: FE and BE are independent → dispatch in one
-`spawn_run` batch. QA and Security likewise. Never dispatch a role whose input
+**spawn** batch. QA and Security likewise. Never dispatch a role whose input
 is another still-running role's output.
 
 ## Phase 0 — Intent alignment (the most important phase)
@@ -77,7 +102,7 @@ The CEO gives an idea, often a sentence. Do NOT start building. Wear the PM hat:
 
 1. Ask the **smallest set** of clarifying questions that actually change the
    design (target users, the one core outcome, hard constraints, what success
-   looks like). Prefer an `ask_question` card or an `[OPTIONS:]` line. Do not
+   looks like). Use the host's **ask-human** capability. Do not
    interrogate — three to five sharp questions, not twenty.
 2. Write `requirements.md` using **EARS** phrasing (see
    `contracts/requirements.template.md`): functional requirements `R1..Rn`,
@@ -161,6 +186,30 @@ hi-fi prototype**:
 - Gate: the role's own tests are green and the PR is opened. Do not claim done
   without running the build and tests.
 
+**Declare a frozen zone at Phase 1.** Name the artifacts everything else is built
+on — the data model, the shared state, the design tokens, the base schema. To
+satisfy a requirement, an R&D role **extends** them; it does not edit them in
+place. The extension mechanism is whatever the stack offers: a defensive
+initialization, a backward-compatible field addition, a versioned migration, a new
+accessor instead of a changed field shape, a feature flag, an override applied
+later in the composition order. Existing data is left alone and the consumer copes
+with the absent value.
+
+Editing a frozen artifact is **its own task in its own session** — never a line
+item inside a feature. Every feature that "just needs one line" in the foundation
+is how a foundation dies.
+
+**Derived values are computed on demand, not snapshotted at load.** A value
+computed once from mutable state and held in a constant cannot see the state
+change. The symptom is that two views of the same data disagree, which reads as a
+display or caching bug and survives several rounds of looking in the wrong place.
+
+**Converge duplicate entry points.** One action reachable from three places is
+three implementations of one behavior, and they will drift. If the same question is
+asked in two places, extract one definition — two copies asking subtly different
+things is only a matter of time. And an entry point's name must describe what it
+does *now*, not what it did when it was built.
+
 ## Phase 4 — Verification (QA + Security)
 
 - **QA** reads `requirements.md` and checks **every** `Rn`/`Nn` acceptance
@@ -171,6 +220,30 @@ hi-fi prototype**:
   scanning, and authn/authz review. Any blocker stops the deploy gate.
 - Gate: CI green **and** every requirement met **and** zero security blockers.
   Otherwise loop back to Phase 3 with the specific failures — never to Phase 0.
+
+### Mutation testing — a green suite is not evidence until it can go red
+
+"All assertions pass" proves nothing on its own; it is equally consistent with
+assertions that cannot fail. So QA does not hand back a green run. It hands back
+**proof that each new assertion turns red when the thing it guards is broken.**
+For every new assertion: break the implementation on purpose, confirm red, restore.
+
+This is not theoretical rigor. The first time this ran on a real project the score
+was **0 out of 6** — and both root causes were in the tests, not the code. Without
+this pass, those six assertions would have shipped as permanent false green.
+
+A mutation pass can itself be faked, so the procedure has its own rules — and the
+catalogue of assertion shapes that reliably guard nothing is reference material for
+one role, not protocol every role loads. Both live with **`devcrew-qa`**.
+
+What the orchestrator enforces at this gate is narrow and non-negotiable: **no new
+assertion is accepted without a recorded red.** "I reviewed it and it looks
+correct" is not a substitute, and neither is a passing run.
+
+**Reproduction has a floor.** When a defect cannot be reproduced in the available
+environment, do not present a guess as a root cause. Write several independent
+defenses and **label the reasoning as inference in the comment**. Recording a
+hypothesis as fact costs the next person a full round.
 
 ## Phase 5 — Deployment (DevOps)
 
@@ -189,7 +262,7 @@ periodic meta-review:
 1. **Retrospective** — each role that ran writes 3 lines: what worked, what
    failed, what to change next time. The orchestrator folds these in.
 2. **Turn a lesson into a durable change**:
-   - A behavior correction that generalizes → `learn_add` (a saved lesson).
+   - A behavior correction that generalizes → a **memory write** (a saved lesson).
    - A gap in a role's procedure → an edit to that role's skill / prompt.
    - A missing capability → propose a new skill.
 3. **GATED self-update — reviewed inside AIDLC by `devcrew-reviewer` on a
@@ -199,8 +272,8 @@ periodic meta-review:
      its own change.** Self-merge or in-place rewriting of operating instructions
      is forbidden — that is the failure mode this guards against.
    - **Review is done by the `devcrew-reviewer` role, dispatched on a different
-     VENDOR than the author** (`spawn_run(agents=["devcrew-reviewer"],
-     model=<other-vendor>)`) and with `framework/memory/` NOT mounted. The dev
+     VENDOR than the author** (**spawn** `devcrew-reviewer` with the other
+     vendor's model) and with `framework/memory/` NOT mounted. The dev
      team runs Anthropic, so the reviewer runs the strongest OpenAI model
      available. This is a RULE — the installer resolves it to a concrete model
      version at install time by querying the host's current model catalog; the
@@ -212,7 +285,7 @@ periodic meta-review:
      another model) or an adversarial `llm-council` pass instead.
    - **The CEO makes the final merge decision.** The reviewer is a blocking
      advisory gate; the human merges.
-   - `learn_add` lessons and appends to `framework/memory/*.md` are the exception
+   - Saved lessons and appends to `framework/memory/*.md` are the exception
      (additive, audited corrections); structural edits to an agent/skill/prompt
      file are always review-gated.
 4. **Meta-loop** — a periodic review (a `cron` digest is a good fit) scans
@@ -237,7 +310,7 @@ There are exactly THREE loops (see `ARCHITECTURE.md` §3):
   terminal for that round.
 
 ### Budgets (fixes finding: no resource ceiling)
-Before each heavy step, check `resource_status`. Enforce:
+Before each heavy step, run a **resource check**. Enforce:
 - the fix-loop attempt bound above;
 - a fan-out cap — serialize role agents on a memory-tight host; a wide parallel
   wave only when headroom is ample;
@@ -248,10 +321,19 @@ Before each heavy step, check `resource_status`. Enforce:
 ### CEO-gate suspension (fixes finding: 🔴 gates had no pause mechanism)
 A 🔴 gate is a HARD STOP for automation. The orchestrator must genuinely suspend
 and hand control to the human — it MUST NOT self-approve a 🔴 gate. Mechanism:
-post the artifact for sign-off with `ask_question` (or an `[OPTIONS:]` line) and
-END THE TURN; the CEO's reply is the signal to proceed. For a long wait, arm a
-monitor loop or `register_hook`. Record the signed decision in the ledger before
+post the artifact for sign-off using the **ask-human** capability and
+END THE TURN; the CEO's reply is the signal to proceed. For a long wait, arm
+whatever monitor or hook the host offers. Record the signed decision in the ledger before
 advancing. "The CEO signed" is only true when a CEO message says so.
+
+**Write the gate for the person, not for the pipeline.** The CEO is not an
+engineer and does not hold your requirement numbering in their head. At a 🔴 gate:
+prose, not bullet lists; plain language, not `R7`/`N3` codes; the one thing you
+need decided, not a status dump of everything that happened. Ask **one** question.
+If there is something they can click or look at, give them that link rather than
+describing it. Then stop — a gate that ends with three questions and a progress
+report reliably gets answered on the easiest one, and now you have a signature
+that does not cover what you are about to build.
 
 ### Intent hash (fixes finding: contract had no version lock)
 On the Phase 0 sign-off, record the **content hash** of the signed
@@ -289,6 +371,41 @@ NOT skip the self-evolution gate: fall back to an adversarial `llm-council` pass
 across whatever distinct models ARE available; if none, HOLD the change unmerged
 and tell the CEO the gate cannot run. A held change is never auto-merged.
 
+### Degradation protocol (generalizes the fallback above to every gate)
+The reviewer is not the only gate a host can fail to support. Any gate whose
+capability is missing from the host capability table degrades, and degrading has a
+fixed protocol:
+
+1. **Degraded is not skipped.** Run the closest available substitute.
+2. **Say so in the report, in the report's own words**: `DEGRADED: <what could not
+   run> — <why> — <what ran instead>`. Put it where the verdict is, not in a
+   footnote.
+3. **A degraded gate NEVER counts as passed.** It is recorded in the ledger as
+   degraded, and it stays degraded until the capability actually exists. The CEO
+   may choose to proceed anyway — that is their call to make explicitly, and it is
+   not the same thing as the gate passing.
+4. **Never simulate the missing capability.** No invented web results, no "looks
+   right to me" standing in for a screenshot, no summarizing what a reviewer
+   *would* say. A fabricated gate result is worse than an absent one, because it
+   cannot be told apart from a real one later.
+
+The failure mode this prevents: a run that reports five green gates on a host that
+was only ever capable of running two.
+
+### Concurrent sessions on one working tree (fixes finding: single-writer assumed)
+More than one orchestrator session may be running against the same checkout. When
+that is possible:
+- **Every git restore command is banned** — `checkout`, `restore`, `stash`,
+  `reset`. They operate on the tree, not on your changes, and will discard work
+  belonging to a session you cannot see. Revert by reading the original content
+  into memory and writing it back in `finally`.
+- **Write to a private build output**, not the shared default artifact, or two
+  sessions will race for the same file.
+- **A diff against a shared baseline is not evidence** while another session is
+  writing. Establish which changes are yours before citing the diff at a gate.
+- **One writer per file set.** Independent contexts do not make concurrent edits
+  to the same files safe.
+
 ### Retrospective capture (fixes finding: retros silently skipped)
 The reflection loop only works if retros actually land. The orchestrator is
 responsible for writing each role's 3-line retro into `framework/memory/retro.md`
@@ -305,17 +422,47 @@ entry. No retro written = the task is not closed.
   against — that is what "closer to what I want" means mechanically.
 - **Wake roles on demand, not all at once.** Only dispatch the roles a phase
   needs. On a memory-tight host, serialize instead of a wide parallel wave, and
-  check `resource_status` before a heavy step.
+  run a **resource check** before a heavy step.
 - **Escalate real decisions to the CEO; decide the rest yourself.** 🔴 gates and
   genuine trade-offs go to the CEO. Do not ask what you can discover or
   reasonably decide.
-- **Keep a durable ledger.** Use `session_ledger_record` for the current goal,
+- **Keep a durable ledger.** Use the **durable ledger** capability for the current goal,
   phase, gate status, and next step, so a compaction or restart resumes cleanly.
 
 ## Bootstrapping a run
 
 When the CEO switches to `devcrew` and drops an idea:
-1. `session_ledger_record` the goal and set phase = 0.
-2. Run Phase 0 (intent alignment) → get the requirements signed.
-3. Walk the pipeline, one gate at a time, dispatching roles and verifying.
-4. Retrospect and evolve at the end.
+1. **Fill in the host capability table** (above). Nine rows, resolved against the
+   host you are actually in. Do this first; every later step depends on it.
+2. Record the goal in the ledger and set phase = 0.
+3. Run Phase 0 (intent alignment) → get the requirements signed.
+4. Walk the pipeline, one gate at a time, dispatching roles and verifying.
+5. Retrospect and evolve at the end.
+
+**Resuming an existing run — the fixed opening move.** A session may begin after a
+compaction, a restart, or days later, and it begins with no idea what happened. In
+that order, before touching anything:
+
+1. **The ledger** — which phase, which gate is waiting on whom, the intent hash,
+   the attempt count, what is degraded.
+2. **Team memory** — the lessons file and the standing decisions. These are what
+   the host did not remember for you.
+3. **The working tree** — what is uncommitted, and whether any of it is yours.
+
+Then say, in prose, what the last round finished, which gate is waiting and on
+whom, and what you propose next. Only then start work. **A session that begins by
+writing code is a session that is about to redo or undo something** — and on a
+repo with more than one session running, undo is the expensive one.
+
+## Keeping the protocol honest
+
+Two failure modes outrank every other one in this document, because both produce
+work that looks finished and is not:
+
+- **A gate reported as passed when its capability was never available.** Covered by
+  the degradation protocol: substitute, label `DEGRADED:`, never claim the pass.
+- **A test suite that cannot fail.** Covered by mutation testing: a green run is a
+  claim, and the evidence for that claim is having watched it go red.
+
+When you are unsure whether to report something as done, ask which of these two
+you are about to do.

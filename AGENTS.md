@@ -96,5 +96,16 @@ the single source of truth; the host files are generated artifacts.
    change and never merges; the CEO makes the final merge. Never rewrite
    operating instructions in place.
 5. **Always-current tech** — the Architect web-searches the current landscape
-   before selecting; no defaulting to stale knowledge.
+   before selecting; no defaulting to stale knowledge. On a host with no web
+   access this invariant cannot be met: every affected claim must be labelled as
+   training knowledge that was not verified, and the gate is recorded as degraded.
+   Silently substituting recall for research is the violation this guards against.
 6. **Local for test, AWS for production** — the DevOps default deploy topology.
+7. **Capabilities are mapped before the run, not discovered mid-run** — Step 3
+   produces a host capability table for the nine capabilities the protocol needs.
+   An unmapped host yields a run that appears to pass gates it never executed.
+8. **A degraded gate is never a passed gate** — when the host cannot support a
+   gate, substitute the closest thing available, label it `DEGRADED:` where the
+   verdict is, and keep it degraded in the ledger. Never simulate the missing
+   capability: a fabricated gate result is worse than a missing one, because
+   nothing downstream can tell the two apart.
