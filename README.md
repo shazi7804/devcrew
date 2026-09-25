@@ -15,7 +15,7 @@ it on any machine and your agent restores the whole team.
 > Read `AGENTS.md` in this repo and install devcrew into whichever coding-agent
 > host you are running in. Detect the host, translate the neutral `framework/`
 > source with the matching guide in `hosts/`, generate the agent + skill files,
-> verify them, and tell me how to switch to the `devcrew` agent.
+> verify them, and tell me how to switch to the `orchestrator` agent.
 
 You do not run an installer. The AI reads `AGENTS.md` and self-installs.
 
@@ -25,14 +25,18 @@ The user is the **CEO**: supplies intent, signs off at gates, does no other dev
 work. Everything else is an agent.
 
 ```
-idea → [PM] requirements.md (🔴 CEO signs)
+idea → [PM] requirements.md + scope (🔴 CEO signs)
      → [Architect] design.md + ADRs (adversarial tech selection)
      → [Design] design system + clickable prototype (🔴 CEO signs)
-     → [FE + BE] code + PRs + tests
+     → [Frontend + Backend] code + PRs + tests
      → [QA + Security] verify every requirement + scan
-     → [DevOps] deploy (Local test → AWS prod) + smoke tests
+     → [DevOps] Phase 5 deploy runtime (Local test → AWS prod) + smoke tests
+     → [Release] Phase 6 ship artifact (sign, TestFlight/Play/store, rollout) 🔴
      → [all] retrospective → gated self-improvement
 ```
+
+Phases 5/6 are target-aware: a service change runs Deploy, a user-shipped
+artifact (mobile app / release) runs Release, a mobile+backend change runs both.
 
 The protocol lives in `framework/skills/aidlc/SKILL.md`.
 

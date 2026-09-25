@@ -6,9 +6,9 @@
 
 devcrew is a full AI software team: an orchestrator that wears the PM hat and
 dispatches independent role agents (Architect, Design, Frontend, Backend, QA,
-Security, DevOps) across an AI-Driven Development Life Cycle (AIDLC), from a
-CEO's idea to production — aligning intent as a signed contract, verifying every
-gate against it, and improving itself through a gated self-evolution loop.
+Security, DevOps, Release) across an AI-Driven Development Life Cycle (AIDLC),
+from a CEO's idea to production — aligning intent as a signed contract, verifying
+every gate against it, and improving itself through a gated self-evolution loop.
 
 The team's definition is **host-neutral source** under `framework/`. Your job on
 first encounter is to translate that source into the concrete files your host
@@ -30,7 +30,7 @@ to target any agent host that supports per-agent system prompts and skills.
 
 ## Step 2 — Read the neutral source
 
-- `framework/agents/*.md` — the 10 role agents. Each is YAML frontmatter
+- `framework/agents/*.md` — the 11 role agents. Each is YAML frontmatter
   (`name`, `role`, `description`, `tools`, `model`, `skills`, `memory`) plus a
   Markdown body that is the agent's system prompt.
 - `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
@@ -63,13 +63,13 @@ Map the neutral tool names with the table in the adapter guide. Map
 ## Step 4 — Verify
 
 Confirm every generated agent file parses, every referenced prompt/skill/memory
-path exists, and the orchestrator (`devcrew`) is selectable in the host. Report
-to the user which host you installed into and how to switch to the `devcrew`
+path exists, and the orchestrator (`orchestrator`) is selectable in the host. Report
+to the user which host you installed into and how to switch to the `orchestrator`
 agent.
 
 ## Step 5 — Tell the user how to run it
 
-The user is the **CEO**. They switch to the `devcrew` agent and drop an idea.
+The user is the **CEO**. They switch to the `orchestrator` agent and drop an idea.
 devcrew runs Phase 0 (intent alignment → a signed `requirements.md`), then walks
 the AIDLC pipeline, stopping at 🔴 gates for the CEO's sign-off. The full
 protocol is in `framework/skills/aidlc/SKILL.md`.
@@ -90,7 +90,7 @@ the single source of truth; the host files are generated artifacts.
    go through a cross-vendor `llm-council`, not a single model's say-so.
 4. **Gated self-evolution, reviewed by a different model** — an agent may draft
    changes to the framework, but it opens a PR and NEVER pushes `main` or merges
-   its own change. Review is done inside AIDLC by the `devcrew-reviewer` role,
+   its own change. Review is done inside AIDLC by the `reviewer` role,
    dispatched on a DIFFERENT model family than the author and with no team memory
    mounted (that is what makes it unbiased). The reviewer never reviews its own
    change and never merges; the CEO makes the final merge. Never rewrite

@@ -66,7 +66,7 @@ For each `framework/agents/<name>.md`:
 }
 ```
 
-- The orchestrator `devcrew` gets the full tool set + cron (it schedules the
+- The orchestrator `orchestrator` gets the full tool set + cron (it schedules the
   monthly tech-refresh scan and dispatches roles). Role agents get the `build`
   set + `kirocrew-core`.
 - Map each neutral skill name in frontmatter `skills` to a KiroCrew skill path:
@@ -81,17 +81,19 @@ For each `framework/agents/<name>.md`:
 ## Verify
 
 Parse every generated JSON, confirm each `prompt`, `skill://`, and `file://`
-memory path resolves, and confirm `devcrew` is listed by the host's agent
-listing. Then tell the user to pick **devcrew** in the dashboard agent switcher.
+memory path resolves, and confirm `orchestrator` is listed by the host's agent
+listing. Then tell the user to pick **orchestrator** in the dashboard agent switcher.
 
 ## Reviewer model pin
 
-`devcrew-reviewer` must run on a DIFFERENT vendor than the dev team. The dev
+`reviewer` must run on a DIFFERENT vendor than the dev team. The dev
 team runs Anthropic (`auto` resolves to Claude), so pin the reviewer JSON's
 `model` to the strongest OpenAI model available rather than `auto`. Resolve
 this at INSTALL time: query the host's model catalog (e.g.
 `kiro-cli chat --list-models --format json`), pick the strongest OpenAI id
 currently offered, and WRITE THAT CONCRETE VERSION into the generated
-`devcrew-reviewer.json`. The pinned version lives only in the install artifact,
+`reviewer.json`. The reviewer's JSON must NOT include the shared
+framework/memory glob in its resources (memory: none) — an unbiased self-evolution
+review requires no team memory; verify this at install. The pinned version lives only in the install artifact,
 never in the framework source — so a future clone re-resolves to whatever is
 strongest then.

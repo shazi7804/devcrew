@@ -2,6 +2,10 @@
 
 > Signed intent contract. Every downstream gate re-reads this file.
 > Status: DRAFT | SIGNED (CEO) — <date>
+> Scope: greenfield | feature | bugfix | hotfix | refactor | chore | docs
+>   (decides which phases run — see the aidlc skill's scope-routing table;
+>    Phase 5/6 are target-aware, and safety floors force Architecture/Security/
+>    Design back in regardless of scope)
 
 ## Vision (one paragraph)
 What this product is, for whom, and the single core outcome it must deliver.
@@ -33,6 +37,20 @@ Use EARS phrasing. Each requirement has an ID and an explicit acceptance conditi
 
 ## Explicit non-goals
 What this product deliberately does NOT do (guards against scope creep).
+
+## Platform strategy (app / mobile targets only — a 🔴 CEO-signed Phase-0 decision)
+Omit this section for a pure web/backend/service target. For an app, fill it in
+and get it signed before Phase 1:
+- **Platforms**: iOS only / Android only / both / + web?
+- **Minimum supported OS**: iOS __ / Android API __
+- **Build strategy**: native (Swift + Kotlin) / Flutter / React Native / KMP —
+  and the one-line reason (the Architect proposes via llm-council; CEO signs).
+- **Store presence**: App Store / Play / both; distribution = public store /
+  enterprise / internal test only.
+- **Monetization affecting the build**: IAP / subscriptions / paid up-front /
+  none.
+  - *Acceptance*: the platform matrix above is decided and CEO-signed; every
+    later phase builds only for these platforms/OS versions.
 
 ## Constraints & dependencies
 Budget, timeline, external APIs needing approval, accounts, compliance.

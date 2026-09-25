@@ -10,7 +10,7 @@ this doc is the map.
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ LAYER 3 — ROLES (the "who")                                  │
-│   devcrew (orchestrator/PM) + 9 role agents.                 │
+│   orchestrator (PM) + 10 role agents.                       │
 │   Each = its own prompt, tools, model, memory mount.         │
 ├─────────────────────────────────────────────────────────────┤
 │ LAYER 2 — HARNESS (the "how it stays reliable")              │
@@ -41,6 +41,9 @@ CEO idea
   ▼
 ┌─ PHASE 0 · Intent (orchestrator/PM) ──────────────────────────┐
 │  writes requirements.md (EARS + acceptance per Rn)            │
+│  APP/MOBILE: also resolves the PLATFORM STRATEGY here         │
+│    (iOS/Android/both, min OS, native vs cross-platform) —     │
+│    a 🔴 CEO gate; the concrete stack lives in the project.    │
 │  HARNESS: schema check (every Rn has an acceptance clause)    │
 │  🔴 CEO GATE — orchestrator SUSPENDS here (ask_question /     │
 │     monitor loop) until the CEO signs. Never self-approves.   │
@@ -73,11 +76,11 @@ CEO idea
 └───────────────────────────────────────────────────────────────┘
   │
   ▼
-┌─ PHASE 3 · Implementation (FE ∥ BE, parallel) ────────────────┐
+┌─ PHASE 3 · Implementation (Frontend ∥ Backend, parallel) ────────────────┐
 │  each builds to the signed prototype/design, writes tests,    │
 │  opens a PR on its own branch/worktree.                       │
 │  INTEGRATION: orchestrator owns merge order + interface       │
-│    arbitration between FE and BE (named owner, no race).      │
+│    arbitration between Frontend and Backend (named owner, no race).      │
 │  GATE: role tests green + PR opened.                          │
 └───────────────────────────────────────────────────────────────┘
   │
@@ -91,10 +94,21 @@ CEO idea
 └───────────────────────────────────────────────────────────────┘
   │
   ▼
-┌─ PHASE 5 · Deploy (DevOps) ───────────────────────────────────┐
+┌─ PHASE 5 · Deploy runtime (DevOps) — service targets ─────────┐
 │  Local for test → AWS for prod. CI/CD, observability.         │
 │  🔴 high-risk/infra-mutating actions need CEO confirm.        │
 │  GATE: production smoke tests green with evidence.            │
+│  (thin for a mobile app — no runtime to deploy)              │
+└───────────────────────────────────────────────────────────────┘
+  │
+  ▼
+┌─ PHASE 6 · Release (Release Manager) — ship to users ─────────┐
+│  version + changelog, SIGN the artifact, pick channel         │
+│  (TestFlight / Play track / prod), staged rollout, rollback.  │
+│  🔴 signing material (Apple certs / Android keystore) = CEO.  │
+│  🔴 store submission / rollout promotion = CEO.               │
+│  GATE: signed + on the channel; store app = approved & live   │
+│        ("submitted" ≠ "released"; review can reject).         │
 └───────────────────────────────────────────────────────────────┘
   │
   ▼
@@ -148,10 +162,16 @@ Every run carries ceilings, checked by the orchestrator before each heavy step
 |---|---|
 | Contract schema + templates | `framework/skills/aidlc/contracts/` |
 | Gate rules, loop bounds, budgets | `framework/skills/aidlc/SKILL.md` |
+| Scope routing (which phases run) | `framework/skills/aidlc/SKILL.md` + `requirements.md` `Scope:` |
+| Structured verdict schemas | `framework/skills/aidlc/contracts/verdicts.template.md` |
+| Deterministic sensors (per gate) | `framework/skills/aidlc/SKILL.md` + each gate role |
+| Traceability (requirement→PR→test) | `Closes Rn` markers + orchestrator ledger |
+| Architecture-change guard (re-review + human escalation) | `framework/skills/aidlc/SKILL.md` + `architect` |
+| Platform strategy gate (app/mobile) | `framework/skills/aidlc/SKILL.md` Phase 0 |
 | Role behavior (the "who") | `framework/agents/*.md` |
 | Shared experience (feeds reflection loop) | `framework/memory/` |
 | Durable state (survives restart) | KiroCrew `session_ledger` |
-| Self-evolution gate | `devcrew-reviewer` + the PR + CEO merge |
+| Self-evolution gate | `reviewer` + the PR + CEO merge |
 | Cross-host install | `AGENTS.md` + `hosts/` |
 
 ## 7. Reviewer availability fallback

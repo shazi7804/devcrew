@@ -54,20 +54,26 @@ model: <current best alias>
 5. Because Claude Code has no cross-agent shared-memory mount, realize
    `memory: shared` by adding to `CLAUDE.md` a rule that every devcrew agent
    reads and appends to `framework/memory/` (lessons, ADRs, retros). That file
-   IS the shared experience on this host.
+   IS the shared experience on this host. **EXCEPTION: `reviewer` has
+   `memory: none` and MUST NOT read or append to `framework/memory/`** — its
+   value is judging a self-evolution change unbiased by team memory (invariant
+   4). Exclude it explicitly from the shared-memory rule, and verify at install
+   that the reviewer artifact mounts no shared memory.
 
 ## CLAUDE.md section to add
 
 ```markdown
 ## devcrew
 This repo carries the devcrew AI software team. Roles live in .claude/agents/:
-devcrew (orchestrator/PM), devcrew-architect, devcrew-design, devcrew-fe,
-devcrew-be, devcrew-qa, devcrew-security, devcrew-devops.
+orchestrator (PM), analyst, architect, designer, frontend,
+backend, qa, security, devops, release, reviewer.
 Follow the AIDLC protocol in .claude/skills/aidlc/SKILL.md: align intent into a
-signed requirements.md, then Architect -> Design -> FE+BE -> QA+Security ->
-DevOps, verifying every gate against the signed intent. Load-bearing decisions
+signed requirements.md, then Architect -> Design -> Frontend+Backend -> QA+Security ->
+DevOps (runtime) -> Release (ship artifact), verifying every gate against the
+signed intent. Load-bearing decisions
 go through an adversarial cross-vendor review. All roles read and append to
-framework/memory/ (the shared team experience). Self-changes to agents/skills
+framework/memory/ (the shared team experience) — EXCEPT reviewer, which mounts
+no team memory so its self-evolution review stays unbiased. Self-changes to agents/skills
 land only through a PR + the QA gate.
 ```
 
