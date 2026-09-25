@@ -108,4 +108,7 @@ the single source of truth; the host files are generated artifacts.
    gate, substitute the closest thing available, label it `DEGRADED:` where the
    verdict is, and keep it degraded in the ledger. Never simulate the missing
    capability: a fabricated gate result is worse than a missing one, because
-   nothing downstream can tell the two apart.
+   nothing downstream can tell the two apart. **And not every gate has a valid
+   substitute** — the cross-vendor reviewer has none, because a same-vendor model
+   shares the blind spot the gate exists to find. Where the substitute lacks the
+   property the gate's power comes from, the correct degradation is **HOLD**.

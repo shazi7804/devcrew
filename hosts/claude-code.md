@@ -98,7 +98,7 @@ for). Values observed on Claude Code:
 | spawn | **[verified]** Project agents in `.claude/agents/*.md` are loaded and directly dispatchable by name. **Do not route through a generic agent and have it read the role file** — that wastes a Read of context and, worse, the role's `tools` allowlist never takes effect |
 | durable ledger | No native tool. A plain-text file in the repo (`ledger.md`). Read it first on resume |
 | ask-human | The question/options tool. Ask one thing, end the turn |
-| cross-vendor model | **Not available in-host.** Requires an external call (e.g. Bedrock). Without credentials this gate degrades — see the skill's degradation protocol |
+| cross-vendor model | **Not available in-host** — a subagent is always the same vendor. Needs an external call (Bedrock, or another vendor's API). Without it the self-evolution gate **HOLDs unmerged**; it does not degrade to a same-vendor pass. **[verified]** A ~340-line stdlib-only SigV4 + Converse caller is enough when the sandbox blocks `pip`. Take credentials from the CLI **at runtime** (`aws configure export-credentials --format process` — note there is no `--format json`), never from a credential file in the repo: `.gitignore` does not stop `git add -f`, backups, file sync, or an agent reading the directory |
 | web | Available unless the environment restricts egress. **A sandboxed/allowlisted environment silently breaks Phase 0.5 and the Architect's stack choice** — check before planning work that needs it |
 | browser/screenshot | Not built in; needs a browser MCP server. Without one, UI verification is text-level only |
 | resource check | No tool. **The scarce resource here is context, not memory.** Cap fan-out and scope each task to one screen/module |

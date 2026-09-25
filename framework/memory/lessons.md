@@ -39,6 +39,7 @@ front-end assumptions baked into the wording, and review had to send it back.
 - 2026-09-25 [qa] Derive expected values from the loaded state — NOT: reading them off the source data file, when other modules push fixtures at load time.
 - 2026-09-25 [qa] Decide per assertion whether a failing old one is spec or fossil — NOT: reverting correct new behavior, or editing correct source, to keep a suite green.
 - 2026-09-25 [team] Degrading a gate requires substituting, labelling `DEGRADED:` in the verdict, and never claiming the pass — NOT: reporting green gates on a host that could not run them.
+- 2026-09-25 [team] Before accepting a substitute, name the property the gate's power comes from and check the substitute has it; if not, HOLD instead — NOT: writing "degrade to <same-thing-minus-the-point>" into the protocol, which every later session reads as permission.
 - 2026-09-25 [team] Map the host's real capabilities before Phase 0 — NOT: discovering mid-run that a gate's tool does not exist here, and quietly skipping it.
 - 2026-09-25 [team] State plainly when a claim comes from training knowledge rather than a live check — NOT: presenting unverified recall as something that was looked up.
 - 2026-09-25 [team] On a tree where another session may be writing, every git restore command is banned — NOT: using `git checkout <file>` to undo a test mutation and destroying a peer session's work.

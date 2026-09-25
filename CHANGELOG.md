@@ -47,16 +47,33 @@ running 0.4.0 on a real project for several weeks and recording what actually br
   leaves tool names to the host adapter. Previously the capability table and the
   body of the same document contradicted each other.
 
-### Review record
-Reviewed by `devcrew-reviewer` → **REQUEST-CHANGES** (5 blockers, 3 major, 3 minor),
-all addressed above except the invariant-ordering nit, which the reviewer itself
-did not press and which would renumber invariants other files cite by number.
+- **The cross-vendor reviewer gate now has no fallback: it HOLDs.** 0.4.0 said
+  "degrade to same-vendor-different-model". That sentence was read as permission by
+  every later session on a host with no second vendor, and produced eleven ledger
+  entries labelled `DEGRADED:` that were not reviews. A same-vendor model is not a
+  weaker cross-vendor reviewer — the gate's whole power is the vendor difference, so
+  two models from one vendor share exactly the blind spot being looked for.
+  Same-vendor may run as *pre-review*; it does not close the gate. Generalized into
+  degradation rule 1 and invariant 8: before accepting a substitute, name the
+  property the gate's power comes from and check the substitute has it.
 
-`DEGRADED: same-vendor cross-model review (author opus → reviewer sonnet), not
-cross-vendor.` No cross-vendor credentials were available at review time. Per the
-degradation protocol this gate is **recorded as degraded and does not count as
-passed**; the reviewer flagged that the front-end-overreach judgements are exactly
-the ones a different vendor's background would have judged better.
+### Review record
+**Cross-vendor, actually executed** (`us.deepseek.r1-v1:0` via Bedrock, no team
+memory mounted, author was Claude Opus 5) → **REQUEST-CHANGES**, 1 major: the
+degradation protocol still permitted same-vendor review for the self-evolution gate,
+failing invariant 3. That finding is addressed by the entry above — the reviewer
+caught the draft shipping upstream the exact rule the downstream project had just
+removed. A second cross-vendor reviewer (`us.amazon.nova-pro-v1:0`) returned
+REQUEST-CHANGES with five findings, all of the form "the wording could be
+strengthened" and none naming a concrete defect; recorded for completeness, not
+acted on.
+
+Before that: same-vendor pre-review (Opus 5 → Sonnet) → REQUEST-CHANGES, 11
+findings, 10 addressed. The declined one was an invariant-ordering nit that would
+renumber invariants other files cite by number. **That pass is recorded as
+pre-review, not as the gate** — which is the rule this release adds.
+
+Merge decision belongs to the CEO. `main` is untouched.
 
 ## 0.4.0 — 2026-09-20
 - Harness hardening: closed 11 AIDLC audit findings — loop bounds (3/5 fix-loop

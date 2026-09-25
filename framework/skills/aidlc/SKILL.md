@@ -63,7 +63,7 @@ to learn the substitute, instead of guessing or silently skipping the step.
 | **spawn** — run a role in its own context | every fan-out phase | Run the role in-session and say so; an in-session "role" is not an independent reviewer |
 | **durable ledger** — state that survives restart/compaction | the whole harness | A plain-text append-only file in the repo. **Read it first on resume** |
 | **ask-human** — suspend and hand control over | every 🔴 gate | Post the artifact, ask ONE question, END THE TURN |
-| **cross-vendor model** — a different vendor's model | reviewer, `llm-council` | Degrade to same-vendor-different-model, no team memory, and mark it |
+| **cross-vendor model** — a different vendor's model | reviewer, `llm-council` | **No substitute. HOLD the change unmerged** and tell the CEO the gate cannot run. A same-vendor model is not a weaker version of this capability; it is a different thing wearing its name |
 | **web** — read the live internet | Architect stack choice, Analyst | Label every claim "based on training knowledge, not verified against current reality". **Never fake having checked** |
 | **browser/screenshot** — see the rendered product | Phase 2 options, Phase 4 UI | Text-level assertions only; the human's own eyes are the final visual judge |
 | **resource check** — headroom before a heavy step | budgets | Set a fixed fan-out cap instead. Name the scarce resource: context, not RAM, on most hosts |
@@ -365,18 +365,40 @@ not silently diverge.
 Phase 1 output includes a design-stage threat model, so an insecure architecture
 is caught before it is built, not after. Phase 4 Security then checks the delta.
 
-### Reviewer availability fallback (fixes finding: no degrade path)
-If no cross-vendor model is available for `devcrew-reviewer` at review time, do
-NOT skip the self-evolution gate: fall back to an adversarial `llm-council` pass
-across whatever distinct models ARE available; if none, HOLD the change unmerged
-and tell the CEO the gate cannot run. A held change is never auto-merged.
+### Reviewer availability — the one gate with no fallback
+If no cross-vendor model is available for `devcrew-reviewer` at review time,
+**HOLD the change unmerged** and tell the CEO the gate cannot run. A held change
+is never auto-merged.
+
+Specifically: **a same-vendor model is not a degraded cross-vendor reviewer.** This
+gate's entire power comes from the vendor difference — different training data,
+different post-training, therefore different blind spots. Two instances of one
+vendor's models share the blind spot that matters, so the output is not a weaker
+review, it is the *appearance* of review, and it is indistinguishable from a real
+one in the ledger a month later. Same-vendor may be run as **pre-review** to catch
+cheap errors before spending the real gate, but it is labelled as pre-review and it
+does not close the gate.
+
+An `llm-council` across several distinct vendors satisfies this. An `llm-council`
+across several models from one vendor does not.
+
+> Field note: the first host this ran on had no cross-vendor model, and the rule as
+> originally written ("degrade to same-vendor-different-model") was read by every
+> subsequent session as permission. Eleven gates were recorded as `DEGRADED:` and
+> none of them was ever a review. The CEO caught it, not the protocol.
 
 ### Degradation protocol (generalizes the fallback above to every gate)
 The reviewer is not the only gate a host can fail to support. Any gate whose
 capability is missing from the host capability table degrades, and degrading has a
 fixed protocol:
 
-1. **Degraded is not skipped.** Run the closest available substitute.
+1. **Degraded is not skipped.** Run the closest available substitute — *if a valid
+   substitute exists.* Some capabilities have none, and for those, degrading means
+   **HOLD**, not substitute. Before accepting a substitute, ask what the gate's power
+   actually comes from: if the substitute lacks that specific property (vendor
+   independence, a real rendered pixel, a live network fetch), it is not a weaker
+   version of the gate, it is a different check with the gate's name on it. Say which
+   it is.
 2. **Say so in the report, in the report's own words**: `DEGRADED: <what could not
    run> — <why> — <what ran instead>`. Put it where the verdict is, not in a
    footnote.
