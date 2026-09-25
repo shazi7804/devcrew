@@ -21,10 +21,14 @@ Detect which coding-agent host you are running in. Check, in order:
 | Signal on the machine | Host | Adapter guide |
 |---|---|---|
 | `~/.kiro/` exists, or you have `spawn_run` / `learn_add` MCP tools | **KiroCrew** | `hosts/kirocrew.md` |
+| The workspace has `mission-control/src/lib/paths.ts` + `mission-control/scripts/daemon/` | **Mission Control** | `hosts/mission-control.md` |
 | `~/.claude/` exists, or you are Claude Code (a `.claude/` dir, `CLAUDE.md`) | **Claude Code** | `hosts/claude-code.md` |
 
-If both exist, prefer the host you are actually running inside right now (your
-own tool surface tells you which). If neither matches, read both adapter guides
+If several match, prefer the host that actually DISPATCHES the work. A Mission
+Control workspace also contains `.claude/` — but there the daemon is the
+dispatcher, so install the Mission Control way (the Claude Code artifacts are a
+subset of it). Otherwise prefer the host you are running inside right now (your
+own tool surface tells you which). If nothing matches, read the adapter guides
 and generalize: the neutral source + the mapping table in each guide is enough
 to target any agent host that supports per-agent system prompts and skills.
 
@@ -56,6 +60,17 @@ Open the adapter guide for your host and follow it. In short:
   `resources` listing the mapped `skill://` paths + the shared memory glob. The
   agents then appear in the dashboard agent switcher and are dispatchable by
   `spawn_run(agents=[...])`.
+- **Mission Control** (`hosts/mission-control.md`): FIRST resolve the live data
+  dir (`MC_DATA_DIR` / `.mc-data-dir` / `<app root>/data` — the repo's
+  `mission-control/data/` is seed data, and writing there changes nothing the
+  running app sees). Then register each role in `<DATA_DIR>/agents.json` (the
+  neutral body becomes `instructions`), add the AIDLC skill entry to
+  `skills-library.json`, and install the role files + skill + memory into the repo
+  the roles actually run in. On this host the neutral `spawn` tool does not exist:
+  work is handed over by writing tasks with `assignedTo` + `blockedBy`, and a 🔴
+  CEO gate is a **pending row in `decisions.json`** — nothing dispatches a task
+  that has one. If the data dir lives inside another product repo, install in
+  **board mode** (the adapter explains why the daemon must not run the roles).
 - **Claude Code** (`hosts/claude-code.md`): copy each
   `framework/agents/<name>.md` to `.claude/agents/<name>.md` (frontmatter
   `tools` mapped to Claude Code's tool names), copy the skill to

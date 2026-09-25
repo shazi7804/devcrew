@@ -171,7 +171,7 @@ Every run carries ceilings, checked by the orchestrator before each heavy step
 | Platform strategy gate (app/mobile) | `framework/skills/aidlc/SKILL.md` Phase 0 |
 | Role behavior (the "who") | `framework/agents/*.md` |
 | Shared experience (feeds reflection loop) | `framework/memory/` |
-| Durable state (survives restart) | KiroCrew `session_ledger` |
+| Durable state (survives restart) | KiroCrew `session_ledger`; on Mission Control `missions.json` + `activity-log.json` |
 | Self-evolution gate | `reviewer` + the PR + CEO merge |
 | Cross-host install | `AGENTS.md` + `hosts/` |
 

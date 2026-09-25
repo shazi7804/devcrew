@@ -7,8 +7,8 @@ Security, DevOps) across an AI-Driven Development Life Cycle (AIDLC), aligning
 intent as a signed contract, verifying every gate against it, and improving
 itself through a gated self-evolution loop.
 
-Host-neutral: the same repo installs into **KiroCrew** or **Claude Code**. Clone
-it on any machine and your agent restores the whole team.
+Host-neutral: the same repo installs into **KiroCrew**, **Mission Control**, or
+**Claude Code**. Clone it on any machine and your agent restores the whole team.
 
 ## Install (paste this to your AI agent — it does the rest)
 
@@ -43,10 +43,10 @@ The protocol lives in `framework/skills/aidlc/SKILL.md`.
 ## Layout
 
 - `AGENTS.md` — AI bootstrap (read by the agent on a fresh clone)
-- `framework/agents/` — the 8 neutral role agents (source of truth)
+- `framework/agents/` — the 11 neutral role agents (source of truth)
 - `framework/skills/aidlc/` — the AIDLC collaboration protocol + contract templates
 - `framework/memory/` — shared team memory (lessons, ADRs, retros)
-- `hosts/` — per-host adapter guides (KiroCrew, Claude Code)
+- `hosts/` — per-host adapter guides (KiroCrew, Mission Control, Claude Code)
 
 ## Principles
 

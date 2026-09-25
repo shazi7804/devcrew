@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.8.0 — 2026-09-26
+- **Third host: Mission Control** (`hosts/mission-control.md` +
+  `hosts/aidlc-mission-control.skill.md`). On mc the JSON files are the bus, so
+  the harness is realized as data: neutral `spawn` → tasks with `assignedTo` +
+  `blockedBy`; 🔴 CEO gate → a **pending row in `decisions.json`** (nothing
+  dispatches a task that has one, so the gate physically suspends the run);
+  ledger → `missions.json` `taskHistory` + `loopDetection`; budgets →
+  `daemon-config.json`; outward P5/P6 actions → Field Ops tasks with
+  `approvalRequired`. The AIDLC protocol installs as a skill-library entry that
+  is injected into every role prompt.
+- **Three-layer wiring diagram** in the adapter: mc as the runtime (JSON bus, the
+  `scheduler → dispatcher → prompt-builder → security → runner` chain), devcrew as
+  the AIDLC flow on top, and the adapter in between shown as what it really is —
+  half a one-time install transform (which source file becomes which host file),
+  half a data convention that mc's own functions enforce. Every box is labelled with
+  the real file/function, plus a second diagram for how board mode cuts the daemon
+  out. Recorded there: the role prompt is assembled from `agents.json` +
+  `skills-library.json` by `buildTaskPrompt()` — `.claude/commands/<id>/user.md` is
+  a mirror read only by `buildScheduledPrompt()`, never the dispatch path; skill
+  links resolve from both `agent.skillIds` and `skill.agentIds`; `task.notes` IS
+  injected into the prompt, which is why the contract path and intent hash go there.
+- **Two install modes, because mc has no per-project cwd.** The daemon pins
+  `cwd` to the mc repo root and spawns a non-interactive `claude -p`, so when the
+  live data dir belongs to another product repo the adapter installs **board
+  mode**: mc is the CEO's board and the interactive session dispatches. Only when
+  the mc repo itself is the workspace does the daemon run the roles.
+- **Data-dir trap documented as Step 0**: the live directory is
+  `MC_DATA_DIR` / `.mc-data-dir` / `<app root>/data`; the repo's
+  `mission-control/data/` is seed data, and installing there silently changes
+  nothing the running app sees.
+- **Honest degradation recorded**: mc can only spawn the `claude` binary
+  (`ALLOWED_BINARIES`) and has no per-agent model field, so the self-evolution
+  reviewer's cross-vendor rule (invariant 4) cannot be met on that host. Per
+  ARCHITECTURE §7 the change is reviewed on KiroCrew or HELD unmerged with a
+  pending decision — never silently self-approved.
+- `AGENTS.md` host detection gains a Mission Control row plus a precedence rule
+  (a mc workspace also has `.claude/`; install the mc way — the Claude Code
+  artifacts are a subset).
+
 ## 0.7.0 — 2026-09-26
 - **Standards layer (single source of truth)**: new `standards.md` contract
   (contracts/standards.template.md) produced WITH the CEO at Phase 1 and locked
