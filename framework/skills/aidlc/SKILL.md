@@ -208,6 +208,15 @@ for the need". So the Architect must **justify**, not default:
   consequences) in `design.md`. Map every requirement `Rn` to the part of the
   design that satisfies it — an unmapped requirement is a hole.
 - Output `design.md` (see `contracts/design.template.md`).
+- **Also produce `standards.md`** (see `contracts/standards.template.md`) —
+  the project's single source of truth for cross-cutting standards the whole
+  team must follow: deploy/environment targets (NEVER a framework default like
+  "AWS prod" — the concrete env is defined HERE, with the CEO), API contract
+  style, DB schema source, compliance regimes, naming/observability/security
+  baselines. Define it WITH the CEO; it is signed alongside `design.md` and, like
+  `requirements.md`, is locked by a content hash (the "standards hash") that every
+  later gate re-checks. Implementation, QA, and Release all read `standards.md`
+  and must follow it — a divergence is a gate failure, the same as intent drift.
 
 ## Phase 2 — UI/UX design (Design) — the "Claude Design or better" role
 
@@ -365,6 +374,11 @@ the file and re-checks the hash. A hash change mid-run without a fresh CEO
 sign-off is a **drift failure**: halt and ask the CEO to re-sign. Downstream
 roles are handed the contract path AND the expected hash, so they build against
 the signed version, not a moved target.
+
+The **standards hash** works the same way: on the Phase-1 sign-off, record the
+content hash of the signed `standards.md`. Every later gate re-reads it — a
+deploy target, API shape, or compliance rule that drifts from the signed
+`standards.md` without a fresh sign-off is a drift failure, halted like any other.
 
 ### Independent gate verification (fixes finding: orchestrator self-verifies)
 The orchestrator verifies most gates, but for a HIGH-STAKES gate (architecture

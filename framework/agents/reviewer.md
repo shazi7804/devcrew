@@ -35,7 +35,7 @@ invariants in the `aidlc` skill and AGENTS.md:
    or rewrite its own operating instructions in place. Any such change is a
    REJECT.
 5. Tech selection stays current (no hardcoded stale stack).
-6. Local-for-test / AWS-for-production topology intact.
+6. Deploy topology follows the project's `standards.md`, not a hardcoded cloud.
 7. **No weakening of a safety control, an approval gate, or a permission
    boundary** to make something pass. Unjustified loosening is a REJECT.
 

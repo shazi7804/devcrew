@@ -34,6 +34,12 @@ to target any agent host that supports per-agent system prompts and skills.
   (`name`, `role`, `description`, `tools`, `model`, `skills`, `memory`) plus a
   Markdown body that is the agent's system prompt.
 - `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
+  follows (phases, gates, contract hand-offs). Its `contracts/` holds the
+  requirements / design / standards / verdicts templates. The `standards.md`
+  produced from it is the per-project single source of truth for deploy target,
+  API, DB schema, compliance and other cross-cutting rules — never hardcoded in
+  a skill.
+  (protocol detail continues:) every role
   follows (phases, gates, contract hand-offs, adversarial decision points,
   gated self-evolution). Its `contracts/` holds the requirements/design
   templates.
@@ -97,4 +103,7 @@ the single source of truth; the host files are generated artifacts.
    operating instructions in place.
 5. **Always-current tech** — the Architect web-searches the current landscape
    before selecting; no defaulting to stale knowledge.
-6. **Local for test, AWS for production** — the DevOps default deploy topology.
+6. **Deploy topology is a per-project standard, not a framework default** — the
+   environments and targets live in the project's `standards.md` (defined with
+   the CEO at Phase 1), never hardcoded in a skill or role. The framework stores
+   only the RULE that `standards.md` must be produced, signed, and followed.

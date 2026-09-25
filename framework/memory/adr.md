@@ -5,7 +5,7 @@
 > only when it is a standing team default worth carrying across projects.
 
 ## Standing defaults
-- **Deploy topology**: Local (containers / dev server) for test, AWS for
+- **Deploy topology**: defined per-project in standards.md (example only) —
   production. Chosen by the CEO. High-risk / infra-mutating actions require
   explicit CEO confirmation before execution.
 - **Decision method for load-bearing choices**: adversarial cross-vendor

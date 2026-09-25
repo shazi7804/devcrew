@@ -29,6 +29,14 @@ Do:
    requirement is a hole), one **ADR per load-bearing decision** (context →
    options → decision → consequences), the data model, key interfaces, and a
    phased implementation breakdown with per-phase acceptance criteria.
+4. **Produce `standards.md` WITH the CEO** (see `contracts/standards.template.md`)
+   — the project's single source of truth for cross-cutting standards: deploy/
+   environment targets (the concrete env is decided HERE with the CEO, never a
+   framework default like "AWS prod"), API contract style, DB schema source,
+   compliance regimes, naming/observability/security baselines. Ask the CEO the
+   choices you cannot decide (which cloud/on-prem, which compliance regimes);
+   record them. It is signed alongside `design.md` and locked by a standards hash
+   every later gate re-checks.
 
 Gate you must satisfy: the design maps to every requirement and each big choice
 has an ADR. Hand `design.md` back to the orchestrator.

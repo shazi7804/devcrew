@@ -30,7 +30,7 @@ idea → [PM] requirements.md + scope (🔴 CEO signs)
      → [Design] design system + clickable prototype (🔴 CEO signs)
      → [Frontend + Backend] code + PRs + tests
      → [QA + Security] verify every requirement + scan
-     → [DevOps] Phase 5 deploy runtime (Local test → AWS prod) + smoke tests
+     → [DevOps] Phase 5 deploy runtime (to envs in standards.md) + smoke tests
      → [Release] Phase 6 ship artifact (sign, TestFlight/Play/store, rollout) 🔴
      → [all] retrospective → gated self-improvement
 ```
@@ -56,4 +56,4 @@ The protocol lives in `framework/skills/aidlc/SKILL.md`.
 3. Load-bearing decisions go through an adversarial cross-vendor council.
 4. Self-evolution is gated — changes land only through a PR + the QA gate.
 5. Tech selection is always current — the Architect checks the live landscape.
-6. Local for test, AWS for production.
+6. Deploy topology is defined per-project in `standards.md` (with the CEO), not hardcoded — the framework stores the rule, not the cloud.

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0 — 2026-09-26
+- **Standards layer (single source of truth)**: new `standards.md` contract
+  (contracts/standards.template.md) produced WITH the CEO at Phase 1 and locked
+  by a "standards hash" like the intent hash. It holds the per-project
+  cross-cutting standards the whole team follows: deploy/environment targets, API
+  contract style, DB schema source, compliance, naming, observability, security
+  baseline. Implementation/QA/Release all read it; a divergence is a gate failure.
+- **De-hardcoded deploy target**: removed "Local for test → AWS for production"
+  from framework source (devops/reviewer/ARCHITECTURE/README/AGENTS invariant 6).
+  The concrete env is the product's, defined in standards.md — the framework
+  stores only the rule, not the cloud.
+
 ## 0.6.0 — 2026-09-25
 Harness enhancements from a survey of recent AI-DLC / multi-agent guidance
 (AWS AI-DLC methodology, GitHub multi-agent engineering, spec-drift research):

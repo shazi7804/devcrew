@@ -95,7 +95,7 @@ CEO idea
   │
   ▼
 ┌─ PHASE 5 · Deploy runtime (DevOps) — service targets ─────────┐
-│  Local for test → AWS for prod. CI/CD, observability.         │
+│  Deploy to the envs in standards.md. CI/CD, observability.    │
 │  🔴 high-risk/infra-mutating actions need CEO confirm.        │
 │  GATE: production smoke tests green with evidence.            │
 │  (thin for a mobile app — no runtime to deploy)              │
@@ -161,6 +161,7 @@ Every run carries ceilings, checked by the orchestrator before each heavy step
 | Harness concern | Where it is written |
 |---|---|
 | Contract schema + templates | `framework/skills/aidlc/contracts/` |
+| Standards single-source-of-truth (deploy/API/DB/compliance/…) | `contracts/standards.template.md` → per-project `standards.md` (standards hash) |
 | Gate rules, loop bounds, budgets | `framework/skills/aidlc/SKILL.md` |
 | Scope routing (which phases run) | `framework/skills/aidlc/SKILL.md` + `requirements.md` `Scope:` |
 | Structured verdict schemas | `framework/skills/aidlc/contracts/verdicts.template.md` |
