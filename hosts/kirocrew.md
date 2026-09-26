@@ -3,6 +3,83 @@
 How to install the neutral `framework/` source into KiroCrew. Follow this when
 `AGENTS.md` Step 1 resolved to KiroCrew.
 
+## The three layers — where every wire lives
+
+Same reading as the Mission Control adapter: **L3 never names an L1 path.** Every
+arrow crossing a gap is either an install artifact or a host primitive.
+
+```
+┌─ L3 · devcrew — the AIDLC flow ─────────── source: <repo>/framework ───┐
+│  P0 ─🔴▶ P0.5 ─🔴▶ P1 ─▶ P2 ─🔴▶ ┌ frontend ┐▶┌ qa       ┐▶ P5 ─▶ P6   │
+│  intent  market     arch  design └ backend  ┘ ├ security ┤  deploy     │
+│                                               └ auditor* ┘  release 🔴 │
+│  12 roles   framework/agents/<role>.md        (*big diffs only)        │
+│  protocol   framework/skills/aidlc/SKILL.md   phases · gates · harness │
+│  memory     framework/memory/{lessons,adr,retro}.md                    │
+│  Host-neutral: knows nothing about ~/.kiro, JSON files, or MCP.        │
+└────────────────────────────────────────────────────────────────────────┘
+     │                                          ▲
+     │ (A) INSTALL-TIME TRANSFORM — once,       │ (C) Phase ∞ writes back:
+     │     by you, following THIS file          │     retro/lessons → framework/
+     ▼                                          │     PR, never self-merged
+┌─ L2 · adapter ────────────── this is the layer this file defines ──────┐
+│                                                                        │
+│ (A) install transform — which file becomes which                       │
+│   framework/agents/<role>.md ──────▶ ~/.kiro/agents/<role>.json        │
+│     frontmatter.tools  ──map──▶ .tools · .allowedTools · .permissions  │
+│     the body           ──────▶ .prompt  (file:// repo or extracted)    │
+│     frontmatter.skills ──map──▶ .resources[]  skill://…/SKILL.md       │
+│     memory: shared     ──────▶ .resources[]  file://…/framework/       │
+│                                              memory/**/*.md            │
+│     model: best-available ───▶ "auto"                                  │
+│       EXCEPT reviewer ───────▶ a PINNED other-vendor id, resolved at   │
+│                                install time from the model catalog     │
+│       EXCEPT reviewer ───────▶ NO memory glob (memory: none)           │
+│       EXCEPT auditor  ───────▶ no write capability + an explicit DENY  │
+│                                                                        │
+│ (B) harness ──▶ host primitive                                         │
+│   dispatch      ▶ spawn_run(agents=[…]) · spawn_sub_agents             │
+│   durable ledger▶ session_ledger_record          @kirocrew-core        │
+│   lessons       ▶ learn_add                      @kirocrew-core        │
+│   meta-loop     ▶ cron_add · cron_trigger        @kirocrew-cron        │
+│   council       ▶ the llm-council skill                                │
+│   🔴 CEO gate   ▶ ask_question, then END THE TURN — the turn itself IS │
+│                   the suspension; this host has no decision QUEUE      │
+│   budgets       ▶ resource_status before each heavy step               │
+│   contracts     ▶ real files in the product repo                       │
+└────────────────────────────────────────────────────────────────────────┘
+     │ reads / writes                            ▲ CEO answers in the dashboard
+     ▼                                           │
+┌─ L1 · KiroCrew runtime ────────────────────────────────────────────────┐
+│                                                                        │
+│  local Mac = CONTROL CONSOLE ONLY — no model turn ever runs here       │
+│        │                                                               │
+│        │  SSM — the ONLY ingress (no public port, no ssh)              │
+│        ▼                                                               │
+│  the 128 GB EC2 gateway                                                │
+│    ~/.kiro/agents/*.json  auto-loaded ──▶ dashboard agent switcher     │
+│    @kirocrew-core ── spawn_run ──▶ role agent processes (the fan-out)  │
+│    @kirocrew-cron ── schedules the meta-review digest                  │
+│    kiro-cli  = the model backend that actually runs a role's turns     │
+│        │                                                               │
+│        ▼  fan-out cap: resource_status FIRST; serialize when tight     │
+│    the gateway bills hourly ──▶ pause a long-idle run, do not spin     │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+## Known degradation on this host
+
+State these to the user at install time rather than letting them be discovered
+mid-run. This is the strongest of the three hosts — the list is short.
+
+- **A 🔴 gate is a suspended *turn*, not a durable row.** Mission Control has
+  `decisions.json`; here the turn ending *is* the suspension, so nothing outside
+  the ledger records that a gate is open. `session_ledger_record` the pending gate
+  **before** ending the turn, or a restart cannot tell "waiting on the CEO" from
+  "never ran" — and the second guess is the dangerous one.
+- **The gateway bills hourly.** An idle suspended run costs money while it waits,
+  so a long 🔴 gate should pause the gateway rather than hold it.
+
 ## What KiroCrew expects
 
 - Agents: one JSON per agent at `~/.kiro/agents/<name>.json` (auto-loaded, shows

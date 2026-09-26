@@ -32,22 +32,64 @@ own tool surface tells you which). If nothing matches, read the adapter guides
 and generalize: the neutral source + the mapping table in each guide is enough
 to target any agent host that supports per-agent system prompts and skills.
 
+One source, three artifact trees. What the same harness rule becomes on each host
+— and, just as importantly, where a host cannot do it and something must be
+written down instead (⚠):
+
+```
+                          ONE NEUTRAL SOURCE
+             framework/agents · framework/skills · framework/memory
+                                    │
+        ┌───────────────────────────┼───────────────────────────┐
+        ▼                           ▼                           ▼
+   KiroCrew                  Mission Control              Claude Code
+   ~/.kiro/agents/           <DATA_DIR>/agents.json       .claude/agents/
+     <role>.json               .instructions                <role>.md
+   resources:                skills-library.json          .claude/skills/
+     skill:// + file://      + the RUN REPO's .claude/     CLAUDE.md
+                               and devcrew-memory/
+   ─────────────────         ─────────────────────         ─────────────────
+   DISPATCH                  DISPATCH                     DISPATCH
+   spawn_run (MCP)           the daemon · scheduler        the Task tool, in
+                             → dispatcher → runner         the live session
+                             (board mode: the session)
+   ─────────────────         ─────────────────────         ─────────────────
+   🔴 CEO GATE               🔴 CEO GATE                   🔴 CEO GATE
+   a suspended TURN          a PENDING ROW in              the turn ending —
+   (no queue — the           decisions.json; nothing       the CEO is already
+   ledger records it)        dispatches past it            in the conversation
+   ─────────────────         ─────────────────────         ─────────────────
+   DURABLE LEDGER            DURABLE LEDGER                DURABLE LEDGER
+   session_ledger (MCP)      missions.json                 ⚠ no primitive —
+                             .taskHistory                  keep it as a file
+                                                           under .aidlc/
+   ─────────────────         ─────────────────────         ─────────────────
+   SCHEDULER (meta-loop)     SCHEDULER                     SCHEDULER
+   cron_add (MCP)            the daemon loop               ⚠ none — the
+                                                           meta-review is
+                                                           run on request
+   ─────────────────         ─────────────────────         ─────────────────
+   SHARED MEMORY             SHARED MEMORY                 SHARED MEMORY
+   file:// glob, mounted     installed into the run        ⚠ no mount — a
+   read-only                 repo as devcrew-memory/       CLAUDE.md RULE
+```
+
+Everything below the fan-out is a **generated artifact**. The repo stays the
+source of truth, so on a new machine you re-run this file and the tree is rebuilt
+— never hand-edit an installed artifact and expect it to survive.
+
 ## Step 2 — Read the neutral source
 
 - `framework/agents/*.md` — the 12 role agents. Each is YAML frontmatter
   (`name`, `role`, `description`, `tools`, `model`, `skills`, `memory`) plus a
   Markdown body that is the agent's system prompt.
 - `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
-  follows (phases, gates, contract hand-offs). Its `contracts/` holds the
-  requirements / design / standards / verdicts templates. The `standards.md`
-  produced from it is the per-project single source of truth for deploy target,
-  API, DB schema, compliance, the code quality & efficiency budget (what the
-  Phase-4 `auditor` judges against) and other cross-cutting rules — never
-  hardcoded in a skill.
-  (protocol detail continues:) every role
-  follows (phases, gates, contract hand-offs, adversarial decision points,
-  gated self-evolution). Its `contracts/` holds the requirements/design
-  templates.
+  follows: phases, gates, contract hand-offs, adversarial decision points, gated
+  self-evolution. Its `contracts/` holds the requirements / design / standards /
+  verdicts templates. The `standards.md` produced from it is the per-project
+  single source of truth for deploy target, API, DB schema, compliance, the code
+  quality & efficiency budget (what the Phase-4 `auditor` judges against) and
+  other cross-cutting rules — never hardcoded in a skill.
 - `framework/memory/` — the shared team memory (lessons, ADRs, retrospectives,
   style). Every role mounts it, so experience is shared across the team.
 

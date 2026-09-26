@@ -70,88 +70,88 @@ it is a one-time install transform (file → file), the other half is a data
 convention that mc's own functions then enforce for free.
 
 ```text
-┌─ L3 · devcrew — the AIDLC flow ───────────────────── source: ~/Github/devcrew ───┐
-│                                                                                  │
-│  P0 ─🔴→ P0.5 ─🔴→ P1 ─→ P2 ─🔴→ ┌ frontend ┐→┌ qa       ┐→ P5 ─→ P6 ─🔴→ P∞     │
-│  intent  market    arch  design  └ backend  ┘ ├ security ┤  deploy  release      │
-│                                               └ auditor* ┘  (*big diffs only)    │
-│                                                                                  │
-│  12 roles   framework/agents/<role>.md          the role's system prompt         │
-│  protocol   framework/skills/aidlc/SKILL.md     phases · gates · harness         │
-│  contracts  framework/skills/aidlc/contracts/*.template.md                       │
-│  memory     framework/memory/{lessons,adr,retro}.md                              │
-│                                                                                  │
-│  Host-neutral: knows nothing about JSON files, daemons, tasks or decisions.      │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌─ L3 · devcrew — the AIDLC flow ───────────────────── source: ~/Github/devcrew┐
+│                                                                              │
+│  P0 ─🔴→ P0.5 ─🔴→ P1 ─→ P2 ─🔴→ ┌ frontend ┐→┌ qa       ┐→ P5 ─→ P6 ─🔴→ P∞ │
+│  intent  market    arch  design  └ backend  ┘ ├ security ┤  deploy  release  │
+│                                               └ auditor* ┘  (*big diffs only)│
+│                                                                              │
+│  12 roles   framework/agents/<role>.md          the role's system prompt     │
+│  protocol   framework/skills/aidlc/SKILL.md     phases · gates · harness     │
+│  contracts  framework/skills/aidlc/contracts/*.template.md                   │
+│  memory     framework/memory/{lessons,adr,retro}.md                          │
+│                                                                              │
+│  Host-neutral: knows nothing about JSON files, daemons, tasks or decisions.  │
+└──────────────────────────────────────────────────────────────────────────────┘
         │                                             ▲
         │ (A) INSTALL-TIME TRANSFORM — run once,      │ (C) Phase ∞ writes back:
-        │     by you, following THIS file             │     retro/lessons → framework/
-        ▼                                             │     PR, never self-merged
-┌─ L2 · adapter · "middleware" ─────────── this is the layer this file defines ────┐
-│                                                                                  │
-│ (A) install transform — which file becomes which                                 │
-│   framework/agents/<role>.md   ──body──▶ <DATA_DIR>/agents.json .instructions    │
-│                                ──head──▶ .claude/agents/<role>.md  (run repo)    │
-│   hosts/aidlc-mission-control.skill.md ▶ <DATA_DIR>/skills-library.json          │
-│                                          skill_devcrew_aidlc .content            │
-│   framework/skills/aidlc/**    ────────▶ <run repo>/.claude/skills/aidlc/**      │
-│   framework/memory/*.md        ────────▶ <run repo>/devcrew-memory/*.md          │
-│   (optional mirror, NOT the prompt path: sync-commands.ts →                      │
-│    .claude/commands/<role>/user.md, skills/<skill-id>/SKILL.md)                  │
-│                                                                                  │
-│ (B) run-time convention — the harness encoded as JSON fields                     │
-│   phase order   ▶ tasks.json .blockedBy        enforced by isTaskUnblocked()     │
-│   dispatch      ▶ tasks.json .assignedTo       → the registry id                 │
-│   🔴 CEO gate   ▶ decisions.json {status:pending, taskId}                        │
-│                                                enforced by hasPendingDecision()  │
-│   gate answer   ▶ decisions.json {status:answered, answer} → the next prompt,    │
-│                                                via buildRetryContext()           │
-│   definition-of-done ▶ tasks.json .acceptanceCriteria[]  ← each Rn               │
-│   intent/standards hash ▶ tasks.json .notes    (sha256 of the signed contract)   │
-│   ledger        ▶ missions.json .taskHistory   replayed by buildRestartContext() │
-│   loop bound    ▶ missions.json .loopDetection.taskAttempts  = MAX_LOOP_ATTEMPTS │
-│   budgets       ▶ daemon-config.json .execution / .concurrency                   │
-│   outward act   ▶ field-ops/tasks.json {approvalRequired:true}                   │
-│   contracts     ▶ real files in the run repo (.aidlc/…); the path goes in .notes │
-│                                                                                  │
-│  Nothing here runs. (A) is done once at install; (B) is just the shape of the    │
-│  rows you write — mc's functions do the enforcing.                               │
-└──────────────────────────────────────────────────────────────────────────────────┘
-        │ reads / writes                              ▲ CEO answers, reads reports
+        │     by you, following THIS file             │     retro/lessons → fw/
+        ▼                                             │     PR, not self-merged
+┌─ L2 · adapter · "middleware" ─────────── this is the layer this file defines ┐
+│                                                                              │
+│ (A) install transform — which file becomes which                             │
+│   framework/agents/<role>.md   ──body──▶ <DATA_DIR>/agents.json .instructions│
+│                                ──head──▶ .claude/agents/<role>.md  (run repo)│
+│   hosts/aidlc-mission-control.skill.md ▶ <DATA_DIR>/skills-library.json      │
+│                                          skill_devcrew_aidlc .content        │
+│   framework/skills/aidlc/**    ────────▶ <run repo>/.claude/skills/aidlc/**  │
+│   framework/memory/*.md        ────────▶ <run repo>/devcrew-memory/*.md      │
+│   (optional mirror, NOT the prompt path: sync-commands.ts →                  │
+│    .claude/commands/<role>/user.md, skills/<skill-id>/SKILL.md)              │
+│                                                                              │
+│ (B) run-time convention — the harness encoded as JSON fields                 │
+│   phase order   ▶ tasks.json .blockedBy        enforced by isTaskUnblocked() │
+│   dispatch      ▶ tasks.json .assignedTo       → the registry id             │
+│   🔴 CEO gate   ▶ decisions.json {status:pending, taskId}                    │
+│                                              enforced by hasPendingDecision()│
+│   gate answer   ▶ decisions.json {status:answered, answer} → the next prompt,│
+│                                              via buildRetryContext()         │
+│   definition-of-done ▶ tasks.json .acceptanceCriteria[]  ← each Rn           │
+│   intent/std hash ▶ tasks.json .notes   (sha256 of the signed contract)      │
+│   ledger       ▶ missions.json .taskHistory  replayed buildRestartContext()  │
+│   loop bound   ▶ missions.json .loopDetection.taskAttempts = MAX_LOOP_ATTEMPT│
+│   budgets       ▶ daemon-config.json .execution / .concurrency               │
+│   outward act   ▶ field-ops/tasks.json {approvalRequired:true}               │
+│   contracts    ▶ real files in the run repo (.aidlc/…); the path is in .notes│
+│                                                                              │
+│  Nothing here runs. (A) is done once at install; (B) is just the shape of the│
+│  rows you write — mc's functions do the enforcing.                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+        │ reads / writes                              ▲ CEO answers, reads it
         ▼                                             │
-┌─ L1 · Mission Control — the runtime ───── repo: ~/Github/mission-control ────────┐
-│                                                                                  │
-│  src/lib/paths.ts → DATA_DIR = MC_DATA_DIR ⇢ .mc-data-dir ⇢ <app root>/data      │
-│        └── THE JSON BUS: tasks · decisions · missions · inbox · activity-log ·   │
-│            agents · skills-library · daemon-config · field-ops/                  │
-│                                                                                  │
-│  Next.js UI ── Board · Decisions(🔴 queue) · Inbox(reports) · Field Ops ──▶ CEO  │
-│                                                                                  │
-│  daemon  mission-control/scripts/daemon/                                         │
-│   scheduler.ts ─▶ dispatcher.ts ──┬ isTaskUnblocked()     ─ blocked? skip        │
-│                                   └ hasPendingDecision()  ─ 🔴 open? skip        │
-│        │ passes both                                                             │
-│        ▼                                                                         │
-│   prompt-builder.ts  buildTaskPrompt(agentId, task, missionId)                   │
-│     ① persona   = agents.json .instructions + every linked skill .content        │
-│                   (link resolves BOTH ways: agent.skillIds ∥ skill.agentIds)     │
-│     ② fieldOps  = only if linked to skill_field_ops                              │
-│     ③ restart   = buildRestartContext(missionId)  ← missions.json taskHistory    │
-│     ④ retry     = buildRetryContext(taskId)       ← the CEO's decision answer    │
-│     ⑤ task      = title · description · subtasks · acceptanceCriteria · notes    │
-│                   (so .notes IS read by the role — that is why the contract      │
-│                    path and the intent/standards hash belong there)              │
-│     ⑥ SOP       = "do NOT do your own bookkeeping"                               │
-│        │  one string, ≤100 KB                                                    │
-│        ▼                                                                         │
-│   security.ts   ALLOWED_BINARIES = claude* · MAX_PROMPT_LENGTH · stripped env    │
-│        ▼                                                                         │
-│   runner.ts     spawn: claude -p <prompt> --output-format json --max-turns N     │
-│                 cwd = WORKSPACE_ROOT = the mc repo root, ALWAYS                  │
-│        ▼ stdout                                                                  │
-│   run-task.ts   writes task status · inbox report · activity event ·             │
-│                 missions.taskHistory · a decision point at 3 failed attempts     │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌─ L1 · Mission Control — the runtime ───── repo: ~/Github/mission-control ────┐
+│                                                                              │
+│  src/lib/paths.ts → DATA_DIR = MC_DATA_DIR ⇢ .mc-data-dir ⇢ <app root>/data  │
+│      └── THE JSON BUS: tasks · decisions · missions · inbox · activity-log · │
+│          agents · skills-library · daemon-config · field-ops/                │
+│                                                                              │
+│  Next.js UI ─ Board · Decisions(🔴 queue) · Inbox(reports) · Field Ops ─▶ CEO│
+│                                                                              │
+│  daemon  mission-control/scripts/daemon/                                     │
+│   scheduler.ts ─▶ dispatcher.ts ──┬ isTaskUnblocked()     ─ blocked? skip    │
+│                                   └ hasPendingDecision()  ─ 🔴 open? skip    │
+│        │ passes both                                                         │
+│        ▼                                                                     │
+│   prompt-builder.ts  buildTaskPrompt(agentId, task, missionId)               │
+│     ① persona   = agents.json .instructions + every linked skill .content    │
+│                   (link resolves BOTH ways: agent.skillIds ∥ skill.agentIds) │
+│     ② fieldOps  = only if linked to skill_field_ops                          │
+│     ③ restart   = buildRestartContext(missionId)  ← missions.json taskHistory│
+│     ④ retry     = buildRetryContext(taskId)       ← the CEO's decision answer│
+│     ⑤ task      = title · description · subtasks · acceptanceCriteria · notes│
+│                   (so .notes IS read by the role — that is why the contract  │
+│                    path and the intent/standards hash belong there)          │
+│     ⑥ SOP       = "do NOT do your own bookkeeping"                           │
+│        │  one string, ≤100 KB                                                │
+│        ▼                                                                     │
+│   security.ts   ALLOWED_BINARIES = claude* · MAX_PROMPT_LENGTH · stripped env│
+│        ▼                                                                     │
+│   runner.ts     spawn: claude -p <prompt> --output-format json --max-turns N │
+│                 cwd = WORKSPACE_ROOT = the mc repo root, ALWAYS              │
+│        ▼ stdout                                                              │
+│   run-task.ts   writes task status · inbox report · activity event ·         │
+│                 missions.taskHistory · a decision point at 3 failed attempts │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Read the diagram as: **L3 never names an L1 file.** Every arrow that crosses the
@@ -175,15 +175,39 @@ gate:
                                               │
                             reads + writes the same JSON bus
                                               ▼
-   L1 Mission Control ─── DATA_DIR = <product repo>/.mc ──── mc = the CEO's BOARD
+   L1 Mission Control ── DATA_DIR = <product repo>/.mc ─── mc = the CEO's BOARD
         UI: Board · Decisions(🔴) · Inbox · Field Ops                  ✔ used
         daemon: scheduler → dispatcher → runner → claude -p           ✘ MUST NOT
-                                                                        run roles
+                                                                      run roles
 ```
 
 Same bus, same JSON conventions, same 🔴 gate rows — only the *dispatcher* moves
 from the daemon to the interactive session, and the durable authority moves from
 `missions.json` to the product repo's own append-only ledger (mc mirrors it).
+
+## Known degradation on this host
+
+State these in the install report; a degraded gate must say "degraded, because X"
+in every report, not quietly pass.
+
+- **Cross-vendor reviewer is impossible.** `security.ts` allows only the `claude`
+  binary and there is no per-agent model field, so invariant 4's "review on a
+  different model family" cannot run from mc. Per `ARCHITECTURE.md` §7: review the
+  self-evolution PR on a host that can (KiroCrew), or **HOLD it unmerged** with a
+  pending decision telling the CEO the gate cannot run. A held change is never
+  auto-merged. The `reviewer` still mounts **no** team memory.
+- **No interactive 🔴 gate inside a run** (daemon mode) — gates only exist between
+  tasks, via the pending-decision mechanism above. A phase whose gate must be held
+  mid-run belongs in board mode.
+- **No per-project cwd** — see Step 0.5. Board mode is the answer, not a workaround.
+- **The `auditor`'s read-only guarantee is instruction-only in daemon mode.**
+  `agents.json` has no per-agent tool allowlist, so nothing mechanically stops the
+  auditor from editing code the way the Claude Code artifact's `tools:` line does.
+  Compensate: state the prohibition at the TOP of its `instructions`, keep the
+  `.claude/agents/auditor.md` form tool-restricted (that is what a manually
+  launched run uses), and assign the fix task to the implementing role — never to
+  `auditor`. Say "degraded, because mc has no per-agent tool allowlist" in the
+  install report.
 
 ## What Mission Control expects
 
@@ -296,30 +320,6 @@ carries it, and the skill entry states it.
 | Budgets | `daemon-config.json`: `execution.maxTurns`, `timeoutMinutes`, `retries`, `maxTaskContinuations`, `concurrency.maxParallelAgents`. State them when a run starts instead of inventing ceilings. |
 | Reporting | the agent's final stdout IS the inbox report. Do not write `inbox.json` / `activity-log.json` / task status — the daemon does, and double-writing corrupts the feed. |
 | P5/P6 outward actions | Field Ops tasks (`field-ops/tasks.json`) with `approvalRequired: true`; the mission `autonomyLevel` + spend limits are the CEO's throttle. Posting, paying, publishing never go through raw `Bash`. |
-
-## Known degradation on this host
-
-State these in the install report; a degraded gate must say "degraded, because X"
-in every report, not quietly pass.
-
-- **Cross-vendor reviewer is impossible.** `security.ts` allows only the `claude`
-  binary and there is no per-agent model field, so invariant 4's "review on a
-  different model family" cannot run from mc. Per `ARCHITECTURE.md` §7: review the
-  self-evolution PR on a host that can (KiroCrew), or **HOLD it unmerged** with a
-  pending decision telling the CEO the gate cannot run. A held change is never
-  auto-merged. The `reviewer` still mounts **no** team memory.
-- **No interactive 🔴 gate inside a run** (daemon mode) — gates only exist between
-  tasks, via the pending-decision mechanism above. A phase whose gate must be held
-  mid-run belongs in board mode.
-- **No per-project cwd** — see Step 0.5. Board mode is the answer, not a workaround.
-- **The `auditor`'s read-only guarantee is instruction-only in daemon mode.**
-  `agents.json` has no per-agent tool allowlist, so nothing mechanically stops the
-  auditor from editing code the way the Claude Code artifact's `tools:` line does.
-  Compensate: state the prohibition at the TOP of its `instructions`, keep the
-  `.claude/agents/auditor.md` form tool-restricted (that is what a manually
-  launched run uses), and assign the fix task to the implementing role — never to
-  `auditor`. Say "degraded, because mc has no per-agent tool allowlist" in the
-  install report.
 
 ## Verify
 

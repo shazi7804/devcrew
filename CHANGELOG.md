@@ -1,5 +1,77 @@
 # Changelog
 
+## 0.9.2 — 2026-09-26
+
+**Diagrams: 4 → 18.** An audit of every place the docs explain a *mechanism*
+found the four existing figures covered the pipeline spine and the host wirings,
+while the parts hardest to hold in your head were prose only.
+
+| Where | Added |
+|---|---|
+| `ARCHITECTURE.md` | where the 3 loops **attach** to the spine · Loop A's bound · the contract graph + hash-checkpoint timeline · new §*Three kinds of state* (contracts vs ledger vs memory) |
+| `framework/skills/aidlc/SKILL.md` | **gate anatomy** (① sensors → ② verdict → ③ 🔴 human) · four-jobs cycle · scope routing + floors · magnitude floor as an OR-gate · P0 platform strategy · P∞ decision tree · P3 merge order |
+| `framework/skills/mobile-release/SKILL.md` | P6 as a state machine with STORE REVIEW's rejection back-edge |
+| `hosts/kirocrew.md` · `hosts/claude-code.md` | the L3/L2/L1 wiring both were missing |
+| `AGENTS.md` | one-source→three-trees fan-out + per-host capability comparison |
+
+The two that pay for themselves: the **gate anatomy**, because it replaced an
+"(a)/(b)/(c)" prose definition and the *order* is the whole point — a red sensor
+fails the gate before anybody reads for intent; and **Loop A's bound**, because
+"3 on the same gate" means 3 *stalled* attempts, not 3 attempts.
+
+**`SKILL.md` restructured for the thing it actually is — a prompt payload.** It
+is injected whole into all 12 roles on every dispatch, and `backend` was reading
+Phase 0.5 market validation, Phase 2 design pixels and Phase 6 store submission.
+Now:
+- A **role routing table** at the top ("read your row, not this whole file").
+  Relevant content per role drops from 100% to **16–31%**.
+- Every phase opens with a fixed **`ROLE · IN · DO · GATE · OUT · FAIL`** block,
+  so a role pattern-matches instead of parsing prose. Prose survives only where a
+  rule needs its *reason* — a rule whose reason is missing gets argued away.
+- The 13 harness headings stated their own archaeology (`### Loop bounds (fixes
+  finding: unbounded fix loop)`) — provenance from a 0.4.0 audit shipped into
+  every prompt forever, with the rule buried behind it. They now state the rule:
+  `### Sensors run first, and the model may not overrule them`.
+- **Honest limit**: this redirects *attention*, not tokens. The payload is
+  unchanged (~7.5k words) because one file still ships whole. Cutting the token
+  cost needs per-role phase files, which would change the install step on all
+  three hosts — not done here.
+
+**Six already-shipped boxes were misaligned, and nobody could see it.** The
+diagrams mix characters of different display width — 🔴 and ①②③④ take two terminal
+columns, not one — so a box whose source lines are equal length still renders
+ragged, and proofreading cannot catch it. New **`tools/diagram.py`** (`check` /
+`fix`) measures columns: it fixed border/content mismatches in `ARCHITECTURE.md`
+(a layer box at 63 vs 64, a Phase-3 box at 76 vs 65, four more) and re-flowed
+`hosts/mission-control.md`'s 0.8.0 diagram from 84 columns to 80.
+- Scoped to **true rectangles only**. Branch connectors (`┌──┴──┐`), arrow spines
+  and cycle art use the same characters without being boxes, so there is no width
+  to check and a checker that guessed would emit false failures — which is how a
+  checker gets ignored. 22 boxes across 21 fences verify; the rest are
+  eyeball-only, which is itself a reason to prefer a real box.
+- **The repo's first non-markdown file, and it is optional.** Nothing depends on
+  it; delete it and the diagrams still read correctly. It exists because those six
+  boxes shipped without it.
+
+**Two real gaps surfaced by drawing the Claude Code wiring.** Forcing every
+harness rule onto a host primitive left two arrows pointing at nothing, now in a
+*Known degradation* section: **no durable ledger primitive** (nothing survives a
+`/clear`, so Loop A's bound, both hashes and the requirement→PR→test map silently
+reset — reuse the `.aidlc/` layout Mission Control already establishes) and **no
+scheduler** (the Phase-∞ meta-review runs when the CEO asks; the docs now say so
+instead of implying a periodic review happens).
+
+**Closed a gap in 0.9.1's own claim.** That entry said "no file left in the repo
+still describes the old five triggers as current" and named `auditor`'s
+frontmatter `description` specifically — but the line still held the five-trigger
+text. It is the delegation-trigger text a host routes on, so the stale version was
+deciding when the auditor got dispatched. Now matches the signed two-trigger floor.
+
+Touched: `ARCHITECTURE.md`, `AGENTS.md`, `README.md`,
+`framework/skills/aidlc/SKILL.md`, `framework/skills/mobile-release/SKILL.md`,
+`framework/agents/auditor.md` (frontmatter only),
+`hosts/{kirocrew,claude-code,mission-control}.md`, `tools/diagram.py` (new).
+
 ## 0.9.1 — 2026-09-26
 - **The magnitude floor is now two size triggers, not five.** `> 1000 changed
   lines` and `> 20 changed files` stay; *any new runtime dependency*, *spans ≥ 3
