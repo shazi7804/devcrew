@@ -129,7 +129,10 @@ the single source of truth; the host files are generated artifacts.
    to that by design, so a third Phase-4 sensor exists: the `auditor` audits the
    delivered diff for redundancy, duplication/missed reuse, over-abstraction,
    hot-path cost, running cost and dependency weight. It fires on a deterministic
-   **magnitude floor** (large diff / many files / new dependency / multi-module or
-   topology change), judges against the budget in `standards.md`, holds no write
-   tool, and its blocker/high findings fail the gate. Do not fold it into QA and
-   do not downgrade it to advisory-only.
+   **magnitude floor** — two size triggers read off `git diff --shortstat`
+   (changed lines / changed files), narrow on purpose so they cannot be argued
+   away; a project adds its own triggers in `standards.md`. It judges against the
+   budget in `standards.md`, holds no write tool, and its blocker/high findings
+   fail the gate. Do not fold it into QA and do not downgrade it to advisory-only.
+   A size floor cannot catch a small expensive change — that is what the
+   implementer roles' reuse-first rule and the Security floor are for.

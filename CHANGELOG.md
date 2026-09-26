@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.9.1 — 2026-09-26
+- **The magnitude floor is now two size triggers, not five.** `> 1000 changed
+  lines` and `> 20 changed files` stay; *any new runtime dependency*, *spans ≥ 3
+  modules / alters deploy topology*, and *scope is `greenfield`/`refactor`* are
+  removed from the framework defaults and become **opt-in per project** in
+  `standards.md`. CEO decision, recorded here with its reasoning.
+  - Why: both surviving triggers are read straight off `git diff --shortstat`, so
+    neither can be argued with at the gate. The three removed ones each needed a
+    judgment call ("is this ≥ 3 modules?", "is this really a refactor?"), and a
+    trigger that needs arguing is a trigger that gets argued away — or that fires
+    on changes nobody thinks warrant an audit, which trains the team to ignore it.
+  - **What this gives up, stated rather than hidden**: a size floor cannot catch a
+    small expensive change — a one-line `<script src>` pulling in 200 KB, a loop
+    turned O(n²), one line added to `package.json`. The docs now say so in every
+    place the floor is described, instead of implying the floor is complete.
+    Those cases are covered earlier (the implementer roles' reuse-first,
+    no-new-runtime-dependency rule) and, for dependencies, by the **Security**
+    floor, which has no size condition. `auditor.md` also gains a standing
+    instruction: if you notice one while auditing a large diff, report it anyway
+    and recommend the project add that trigger to its own `standards.md`.
+- **`reviewer` invariant 7 tightened in the same change.** Removing a trigger is
+  itself a loosening of a safety floor, so the review checklist now states that
+  raising a threshold *or removing a trigger* is a CEO decision recorded in
+  `standards.md` with reasoning — an agent doing either on its own authority, or a
+  change that drops a trigger without saying what catches that case instead, is a
+  REJECT. This change complies with the rule it adds.
+  - The rule is **enforceable, not aspirational**: the skill's *Magnitude floor*
+    section now carries the deterministic check the reviewer runs — did the diff
+    delete a trigger row or raise a number, and does the SAME diff record the CEO
+    decision, the reasoning and what is no longer caught? Missing ⇒ REJECT, with
+    no judgment call. (Added after a cross-vendor review of this very change
+    objected that the new invariant said what was forbidden but not how it would
+    be caught.)
+- Touched: `framework/skills/aidlc/SKILL.md` (floor table + an explicit note on
+  what the floor does not catch),
+  `framework/skills/aidlc/contracts/standards.template.md` (audit-trigger bullet,
+  with the removed triggers listed as suggested opt-ins),
+  `framework/skills/aidlc/contracts/verdicts.template.md` (`trigger` enum),
+  `framework/agents/{orchestrator,auditor,reviewer}.md` — including `auditor`'s
+  frontmatter `description`, which is the delegation-trigger text a host reads, so
+  no file left in the repo still describes the old five triggers as current —
+  `AGENTS.md`, `README.md`,
+  `ARCHITECTURE.md`, `hosts/claude-code.md`,
+  `hosts/aidlc-mission-control.skill.md`.
+
 ## 0.9.0 — 2026-09-26
 - **New role `auditor` (Code Quality & Efficiency Auditor) — the waste gate on
   product code.** Closes a real hole: nothing in the pipeline asked *"was this the

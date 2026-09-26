@@ -88,9 +88,8 @@ CEO idea
 ┌─ PHASE 4 · Verification (QA ∥ Security ∥ Auditor, parallel) ──┐
 │  QA: every Rn/Nn acceptance vs built system (pass/fail table) │
 │  Security: threat-model delta + dep + secret + authz scan     │
-│  Auditor (CONDITIONAL — magnitude floor: >1000 changed lines, │
-│    >20 files, new runtime dep, ≥3 modules / topology change,  │
-│    or greenfield/refactor scope; thresholds from standards.md):│
+│  Auditor (CONDITIONAL — magnitude floor: >1000 changed        │
+│    lines or >20 files; thresholds from standards.md):         │
 │    redundancy · duplication · over-abstraction · hot-path ·   │
 │    running cost · dependency weight. Measured, with fixes.    │
 │    Reports only — holds no write tool by design.              │

@@ -58,7 +58,7 @@ The protocol lives in `framework/skills/aidlc/SKILL.md`.
 4. Self-evolution is gated — changes land only through a PR + the QA gate.
 5. Tech selection is always current — the Architect checks the live landscape.
 6. Deploy topology is defined per-project in `standards.md` (with the CEO), not hardcoded — the framework stores the rule, not the cloud.
-7. Waste is a gate failure — on a large change (>1000 lines, >20 files, a new
-   dependency, a multi-module rework) the Auditor audits the diff for redundancy,
-   duplication, hot-path inefficiency and running cost, against the budget in
-   `standards.md`. Green tests do not prove the code was worth its size.
+7. Waste is a gate failure — on a large change (>1000 lines or >20 files) the
+   Auditor audits the diff for redundancy, duplication, hot-path inefficiency and
+   running cost, against the budget in `standards.md`. Green tests do not prove
+   the code was worth its size.

@@ -49,8 +49,9 @@ findings:
 ```yaml
 verdict: PASS | PASS-WITH-DEBT | FAIL   # FAIL iff any finding has blocks_gate: true
                                         # PASS-WITH-DEBT = only medium/low findings
-trigger: <which magnitude trigger fired: changed-lines | changed-files |
-          new-dependency | multi-module | scope-greenfield | scope-refactor>
+trigger: <which magnitude trigger fired: changed-lines | changed-files
+          | <a project-defined trigger from standards.md>>
+          # the framework floor is size-only; anything else came from standards.md
 diff_size:
   added: <n>                  # from `git diff --shortstat` vs the base
   removed: <n>

@@ -56,14 +56,14 @@ magnitude floor fires (see below).
   refactor / chore / docs) and record it in `requirements.md`. Run only the phases the
   scope's routing table calls for; log the phases you skip. Safety floors still
   force a phase back in — an ADR change pulls Architect, an auth/data/secret
-  change pulls Security, a UI change pulls Design, a **large or structural diff
-  pulls the Auditor** — whatever the scope.
+  change pulls Security, a UI change pulls Design, a **large diff pulls the
+  Auditor** — whatever the scope.
 - **Measure the magnitude floor at the start of Phase 4**, before you fan out:
   run `git diff --shortstat <base>...HEAD`, compare against the thresholds in the
-  signed `standards.md` § *Code quality & efficiency budget* (framework defaults:
-  > 1000 changed lines, > 20 files, any new runtime dependency, ≥ 3 modules /
-  deploy-topology change, or `greenfield`/`refactor` scope), and dispatch
-  `auditor` alongside QA and Security when any of them fires. Record the measured
+  signed `standards.md` § *Code quality & efficiency budget* (framework defaults,
+  **two size triggers**: > 1000 changed lines, or > 20 files — a project may add
+  its own, e.g. any new runtime dependency), and dispatch
+  `auditor` alongside QA and Security when either fires. Record the measured
   diff size and which trigger fired in the ledger — fail-closed: near the
   threshold or unmeasurable means run the audit. Its `blocker`/`high` findings
   fail the gate and loop back to Phase 3; `medium`/`low` go to the ledger as tech

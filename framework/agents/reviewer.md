@@ -40,6 +40,15 @@ invariants in the `aidlc` skill and AGENTS.md:
 7. **The waste gate stays real** — the `auditor` is not folded into QA, not
    downgraded to advisory, and its magnitude floor is not quietly raised out of
    reach. Its thresholds belong in `standards.md`, not hardcoded in the framework.
+   The floor is **two size triggers** (changed lines / changed files) by default.
+   **Raising a threshold, or removing a trigger, is a CEO decision recorded in
+   `standards.md` with its reasoning** — an agent doing either on its own
+   authority, or a change that drops a trigger without saying what now catches
+   that case instead, is a REJECT. Do not judge this one; **measure** it, per the
+   deterministic check in the skill's *Magnitude floor* section: if the diff
+   deletes a trigger row or raises a number, the SAME diff must record the CEO
+   decision, the reasoning, and what is no longer caught. Missing ⇒ REJECT, no
+   judgment call needed.
 8. **No weakening of a safety control, an approval gate, or a permission
    boundary** to make something pass. Unjustified loosening is a REJECT.
 

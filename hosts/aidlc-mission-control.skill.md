@@ -62,8 +62,8 @@ dispatch a role whose input is another still-running role's output — that is w
 `*` **auditor is conditional** — it runs only when the change trips the *magnitude
 floor*: measure `git diff --shortstat <base>...HEAD` at the start of Phase 4 and
 compare against `standards.md` § *Code quality & efficiency budget* (framework
-defaults: > 1000 changed lines, > 20 files, any new runtime dependency, ≥ 3
-modules / deploy-topology change, or `greenfield`/`refactor` scope). Fail-closed:
+defaults, **two size triggers**: > 1000 changed lines, or > 20 files — a project
+may add its own, e.g. any new runtime dependency). Fail-closed:
 near the threshold or unmeasurable ⇒ run it. Record the measured size and the
 trigger on the Phase-4 task. Audit `blocker`/`high` fails the gate back to Phase 3;
 `medium`/`low` become tech-debt tasks rather than blockers. The auditor holds no
@@ -95,11 +95,11 @@ phase:** a changed/new load-bearing decision (framework, datastore, external
 service, deploy topology) or a reversed ADR pulls Phase 1 back in; anything
 touching auth, data handling, secrets, permissions, dependencies/lockfiles,
 cryptography, network exposure, CI/supply-chain or IaC pulls Phase 4 Security back
-in; any user-facing surface change pulls Phase 2 back in; **a large or structural
-diff pulls the Phase-4 `auditor` in** (the magnitude floor above) whatever the
-scope — a "bugfix" that rewrites 1500 lines is not small because it was labelled
-so. Classification runs off a deterministic changed-path check, not unaided
-judgment.
+in; any user-facing surface change pulls Phase 2 back in; **a large diff pulls the
+Phase-4 `auditor` in** (the magnitude floor above — by lines or files) whatever
+the scope — a "bugfix" that rewrites 1500 lines is not small because it was
+labelled so. Classification runs off a deterministic changed-path check, not
+unaided judgment.
 
 ## Phase 0 — intent alignment (the most important phase)
 

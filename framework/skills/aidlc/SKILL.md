@@ -122,9 +122,9 @@ the phase rather than skipping it):**
   cryptography, network exposure, CI / supply-chain, or IaC**. A `chore`
   dependency bump or an IaC edit therefore always runs Security, never lint-only.
 - **Design** pulls Phase 2 back in for any user-facing surface change.
-- **Magnitude** pulls the Phase 4 `auditor` in for any large or structural change
-  (see the floor below), whatever the scope. A "bugfix" that rewrites 1500 lines
-  is not a small change just because it was labelled one.
+- **Magnitude** pulls the Phase 4 `auditor` in for any large change (see the floor
+  below), whatever the scope. A "bugfix" that rewrites 1500 lines is not a small
+  change just because it was labelled one.
 - Classification is not the orchestrator's unaided judgment: it runs a
   **deterministic changed-path/content check** (which files/globs changed) and,
   when the classification is uncertain, routes the change through the phase
@@ -152,9 +152,20 @@ audit:
 |---|---|
 | Changed lines (added + removed) | **> 1000**, excluding lockfiles / generated / vendored / pure-docs paths |
 | Changed files | **> 20** |
-| New runtime dependency | **any** |
-| Structural spread | touches **≥ 3 modules/packages**, or alters deploy topology / a signed ADR |
-| Scope | always for `greenfield` and `refactor` |
+
+**Two triggers, both read straight off `git diff --shortstat`.** That is the whole
+floor. It is deliberately the narrowest thing that still catches the failure mode:
+a size trigger cannot be argued with, so it cannot be negotiated away.
+
+> **What this floor does NOT catch** — state it plainly rather than pretending
+> otherwise. A one-line change can be the most expensive change in a codebase:
+> a `<script src>` that pulls in a 200 KB library, a single loop turned O(n²), a
+> dependency added to `package.json`. **None of those trip a size floor.**
+> They are caught earlier instead — the implementer roles carry a reuse-first,
+> no-new-runtime-dependency rule, and a new dependency also trips the **Security**
+> floor, which has no size condition. A project that wants the auditor on those
+> too adds the trigger in its own `standards.md`; the floor here is the minimum,
+> not the ceiling.
 
 Rules around it:
 - The orchestrator computes this at the start of Phase 4 and records the trigger
@@ -171,6 +182,26 @@ Rules around it:
   gate and loops back to Phase 3; `medium`/`low` are logged as tech debt in the
   ledger and do not block. See the efficiency-audit schema in
   `contracts/verdicts.template.md`.
+
+**Changing this floor is itself a safety-floor change, and the check on it is
+deterministic — not a judgment.** Raising a threshold or removing a trigger is a
+CEO decision. A self-evolution diff that touches the table above must carry all
+three of: the CEO decision it implements, the reasoning and **what is given up**
+in `CHANGELOG.md`, and a statement of **what now catches the case the removed
+trigger caught**. The reviewer measures that rather than assessing it:
+
+```sh
+# 1. did the floor get weaker? (a row deleted, or a number raised)
+git diff <base>...HEAD -- framework/skills/aidlc/SKILL.md \
+  | grep -E '^-\|.*(Changed lines|Changed files|Trigger)'
+# 2. if yes, is there a CHANGELOG entry in the SAME diff recording the CEO
+#    decision, the reasoning, and what is no longer caught?
+git diff <base>...HEAD -- CHANGELOG.md
+```
+
+Weaker floor and no such record in the same diff ⇒ **REJECT** (`reviewer`
+invariant 7). This is why the 0.9.1 reduction shipped with its own CHANGELOG
+reasoning: the rule applies to the change that introduced it.
 
 ## Phase 0 — Intent alignment (the most important phase)
 

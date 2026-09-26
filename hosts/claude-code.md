@@ -74,8 +74,7 @@ orchestrator (PM), analyst, architect, designer, frontend,
 backend, qa, security, auditor, devops, release, reviewer.
 Follow the AIDLC protocol in .claude/skills/aidlc/SKILL.md: align intent into a
 signed requirements.md, then Architect -> Design -> Frontend+Backend -> QA+Security
-(+auditor when the magnitude floor fires: >1000 changed lines, >20 files, a new
-runtime dependency, or a multi-module/topology change) ->
+(+auditor when the magnitude floor fires: >1000 changed lines or >20 files) ->
 DevOps (runtime) -> Release (ship artifact), verifying every gate against the
 signed intent. Load-bearing decisions
 go through an adversarial cross-vendor review. All roles read and append to

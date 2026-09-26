@@ -57,11 +57,19 @@ that this section exist; the numbers are THIS product's. Fill them in with the
 CEO — an unsigned number is one the auditor may not enforce.
 
 - **Audit trigger** — when the efficiency audit runs at all. Framework defaults
-  if you leave this alone: **> 1000 changed lines** (added + removed, excluding
-  lockfiles / generated / vendored) **OR > 20 changed files OR a new runtime
-  dependency OR a change spanning ≥ 3 modules / altering deploy topology**; plus
-  always for `greenfield` and `refactor` scope. Tighten or loosen per project;
-  ambiguity runs the audit.
+  if you leave this alone, **two size triggers, either one fires**:
+  **> 1000 changed lines** (added + removed, excluding lockfiles / generated /
+  vendored) **OR > 20 changed files**. Both read straight off
+  `git diff --shortstat`, so neither can be argued with. Ambiguity runs the audit.
+  ⚠️ **A size floor cannot catch a small expensive change** — a one-line
+  `<script src>`, a loop turned O(n²), one line added to `package.json`. Those are
+  caught upstream (the implementer roles' reuse-first rule) and, for dependencies,
+  by the **Security** floor, which has no size condition. **If this project wants
+  the auditor on them too, add the trigger here** — e.g. *any new runtime
+  dependency*, *touches ≥ 3 modules*, *alters deploy topology*, *scope is
+  `greenfield`/`refactor`*. Those were framework defaults until 0.9.1; they are
+  now opt-in per project, because a trigger the project did not choose gets
+  argued away at the gate instead of respected.
 - **Performance budget** — the numbers a change may not regress: p50/p95 latency
   per critical path, query count per request, cold start, frontend LCP/INP,
   bundle size ceiling. These are what a `hot-path` finding is measured against.
