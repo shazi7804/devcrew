@@ -47,6 +47,8 @@ The protocol lives in `framework/skills/aidlc/SKILL.md`.
 - `framework/agents/` — the 12 neutral role agents (source of truth)
 - `framework/skills/aidlc/` — the AIDLC collaboration protocol + contract templates
 - `framework/memory/` — shared team memory (lessons, ADRs, retros)
+- `framework/session-governance.md` + `framework/tools/boot.py` — who holds the
+  orchestrator role when the host runs several sessions at once
 - `hosts/` — per-host adapter guides (KiroCrew, Mission Control, Claude Code)
 
 ## Principles
@@ -62,3 +64,8 @@ The protocol lives in `framework/skills/aidlc/SKILL.md`.
    Auditor audits the diff for redundancy, duplication, hot-path inefficiency and
    running cost, against the budget in `standards.md`. Green tests do not prove
    the code was worth its size.
+8. Who is in charge is decided by a mechanism, not a rule. When the host can run
+   several sessions at once, the orchestrator role is taken by a kernel-guaranteed
+   lock with a heartbeat lease — **with zero input from the human per session**. A
+   rule the model has to remember to run, or a prompt the human has to paste, is
+   not a mechanism; both were tried first and both failed.

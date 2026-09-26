@@ -8,25 +8,26 @@ this doc is the map.
 ## 1. Three layers
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ LAYER 3 — ROLES (the "who")                                  │
-│   orchestrator (PM) + 10 role agents.                        │
-│   Each = its own prompt, tools, model, memory mount.         │
-├──────────────────────────────────────────────────────────────┤
-│ LAYER 2 — HARNESS (the "how it stays reliable")              │
-│   Everything wrapped around the model calls:                 │
-│   • intent contract + version lock                           │
-│   • per-gate verification                                    │
-│   • loop bounds + budgets (stop conditions)                  │
-│   • CEO-gate suspension mechanism                            │
-│   • durable ledger (survives compaction/restart)             │
-│   • retrospective capture hook                               │
-├──────────────────────────────────────────────────────────────┤
-│ LAYER 1 — RUNTIME (the "where")                              │
-│   KiroCrew gateway on the 128GB EC2. spawn_run dispatches    │
-│   role agents; kiro-cli is the model backend; SSM is the     │
-│   only ingress. Local Mac is just the control console.       │
-└──────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│ LAYER 3 — ROLES (the "who")                                   │
+│   orchestrator (PM) + 10 role agents.                         │
+│   Each = its own prompt, tools, model, memory mount.          │
+├───────────────────────────────────────────────────────────────┤
+│ LAYER 2 — HARNESS (the "how it stays reliable")               │
+│   Everything wrapped around the model calls:                  │
+│   • intent contract + version lock                            │
+│   • per-gate verification                                     │
+│   • loop bounds + budgets (stop conditions)                   │
+│   • CEO-gate suspension mechanism                             │
+│   • durable ledger (survives compaction/restart)              │
+│   • retrospective capture hook                                │
+│   • orchestrator election (hosts that run N sessions) — §9    │
+├───────────────────────────────────────────────────────────────┤
+│ LAYER 1 — RUNTIME (the "where")                               │
+│   KiroCrew gateway on the 128GB EC2. spawn_run dispatches     │
+│   role agents; kiro-cli is the model backend; SSM is the      │
+│   only ingress. Local Mac is just the control console.        │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 **The harness (Layer 2) is the point of this project.** The models are
@@ -319,3 +320,31 @@ review time, the harness does **not** silently skip the gate: it either (a)
 falls back to an adversarial `llm-council` pass across whatever distinct models
 ARE available, or (b) if none, HOLDS the change unmerged and tells the CEO the
 review gate cannot run — a held change is never auto-merged.
+
+## 9. When the host runs more than one session
+
+Everything above draws **one** orchestrator on the spine. That is true of the
+flow and false of the runtime on any host where the human can open a second
+window — and the human will, because one session is slow and its context window
+is small. Two windows then produce two Phase-0 contracts for one intent, or two
+sessions working the same card, or one session deciding another is dead and
+overwriting live work. All three have happened in a real repo that had the rule
+written down.
+
+The layer that repairs it is `framework/session-governance.md`: the role is taken
+by an `O_EXCL` lock, the lock's mtime is a lease refreshed every turn, takeover
+after a stale lease goes through `rename` (two processes can both `rm`; exactly
+one can `rename`), and a human can pin the role to suspend the election — never
+the other way round. Its defining constraint is that **no human input may be
+required per session**, which is why it is wired to host lifecycle events rather
+than written as a rule in the prompt: a rule the model must remember to run is
+not a mechanism.
+
+| | Where |
+|---|---|
+| The concept, the decision tree, the non-goals | `framework/session-governance.md` |
+| Reference implementation (stdlib, host-neutral) | `framework/tools/boot.py` |
+| Claude Code wiring (4 hooks + settings.json) | `hosts/claude-code.md` § *Multi-session governance* |
+
+It does **not** decide what to work on, and it does not reach a dispatcher that
+lives outside the repo. It decides who may decide.

@@ -1,5 +1,80 @@
 # Changelog
 
+## 0.9.3 — 2026-09-26
+
+**The framework assumed one session. Hosts don't.** Every diagram in
+`ARCHITECTURE.md` draws one orchestrator, and `hosts/claude-code.md` said it
+outright: *"ONE interactive session = the dispatcher."* That is true of the flow
+and false of the runtime the moment the human opens a second window — which they
+do, because one session is slow and its context window is small. Observed in a
+real repo: two sessions each signing a Phase-0 contract for the same intent; two
+sessions working one card; one session deciding another was dead and overwriting
+live work. The rule *"check who the orchestrator is before you start"* was in
+that repo's always-loaded instructions the whole time.
+
+New: **`framework/session-governance.md`** — the neutral spec — and
+**`framework/tools/boot.py`**, a stdlib reference implementation.
+
+| Mechanism | Why that one |
+|---|---|
+| The role is an `O_EXCL` lock, `<state>/claims/ORCHESTRATOR.claim` | Same kernel guarantee as `set -C`. Nothing depends on every session remembering to look first |
+| Its **mtime is a lease**, refreshed every turn | Liveness is asserted by the holder, never inferred by an observer |
+| Takeover after a stale lease goes through `rename`, never `rm` + create | Two processes can both succeed at `rm`; exactly one can `rename` the same source. That difference is one orchestrator vs. two |
+| A human can **pin** the role (`ORCHESTRATOR.pin`) to suspend the election | Asymmetric on purpose: a human overrides the machine, never the reverse |
+| Wired to host **lifecycle events**, never to a prompt rule | See below — this is the whole point |
+
+**The constraint that shaped it: no human input, per session, ever.** The first
+fix attempt was a boot prompt for the CEO to paste into each new window. Their
+verdict was one sentence — *"I am not going to type this every time, your
+approach is terrible"* — and it retired an entire class of design. A mechanism
+that charges the human per session will be skipped, and a rule the model must
+remember to execute is the same failure wearing different clothes. So the
+election is a script the harness runs: `start` elects and injects the role,
+`beat` refreshes the lease, `end` releases it. Every decision tree leaf is one of
+two words; there is no "ask a human" leaf.
+
+**Two things it refuses to do**, because both were measured wrong on a live host:
+
+- **Infer liveness from a socket or pid file.** A socket file was present, its
+  process was alive, and it was an orphan — detached from any terminal, absent
+  from the host's session list, unreachable. Waiting on it waits forever. Those
+  filenames are *process* identity; the session key is the host's `session_id`.
+- **Match by name.** A lock said `brand-lockup` while the session list said
+  `session-5b` — the same live session under two names, one false positive.
+
+Verified by racing, not reading: 32 concurrent elections → exactly 1
+orchestrator; 20 concurrent takeovers of one expired lock → exactly 1 winner;
+malformed and empty stdin → exit 0, no lock created; a non-holder's `end` →
+nothing released. The copy-pasteable loops are in the adapter, and `AGENTS.md`
+Step 4 now asks the installer to run them: *a layer claiming kernel-level mutual
+exclusion that was never made to demonstrate it is a claim, not a mechanism.*
+
+**Diagrams: 18 → 25.** The component view (human → lifecycle events → three
+modes → lock + hatch → board → injected context), the election decision tree, the
+lease timeline (clean exit costs nothing; the threshold only covers crashes), the
+`rm`-vs-`rename` race side by side, the "AIDLC assumes / what actually happens"
+pair, the human-overrides-machine asymmetry, and the hook wiring in the adapter.
+All pass `tools/diagram.py check`. The tree and the race
+diagram are the two that pay for themselves: the tree because *every* branch has
+to terminate in a role for the mechanism to be a mechanism, and the race because
+two `rm`s both succeeding is invisible in prose and obvious in two columns.
+
+Also: `ARCHITECTURE.md` §9 and Layer 2's harness list now name session election;
+`hosts/claude-code.md` L1 says N sessions instead of one, carries the four-hook
+`settings.json`, and lists "nothing stops a second session from also being the
+orchestrator" as a **fixable, non-inherent** degradation; `README.md` adds
+principle 8.
+
+**Honest limits**, stated in §8 of the spec rather than discovered later:
+`O_EXCL` and `rename` degrade to advisory on NFS/SMB and in sync folders
+(Dropbox, iCloud, OneDrive) — this is not a distributed lock. It does not reach a
+dispatcher living outside the repo. And it decides *who may decide*, not what to
+work on: two workers can still both start one card if the claim namespace is
+loose enough that their filenames never collide, which is a separate rule. Only
+the Claude Code adapter is wired; KiroCrew and Mission Control dispatch from a
+single daemon, so they do not have this problem in the same shape — but neither
+adapter has been audited for it here.
+
 ## 0.9.2 — 2026-09-26
 
 **Diagrams: 4 → 18.** An audit of every place the docs explain a *mechanism*

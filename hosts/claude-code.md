@@ -36,6 +36,9 @@ and the weakest durability — both visible below.
 │                                                                       │
 │ (B) harness ──▶ host primitive                                        │
 │   dispatch       ▶ the Task tool — the main session delegates         │
+│   who dispatches ▶ hooks + an O_EXCL lock. NOT a prompt rule: two     │
+│                    windows both believing they are the orchestrator   │
+│                    is the default here (§ Multi-session governance)   │
 │   🔴 CEO gate    ▶ ask, then END THE TURN. The CEO is already in the  │
 │                    conversation, so this is the most reliable gate    │
 │                    of the three hosts.                                │
@@ -50,8 +53,10 @@ and the weakest durability — both visible below.
      ▼                                           │ to the session
 ┌─ L1 · Claude Code runtime ────────────────────────────────────────────┐
 │                                                                       │
-│  ONE interactive session = the dispatcher. There is no daemon, so     │
-│  nothing runs while you are not in the conversation.                  │
+│  ANY NUMBER of interactive sessions, each able to act as dispatcher.  │
+│  There is no daemon, so nothing runs while you are not in a           │
+│  conversation — and nothing coordinates two sessions unless you       │
+│  install L2's governance wiring (see § Multi-session governance).     │
 │     .claude/agents/*.md   loaded as subagents (Task targets)          │
 │     .claude/skills/**     loaded as skills                            │
 │     CLAUDE.md             project routing + the shared-memory RULE    │
@@ -79,6 +84,12 @@ mid-run:
   as a file the orchestrator appends to.
 - **No scheduler.** The Phase-∞ meta-review has no `cron` equivalent; it runs when
   the CEO asks for it. Say so rather than implying a periodic review happens.
+- **Nothing stops a second session from also being the orchestrator.** The CEO can
+  open five windows on one repo, and each one boots believing it is the dispatcher.
+  The 🔴 gate is this host's strongest primitive precisely because the CEO is in
+  the conversation — and that is also why they open more windows. Fixable, not
+  inherent: install § *Multi-session governance* below, which is mandatory on this
+  host and not merely recommended.
 
 ## What Claude Code expects
 
@@ -141,6 +152,164 @@ model: <current best alias>
    itself), so map it to `tools: Read, Grep, Glob, Bash, WebFetch, WebSearch` and
    do NOT fall back to omitting `tools` for it. Verify after install that the
    generated `.claude/agents/auditor.md` grants no `Write`/`Edit`.
+7. **Install the multi-session governance layer** — `framework/tools/boot.py` →
+   `.aidlc/tools/boot.py`, plus the four hooks in `.claude/settings.json`. Full
+   instructions in § *Multi-session governance* below; the concept it implements
+   is `framework/session-governance.md`. Do not treat this as optional on this
+   host: without it, "the orchestrator" is whatever each open window believes.
+   If you skip it deliberately (single-window user, no `python3`), say so to the
+   user in those words rather than leaving them to assume they are covered.
+
+## Multi-session governance
+
+**Install this whenever the repo belongs to a human who opens more than one
+window.** It is the only part of this adapter that cannot be a prose rule: the
+neutral spec is `framework/session-governance.md`, and the paragraphs below are
+only the Claude Code wiring for it. Read the spec for the decision tree, the
+lease semantics and the escape hatch; read this for which files to create.
+
+Why wiring and not a `CLAUDE.md` rule: `CLAUDE.md` is loaded into the model's
+context, so obeying it depends on the model choosing to run two commands at the
+top of every session. Hooks are executed by the harness. One project shipped the
+rule version first — "check who the orchestrator is before you start", in the
+always-loaded instructions — and still produced two sessions signing
+requirements for one intent. The second attempt was a boot prompt for the human
+to paste into each window; the CEO's verdict on it was "I am not going to type
+this every time, your approach is terrible". Both failure modes are the same
+failure: a mechanism whose execution is somebody's responsibility to remember.
+
+### (1) The script
+
+Copy `framework/tools/boot.py` → `.aidlc/tools/boot.py`. It is stdlib-only and
+host-neutral except for one function, `render()`, which already emits Claude
+Code's hook JSON — leave it alone on this host.
+
+### (2) The wiring — `.claude/settings.json`
+
+```
+             the human opens a window, or types, or closes it
+                                  │
+┌─ .claude/settings.json ─────────▼───────────────────────────────────┐
+│  SessionStart     ─▶ boot.py start   elect, then inject the role    │
+│  UserPromptSubmit ─▶ boot.py beat    refresh the lease…             │
+│  Stop  (async)    ─▶ boot.py beat    …at both ends of every turn    │
+│  SessionEnd       ─▶ boot.py end     release it, if this session    │
+│                                      is the holder                  │
+└───────────────────────┬─────────────────────────────────────────────┘
+                        │ stdin: {"session_id": …, "cwd": …}
+                        ▼         ← the only identity key that works
+              .aidlc/claims/ORCHESTRATOR.claim   (O_EXCL + mtime lease)
+                        │
+                        ▼ stdout: hookSpecificOutput.additionalContext
+              "you are the orchestrator" + board, or "you are a worker"
+```
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command",
+          "command": "python3 \"${CLAUDE_PROJECT_DIR}/.aidlc/tools/boot.py\" start",
+          "timeout": 25,
+          "statusMessage": "Electing the orchestrator…" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command",
+          "command": "python3 \"${CLAUDE_PROJECT_DIR}/.aidlc/tools/boot.py\" beat",
+          "timeout": 10 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command",
+          "command": "python3 \"${CLAUDE_PROJECT_DIR}/.aidlc/tools/boot.py\" beat",
+          "timeout": 10, "async": true } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command",
+          "command": "python3 \"${CLAUDE_PROJECT_DIR}/.aidlc/tools/boot.py\" end",
+          "timeout": 10 } ] }
+    ]
+  }
+}
+```
+
+Four details in that JSON are load-bearing:
+
+- **`session_id` from hook stdin is the identity.** It is stable for the
+  session's whole life and differs between concurrent sessions. Do not
+  substitute a pid: on this host the per-session socket files in
+  `/tmp/cc-socks/` are *named after pids* (`lsof -U` shows pid 5819 listening
+  on `5819.sock`), and a pid identifies a process, not a session.
+- **Both `UserPromptSubmit` and `Stop` beat.** Together they bracket the turn, so
+  the lease tracks "this session is in use" rather than "the human typed
+  recently". Either alone works; both is one line cheaper than reasoning about
+  which one you lose.
+- **`Stop` is `async`.** A heartbeat must not add latency to finishing a turn.
+- **`SessionStart` also fires on resume, `/clear` and after compaction.** That is
+  a feature: the election is idempotent for the same `session_id`, so the role
+  text gets re-injected into a context that just lost it. Compaction is how an
+  orchestrator forgets it was mid-gate.
+
+### (3) `.gitignore`
+
+```
+.aidlc/claims/*.claim
+```
+
+Keep `.aidlc/claims/README.md` committed so the directory exists in a fresh
+clone. Without the directory, `O_EXCL` fails for the wrong reason and every
+claim rule looks obeyed while doing nothing.
+
+### (4) Verify — by racing it, not by reading it
+
+A mechanism claiming kernel-level mutual exclusion should be made to prove it.
+Both checks run against a throwaway tree, so they touch nothing real:
+
+```bash
+T=$(mktemp -d); mkdir -p "$T/.aidlc/claims"; export DEVCREW_PROJECT_DIR="$T"
+B=.aidlc/tools/boot.py
+
+# 32 sessions start at once → exactly 1 orchestrator, 31 workers
+for i in $(seq 32); do
+  echo "{\"session_id\":\"s-$i\"}" | python3 "$B" start > "$T/o.$i" &
+done; wait
+grep -l 'only orchestrator' "$T"/o.* | wc -l     # must print 1
+
+# 20 sessions take over one expired lock at once → exactly 1 winner
+touch -t 202001010000 "$T/.aidlc/claims/ORCHESTRATOR.claim"
+for i in $(seq 20); do
+  echo "{\"session_id\":\"t-$i\"}" | python3 "$B" start > "$T/t.$i" &
+done; wait
+grep -l 'Took over' "$T"/t.* | wc -l             # must print 1
+
+echo '' | python3 "$B" start >/dev/null; echo "empty stdin exit=$?"   # must be 0
+```
+
+Then confirm it is live in the real session: open a second window and check that
+it announces itself as a worker naming the first window's id. If the settings
+file was created during this session the watcher may not have picked it up — the
+user can open `/hooks` once, or restart. You cannot do that for them.
+
+### (5) The `CLAUDE.md` half — and its limit
+
+Add the short rule below. It is not the mechanism; it tells the model what the
+two roles are *allowed* to do, which no hook can enforce:
+
+```markdown
+### Orchestrator or worker
+Your role is elected by a hook at session start and injected into your context —
+do not re-derive it, do not negotiate it with another session, and never
+hand-edit .aidlc/claims/ORCHESTRATOR.claim. A worker may not do exactly two
+things: claim or open a card slug, and write or sign requirements.md. Everything
+else is open: a worker may do work, it may not define what the work is. A worker
+never commits. Liveness comes from the host's session list only — a socket or pid
+file is never evidence that a session is alive or dead.
+```
+
+⚠️ **Keep this text and the injected text in agreement.** They are edited at
+different times by different people, and the injected copy wins every argument
+because it arrives later in the context. When they disagree, the model gets two
+truths and the human gets neither — so a change to the election belongs in the
+same commit as the change to `CLAUDE.md`.
 
 ## CLAUDE.md section to add
 

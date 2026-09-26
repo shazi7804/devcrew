@@ -92,6 +92,12 @@ source of truth, so on a new machine you re-run this file and the tree is rebuil
   other cross-cutting rules — never hardcoded in a skill.
 - `framework/memory/` — the shared team memory (lessons, ADRs, retrospectives,
   style). Every role mounts it, so experience is shared across the team.
+- `framework/session-governance.md` + `framework/tools/boot.py` — how the
+  orchestrator role is held when the host can run **several sessions at once**
+  (an `O_EXCL` lock, an mtime lease, a human escape hatch). Read this whenever
+  your host lets the user open a second window on the same repo; it is the one
+  part of the framework that must be wired to lifecycle events instead of
+  written into a prompt.
 
 ## Step 3 — Install into your host
 
@@ -118,7 +124,11 @@ Open the adapter guide for your host and follow it. In short:
   `framework/agents/<name>.md` to `.claude/agents/<name>.md` (frontmatter
   `tools` mapped to Claude Code's tool names), copy the skill to
   `.claude/skills/`, and add a devcrew section to `CLAUDE.md` naming the roles
-  and the AIDLC flow.
+  and the AIDLC flow. **Then install the multi-session governance layer** —
+  `framework/tools/boot.py` plus four hooks in `.claude/settings.json`. On this
+  host the user can open five windows on one repo and each boots believing it is
+  the dispatcher; the adapter's § *Multi-session governance* is the fix, and
+  skipping it is a thing to say out loud, not a default.
 
 Map the neutral tool names with the table in the adapter guide. Map
 `model: best-available` to the strongest general model the host offers **today**
@@ -130,6 +140,14 @@ Confirm every generated agent file parses, every referenced prompt/skill/memory
 path exists, and the orchestrator (`orchestrator`) is selectable in the host. Report
 to the user which host you installed into and how to switch to the `orchestrator`
 agent.
+
+If you installed the multi-session governance layer, **race it** rather than
+reading it: N concurrent elections must produce exactly one orchestrator, and M
+concurrent takeovers of one expired lock must produce exactly one winner. Both
+are a single shell loop against a throwaway tree (copy-pasteable in
+`hosts/claude-code.md` § *Multi-session governance*). A layer that claims
+kernel-level mutual exclusion and was never made to demonstrate it is a claim,
+not a mechanism.
 
 ## Step 5 — Tell the user how to run it
 
