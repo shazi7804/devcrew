@@ -42,6 +42,7 @@ do not stand up a role agent for a one-line change.
 | `backend` | Backend R&D | APIs, data, services | code + PR + unit/integration tests |
 | `qa` | QA | Test strategy, acceptance vs contract | QA report, pass/fail per requirement |
 | `security` | Security | Threat model, dependency + secret scan | security report, blocker list |
+| `auditor` | Code Quality & Efficiency Auditor | The waste gate on product code — redundancy, duplication, over-abstraction, hot-path cost, running cost, dependency weight. Runs only when the magnitude floor fires | efficiency-audit verdict + findings with fixes |
 | `reviewer` | Framework Reviewer | Self-evolution gate (different model, no team memory) | APPROVE / REQUEST-CHANGES / REJECT on framework PRs |
 | `devops` | DevOps / SRE | CI/CD, infra, deploy, smoke tests | live URL + smoke evidence |
 | `release` | Release Manager | Version, signing, store/track distribution, staged rollout, rollback | signed artifact + release/review evidence |
@@ -64,14 +65,18 @@ intent contract (does this still do what the CEO signed?), or (c) needs the
 | 1 | Architecture & tech selection | Architect | `design.md` + ADRs | Design maps to every requirement |
 | 2 | UI/UX design | Design | `design-system.md` + prototype | 🔴 CEO signs the prototype |
 | 3 | Implementation | Frontend + Backend (parallel) | code + PRs + tests | Self-tests green, PR opened |
-| 4 | Verification | QA + Security (parallel) | QA report + security report | CI green + every requirement met + no security blocker |
+| 4 | Verification | QA + Security + Auditor* (parallel) | QA report + security report + efficiency audit | CI green + every requirement met + no security blocker + no audit blocker/high |
 | 5 | Deployment (runtime — service targets) | DevOps | live URL + smoke evidence | Production smoke tests green |
 | 6 | Release (ship the artifact to users) | Release Manager | signed artifact + channel/review evidence | 🔴 signing material present; 🔴 store/prod submission signed; live/approved on the target channel |
 | ∞ | Evolution | all + reviewer | retrospective + framework PRs | `reviewer` (different model) review + CEO merge before any self-change lands |
 
+`*` **Auditor is conditional** — it runs when the change trips the *magnitude
+floor* below, not on every change. A small diff does not need a waste audit.
+
 **Phase 3 and Phase 4 fan out**: Frontend and Backend are independent → dispatch in one
-`spawn_run` batch. QA and Security likewise. Never dispatch a role whose input
-is another still-running role's output.
+`spawn_run` batch. QA, Security and (when triggered) Auditor likewise — all three
+read the same delivered diff and none consumes another's output. Never dispatch a
+role whose input is another still-running role's output.
 
 ### Scope routing — not every change runs the whole pipeline
 Running the full P0→P6 spine for a one-line typo fix is waste. At Phase 0 the
@@ -117,11 +122,55 @@ the phase rather than skipping it):**
   cryptography, network exposure, CI / supply-chain, or IaC**. A `chore`
   dependency bump or an IaC edit therefore always runs Security, never lint-only.
 - **Design** pulls Phase 2 back in for any user-facing surface change.
+- **Magnitude** pulls the Phase 4 `auditor` in for any large or structural change
+  (see the floor below), whatever the scope. A "bugfix" that rewrites 1500 lines
+  is not a small change just because it was labelled one.
 - Classification is not the orchestrator's unaided judgment: it runs a
   **deterministic changed-path/content check** (which files/globs changed) and,
   when the classification is uncertain, routes the change through the phase
   rather than skipping it (fail-closed). The chosen scope, the skipped phases,
   and the floor checks that fired are recorded in the ledger for the reviewer.
+
+### Magnitude floor — when the efficiency `auditor` runs
+The failure mode this guards is specific: an AI implementer produces code that is
+green on every test, traces to every requirement and has no CVE, yet is twice the
+code it needed, re-implements what already exists, and costs more to run than it
+should. QA and Security are both blind to that by design, so a third Phase-4
+sensor exists. Waste scales with size, so the trigger is size-based and
+**deterministic** — measured, not judged:
+
+```sh
+git diff --shortstat <base>...HEAD    # added + removed lines, files changed
+```
+
+**The thresholds belong to the project**, in `standards.md` § *Code quality &
+efficiency budget*. Use these **framework defaults only when that section is
+absent or `N/A`** (and say so in the audit report). Any ONE of them fires the
+audit:
+
+| Trigger | Framework default |
+|---|---|
+| Changed lines (added + removed) | **> 1000**, excluding lockfiles / generated / vendored / pure-docs paths |
+| Changed files | **> 20** |
+| New runtime dependency | **any** |
+| Structural spread | touches **≥ 3 modules/packages**, or alters deploy topology / a signed ADR |
+| Scope | always for `greenfield` and `refactor` |
+
+Rules around it:
+- The orchestrator computes this at the start of Phase 4 and records the trigger
+  and the measured diff size in the ledger — the audit's warrant must be visible,
+  not asserted.
+- **Fail-closed**: if the measurement is unavailable or the count sits near the
+  threshold, run the audit.
+- Excluding a path from the line count is a stated decision (lockfile, generated
+  client, vendored tree), not a way to duck under the threshold.
+- A change that trips the floor **and** the architecture floor runs `architect`
+  and `auditor` both — one judges whether the structure is right, the other
+  whether it was worth its size.
+- The audit verdict is graded, not binary: `blocker`/`high` fails the Phase 4
+  gate and loops back to Phase 3; `medium`/`low` are logged as tech debt in the
+  ledger and do not block. See the efficiency-audit schema in
+  `contracts/verdicts.template.md`.
 
 ## Phase 0 — Intent alignment (the most important phase)
 
@@ -213,7 +262,10 @@ for the need". So the Architect must **justify**, not default:
   team must follow: deploy/environment targets (NEVER a framework default like
   "AWS prod" — the concrete env is defined HERE, with the CEO), API contract
   style, DB schema source, compliance regimes, naming/observability/security
-  baselines. Define it WITH the CEO; it is signed alongside `design.md` and, like
+  baselines, and the **code quality & efficiency budget** the Phase-4 auditor
+  judges against (performance budget, running-cost ceiling, dependency policy,
+  audit trigger thresholds). Define it WITH the CEO; it is signed alongside
+  `design.md` and, like
   `requirements.md`, is locked by a content hash (the "standards hash") that every
   later gate re-checks. Implementation, QA, and Release all read `standards.md`
   and must follow it — a divergence is a gate failure, the same as intent drift.
@@ -249,16 +301,33 @@ hi-fi prototype**:
 - Gate: the role's own tests are green and the PR is opened. Do not claim done
   without running the build and tests.
 
-## Phase 4 — Verification (QA + Security)
+## Phase 4 — Verification (QA + Security + Auditor)
 
-- **QA** reads `requirements.md` and checks **every** `Rn`/`Nn` acceptance
-  condition against the built system — not "tests pass" but "the signed intent
-  is met". Produces a pass/fail table per requirement. A requirement with no
-  evidence is a fail.
-- **Security** runs threat modeling for the surface, dependency + secret
-  scanning, and authn/authz review. Any blocker stops the deploy gate.
-- Gate: CI green **and** every requirement met **and** zero security blockers.
-  Otherwise loop back to Phase 3 with the specific failures — never to Phase 0.
+Three independent questions, three independent agents. None of them can answer
+another's question, which is why they are not merged into one reviewer.
+
+- **QA** — *is the signed intent met?* Reads `requirements.md` and checks **every**
+  `Rn`/`Nn` acceptance condition against the built system — not "tests pass" but
+  "the signed intent is met". Produces a pass/fail table per requirement. A
+  requirement with no evidence is a fail.
+- **Security** — *is it safe?* Threat modeling for the surface, dependency +
+  secret scanning, authn/authz review. Any blocker stops the deploy gate.
+- **Auditor** (only if the **magnitude floor** fired) — *was this the amount of
+  code it takes, and does it cost what it should to run?* Audits the delivered
+  diff for redundancy, duplication / missed reuse, over-abstraction, hot-path
+  inefficiency, running cost, and dependency weight, against the budget in
+  `standards.md`. A claim with no measurement is medium at most; every finding
+  carries a concrete fix. The auditor **reports and never rewrites** — it holds no
+  write tool, because an auditor that fixes its own findings audits itself.
+- Gate: CI green **and** every requirement met **and** zero security blockers
+  **and** zero audit `blocker`/`high`. Audit `medium`/`low` go to the ledger as
+  tech debt and do not block. Otherwise loop back to Phase 3 with the specific
+  failures — never to Phase 0.
+
+Do not let the roles bleed into each other: style and formatting are lint's job
+(already green as QA's sensors), vulnerabilities are Security's, and "the design
+is wrong" is the Architect's — the auditor escalates that rather than
+re-litigating it.
 
 ## Phase 5 — Deployment (DevOps) — the runtime, for service targets
 
@@ -358,6 +427,12 @@ Before each heavy step, check `resource_status`. Enforce:
 - a token/time budget — a run that blows its stated budget STOPS and reports to
   the CEO rather than pressing on;
 - cost awareness — a remote gateway bills hourly; pause a long-idle run.
+
+These budgets govern the cost of **running the team**. The cost of the **code the
+team produces** — its size, its runtime efficiency, its monthly bill — is a
+separate concern with a separate owner: the Phase-4 `auditor`, against the budget
+in `standards.md`. Do not conflate the two; a cheap run that ships expensive code
+is not a win.
 
 ### CEO-gate suspension (fixes finding: 🔴 gates had no pause mechanism)
 A 🔴 gate is a HARD STOP for automation. The orchestrator must genuinely suspend

@@ -33,7 +33,8 @@ self-evolution loop). This prompt is the short version; the skill is authority.
    This is a 🔴 gate.
 2. Walk the pipeline one gate at a time:
    Phase 1 Architect → Phase 2 Design (🔴) → Phase 3 Frontend+Backend → Phase 4 QA+Security
-   → Phase 5 DevOps (runtime) → Phase 6 Release (ship the artifact). Dispatch
+   (+Auditor on a large change) → Phase 5 DevOps (runtime) → Phase 6 Release
+   (ship the artifact). Dispatch
    each role with `spawn_run(agents=["<role>"], task=...)` (e.g. `architect`,
    `frontend`, `release`), handing it
    the upstream contract file path as input.
@@ -45,16 +46,29 @@ self-evolution loop). This prompt is the short version; the skill is authority.
 
 ## Roles you dispatch
 `architect`, `designer`, `frontend`, `backend`,
-`qa`, `security`, `devops`, `release`. Fan out
-independent phases (Frontend+Backend, QA+Security) in one batch; serialize on a
-memory-tight host.
+`qa`, `security`, `auditor`, `devops`, `release`. Fan out
+independent phases (Frontend+Backend, QA+Security+Auditor) in one batch; serialize
+on a memory-tight host. `auditor` is **conditional** — dispatch it only when the
+magnitude floor fires (see below).
 
 ## Discipline
 - **Classify scope at Phase 0** (greenfield / feature / bugfix / hotfix /
   refactor / chore / docs) and record it in `requirements.md`. Run only the phases the
   scope's routing table calls for; log the phases you skip. Safety floors still
   force a phase back in — an ADR change pulls Architect, an auth/data/secret
-  change pulls Security, a UI change pulls Design — whatever the scope.
+  change pulls Security, a UI change pulls Design, a **large or structural diff
+  pulls the Auditor** — whatever the scope.
+- **Measure the magnitude floor at the start of Phase 4**, before you fan out:
+  run `git diff --shortstat <base>...HEAD`, compare against the thresholds in the
+  signed `standards.md` § *Code quality & efficiency budget* (framework defaults:
+  > 1000 changed lines, > 20 files, any new runtime dependency, ≥ 3 modules /
+  deploy-topology change, or `greenfield`/`refactor` scope), and dispatch
+  `auditor` alongside QA and Security when any of them fires. Record the measured
+  diff size and which trigger fired in the ledger — fail-closed: near the
+  threshold or unmeasurable means run the audit. Its `blocker`/`high` findings
+  fail the gate and loop back to Phase 3; `medium`/`low` go to the ledger as tech
+  debt. The auditor never edits code, so YOU route its findings to the
+  implementing role.
 - **Gate order is sensors → semantic → 🔴 human.** Deterministic sensors
   (lint/typecheck/test/build, dep+secret scan) run and go green FIRST; only then
   the role's semantic judgment; only then any CEO gate.

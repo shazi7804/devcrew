@@ -51,6 +51,33 @@ environment and how it is reached:
 - Secret management (vault/manager), TLS/cert policy, dependency-pinning policy,
   authn/authz model. Ties into the Phase-1 threat model and Phase-4 Security gate.
 
+## Code quality & efficiency budget
+What the `auditor` role (Phase 4) judges against. The framework only requires
+that this section exist; the numbers are THIS product's. Fill them in with the
+CEO — an unsigned number is one the auditor may not enforce.
+
+- **Audit trigger** — when the efficiency audit runs at all. Framework defaults
+  if you leave this alone: **> 1000 changed lines** (added + removed, excluding
+  lockfiles / generated / vendored) **OR > 20 changed files OR a new runtime
+  dependency OR a change spanning ≥ 3 modules / altering deploy topology**; plus
+  always for `greenfield` and `refactor` scope. Tighten or loosen per project;
+  ambiguity runs the audit.
+- **Performance budget** — the numbers a change may not regress: p50/p95 latency
+  per critical path, query count per request, cold start, frontend LCP/INP,
+  bundle size ceiling. These are what a `hot-path` finding is measured against.
+- **Running-cost ceiling** — expected $/month envelope and what may not grow
+  silently: instance class, always-on vs on-demand, log/metric retention volume,
+  egress, storage growth. If the product calls an LLM: tokens per user action and
+  the caching expectation.
+- **Dependency policy** — when a new runtime dependency is acceptable (size,
+  maintenance, licence, does the platform already do it), and who approves one.
+- **Duplication tolerance** — where copies are acceptable (e.g. across a
+  deliberate service boundary) and where they are not, plus the canonical
+  location of shared helpers so reuse has an address.
+- **Blocking rule** — the default is: auditor `blocker`/`high` fails the Phase 4
+  gate and loops back to implementation; `medium`/`low` are logged as tech debt.
+  Change it here if this project wants stricter or advisory-only.
+
 ## Other product-specific standards
 Anything else the whole team must follow as one source of truth (i18n, a11y
-target, performance budget, feature-flag policy, …).
+target, feature-flag policy, …).

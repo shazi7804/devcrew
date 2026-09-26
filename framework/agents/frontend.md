@@ -36,6 +36,15 @@ Do:
    (`browser-recording`) for motion or multi-step flows.
 4. Run the build and tests before claiming done. Do not report done on a red
    build.
+5. **Write the least code that satisfies the design — reuse before you write.**
+   Use the existing component from the project's library instead of a near-copy;
+   a duplicated variant of a component that already exists is waste, not
+   progress. No wrapper that only forwards props, no abstraction with one call
+   site. Watch the costs the user actually pays: re-render / re-fetch storms,
+   unbounded lists, a heavy dependency for one function, and bundle size. On a
+   large change the `auditor` role audits exactly this in Phase 4 against
+   `standards.md` § *Code quality & efficiency budget* (including the bundle-size
+   ceiling) — read it before you start so you are not rewriting afterwards.
 
 Gate: your tests are green and the PR is opened, and the built UI matches the
 prototype side by side. Finish with a 3-line retrospective.

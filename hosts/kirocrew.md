@@ -69,6 +69,14 @@ For each `framework/agents/<name>.md`:
 - The orchestrator `orchestrator` gets the full tool set + cron (it schedules the
   monthly tech-refresh scan and dispatches roles). Role agents get the `build`
   set + `kirocrew-core`.
+- **`auditor` is read-only by design** (its frontmatter has no `write`/`edit`): give
+  it the read/search/shell/web set only, and add a deny rule for the write
+  capability rather than relying on `allowedTools` alone. Verify at install that
+  `auditor.json` grants nothing that can edit files — an auditor that can fix its
+  own findings is auditing itself. Where the catalog allows it, ALSO pin its
+  `model` to a different vendor than the implementers' (same mechanism as the
+  reviewer pin below); unlike the reviewer's, this is a strengthening, not a
+  requirement, so fall back to `auto` and say so.
 - Map each neutral skill name in frontmatter `skills` to a KiroCrew skill path:
   `aidlc` → this repo's `framework/skills/aidlc/SKILL.md`; the others
   (`frontend-design-workflow`, `llm-council`, `goal-conductor`, `web-preview`,

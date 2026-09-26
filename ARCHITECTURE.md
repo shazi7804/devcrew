@@ -85,11 +85,18 @@ CEO idea
 └───────────────────────────────────────────────────────────────┘
   │
   ▼
-┌─ PHASE 4 · Verification (QA ∥ Security, parallel) ────────────┐
+┌─ PHASE 4 · Verification (QA ∥ Security ∥ Auditor, parallel) ──┐
 │  QA: every Rn/Nn acceptance vs built system (pass/fail table) │
 │  Security: threat-model delta + dep + secret + authz scan     │
+│  Auditor (CONDITIONAL — magnitude floor: >1000 changed lines, │
+│    >20 files, new runtime dep, ≥3 modules / topology change,  │
+│    or greenfield/refactor scope; thresholds from standards.md):│
+│    redundancy · duplication · over-abstraction · hot-path ·   │
+│    running cost · dependency weight. Measured, with fixes.    │
+│    Reports only — holds no write tool by design.              │
 │  GATE: CI green AND every Rn met AND zero security blocker    │
-│        AND intent hash unchanged.                             │
+│        AND zero audit blocker/high AND intent hash unchanged. │
+│        (audit medium/low → tech debt in the ledger, no block) │
 │  ── FAIL ──▶ LOOP BACK to Phase 3 (see loop bounds below)     │
 └───────────────────────────────────────────────────────────────┘
   │
@@ -124,7 +131,7 @@ can run forever:
 
 | Loop | Fires when | What it does | BOUND (stop condition) |
 |---|---|---|---|
-| **A. Fix loop** | a gate FAILS (QA/Security/build) | loops back to the phase that owns the fix, re-runs it | **3 failed attempts on the same gate without the failure count dropping, OR 5 total attempts** → STOP, escalate to CEO with the blockers. Never loop to Phase 0. |
+| **A. Fix loop** | a gate FAILS (QA/Security/Auditor/build) | loops back to the phase that owns the fix, re-runs it | **3 failed attempts on the same gate without the failure count dropping, OR 5 total attempts** → STOP, escalate to CEO with the blockers. Never loop to Phase 0. |
 | **B. Reflection loop** | end of every task, and on the meta-review | each role writes a retrospective; orchestrator folds it in; repeated failure modes become a self-improvement proposal | bounded by task end; the meta-review is a scheduled `cron`, not an open loop |
 | **C. Self-evolution loop** | a retro yields a framework change | draft change → PR → cross-vendor reviewer → CEO merge | one pass per proposal; reviewer verdict is terminal for that round; never self-merge |
 

@@ -35,6 +35,16 @@ Do:
    can trace requirement→code.
 4. Run the build and the test suite (prefer targeted tests on a memory-tight
    host) before claiming done. Do not report done on a red build.
+5. **Write the least code that satisfies the requirement — reuse before you
+   write.** Search the repo for an existing helper/service/migration pattern
+   first; a second implementation of something already here is waste, not
+   progress. No abstraction with one implementation, no config knob nothing sets,
+   no layer "for later". Watch the obvious runtime costs as you build: batch
+   instead of querying per row, index what you filter on, paginate unbounded
+   reads, keep loop-invariant work out of loops, and do not add a runtime
+   dependency for something small. On a large change the `auditor` role audits
+   exactly this in Phase 4 against `standards.md` § *Code quality & efficiency
+   budget* — read it before you start so you are not rewriting afterwards.
 
 Gate: tests green, PR opened, APIs match the design's interface contract.
 Finish with a 3-line retrospective.

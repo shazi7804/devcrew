@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.9.0 — 2026-09-26
+- **New role `auditor` (Code Quality & Efficiency Auditor) — the waste gate on
+  product code.** Closes a real hole: nothing in the pipeline asked *"was this the
+  amount of code it takes, and does it cost what it should to run?"*. QA proved
+  intent, Security proved safety, and `reviewer` explicitly covers only devcrew's
+  own framework — so an implementer could ship a diff that was green, traceable
+  and CVE-free while being twice its needed size, re-implementing helpers that
+  already existed, and issuing a query per row. The auditor audits the delivered
+  diff in exactly six categories (redundancy/dead code · duplication & missed
+  reuse · over-abstraction · hot-path inefficiency · running cost · dependency
+  weight) and is explicitly barred from style nits (lint owns those), intent (QA),
+  vulnerabilities (Security) and re-litigating architecture (it escalates instead).
+- **It runs in Phase 4 beside QA and Security, but only on big changes** — a new
+  **magnitude floor** joins the existing safety floors, so it applies whatever the
+  scope claims to be (a "bugfix" that rewrites 1500 lines is not small). The
+  trigger is a deterministic measurement, not a judgment:
+  `git diff --shortstat <base>...HEAD`. Framework defaults — > 1000 changed lines
+  (excluding lockfiles/generated/vendored), > 20 files, any new runtime dependency,
+  ≥ 3 modules / a deploy-topology change, or `greenfield`/`refactor` scope — are a
+  fallback only: the real thresholds live in the project's `standards.md`, per the
+  "numbers belong to the project" invariant. Fail-closed: near the threshold or
+  unmeasurable ⇒ audit.
+- **Graded verdict, so the gate is usable.** New efficiency-audit block in
+  `contracts/verdicts.template.md`: `blocker`/`high` set `blocks_gate` and fail
+  Phase 4 back to Phase 3; `medium`/`low` are logged as tech debt in the ledger and
+  do not block. Discipline built into the role: a perf/cost claim with no
+  measurement is medium at most, and every finding must carry a concrete fix plus
+  the saving — "a finding without a fix is an opinion".
+- **The auditor holds no write/edit tool, by design** — an auditor that fixes its
+  own findings is auditing itself, so the orchestrator routes findings to the
+  implementing role. Enforced per host: Claude Code pins its `tools` list (never
+  omit it to inherit all), KiroCrew adds a write-deny rule, and Mission Control
+  records an honest degradation — `agents.json` has no per-agent tool allowlist, so
+  there the prohibition is instruction-only and must be reported as such.
+- **Prevention, not only detection**: `frontend` and `backend` each gained a
+  reuse-first clause (search the repo before writing; no abstraction with one
+  implementation, no knob nothing sets, no layer "for later") naming the concrete
+  costs they own — batching/indexing/pagination and loop-invariant work on the
+  backend, re-render/re-fetch storms and bundle size on the frontend — and pointing
+  at the budget they will be audited against.
+- **`standards.md` gained a *Code quality & efficiency budget* section** (audit
+  trigger, performance budget, running-cost ceiling, dependency policy, duplication
+  tolerance, blocking rule), so the CEO signs the numbers at Phase 1 and the
+  auditor may not invent thresholds. New **design invariant 7** ("waste is a gate
+  failure, not a style note") with a matching `reviewer` check so a future
+  self-evolution pass cannot fold the auditor into QA, downgrade it to advisory, or
+  quietly raise its floor out of reach. Also separated two things that were easy to
+  conflate: the harness `Budgets` section governs the cost of *running the team*;
+  the auditor governs the cost of *the code the team produces*.
+- Roster is now 12 roles; README/AGENTS/ARCHITECTURE/host adapters updated in step.
+
 ## 0.8.1 — 2026-09-26
 - **Closed a 0.7.0 gap: the standards layer was only half-installed.** That entry
   claimed "Implementation/QA/Release all read `standards.md`", but only

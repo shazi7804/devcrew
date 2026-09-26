@@ -6,7 +6,7 @@
 
 devcrew is a full AI software team: an orchestrator that wears the PM hat and
 dispatches independent role agents (Architect, Design, Frontend, Backend, QA,
-Security, DevOps, Release) across an AI-Driven Development Life Cycle (AIDLC),
+Security, Auditor, DevOps, Release) across an AI-Driven Development Life Cycle (AIDLC),
 from a CEO's idea to production — aligning intent as a signed contract, verifying
 every gate against it, and improving itself through a gated self-evolution loop.
 
@@ -34,15 +34,16 @@ to target any agent host that supports per-agent system prompts and skills.
 
 ## Step 2 — Read the neutral source
 
-- `framework/agents/*.md` — the 11 role agents. Each is YAML frontmatter
+- `framework/agents/*.md` — the 12 role agents. Each is YAML frontmatter
   (`name`, `role`, `description`, `tools`, `model`, `skills`, `memory`) plus a
   Markdown body that is the agent's system prompt.
 - `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
   follows (phases, gates, contract hand-offs). Its `contracts/` holds the
   requirements / design / standards / verdicts templates. The `standards.md`
   produced from it is the per-project single source of truth for deploy target,
-  API, DB schema, compliance and other cross-cutting rules — never hardcoded in
-  a skill.
+  API, DB schema, compliance, the code quality & efficiency budget (what the
+  Phase-4 `auditor` judges against) and other cross-cutting rules — never
+  hardcoded in a skill.
   (protocol detail continues:) every role
   follows (phases, gates, contract hand-offs, adversarial decision points,
   gated self-evolution). Its `contracts/` holds the requirements/design
@@ -122,3 +123,13 @@ the single source of truth; the host files are generated artifacts.
    environments and targets live in the project's `standards.md` (defined with
    the CEO at Phase 1), never hardcoded in a skill or role. The framework stores
    only the RULE that `standards.md` must be produced, signed, and followed.
+7. **Waste is a gate failure, not a style note** — an AI implementer ships code
+   that is green, traceable and CVE-free while being twice the size it needed and
+   costlier to run than it should be. QA (intent) and Security (safety) are blind
+   to that by design, so a third Phase-4 sensor exists: the `auditor` audits the
+   delivered diff for redundancy, duplication/missed reuse, over-abstraction,
+   hot-path cost, running cost and dependency weight. It fires on a deterministic
+   **magnitude floor** (large diff / many files / new dependency / multi-module or
+   topology change), judges against the budget in `standards.md`, holds no write
+   tool, and its blocker/high findings fail the gate. Do not fold it into QA and
+   do not downgrade it to advisory-only.

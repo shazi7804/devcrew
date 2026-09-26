@@ -50,14 +50,25 @@ contract, or (c) needs the **CEO's own sign-off** (🔴 — never self-approve).
 | 1 | Architecture & tech selection | architect | `design.md` + ADRs + `standards.md` + threat model | every `Rn` maps to a design element |
 | 2 | UI/UX design (if user-facing) | designer | design system + 2–3 hi-fi prototypes | 🔴 CEO picks a prototype |
 | 3 | Implementation | frontend ∥ backend | code + PRs + tests | own tests green, PR opened, `Closes Rn` present |
-| 4 | Verification | qa ∥ security | QA report + security report | sensors green + every `Rn` met + zero security blocker + intent hash unchanged |
+| 4 | Verification | qa ∥ security ∥ auditor* | QA report + security report + efficiency audit | sensors green + every `Rn` met + zero security blocker + zero audit blocker/high + intent hash unchanged |
 | 5 | Deployment (runtime) | devops | live env + smoke evidence | production smoke tests green |
 | 6 | Release (artifact to users) | release | signed artifact + channel evidence | 🔴 signing material; 🔴 submission/rollout; live on the channel |
 | ∞ | Evolution | all + reviewer | retrospective + framework PR | reviewer verdict + CEO merge — never self-merge |
 
-Phase 3 (frontend ∥ backend) and Phase 4 (qa ∥ security) fan out. Never dispatch a
-role whose input is another still-running role's output — that is what `blockedBy`
-is for.
+Phase 3 (frontend ∥ backend) and Phase 4 (qa ∥ security ∥ auditor) fan out. Never
+dispatch a role whose input is another still-running role's output — that is what
+`blockedBy` is for.
+
+`*` **auditor is conditional** — it runs only when the change trips the *magnitude
+floor*: measure `git diff --shortstat <base>...HEAD` at the start of Phase 4 and
+compare against `standards.md` § *Code quality & efficiency budget* (framework
+defaults: > 1000 changed lines, > 20 files, any new runtime dependency, ≥ 3
+modules / deploy-topology change, or `greenfield`/`refactor` scope). Fail-closed:
+near the threshold or unmeasurable ⇒ run it. Record the measured size and the
+trigger on the Phase-4 task. Audit `blocker`/`high` fails the gate back to Phase 3;
+`medium`/`low` become tech-debt tasks rather than blockers. The auditor holds no
+write tool, so its findings are routed by the orchestrator to the implementing
+role — never assign the fix to `auditor` itself.
 
 ### Scope routing — not every change runs the whole spine
 
@@ -84,8 +95,11 @@ phase:** a changed/new load-bearing decision (framework, datastore, external
 service, deploy topology) or a reversed ADR pulls Phase 1 back in; anything
 touching auth, data handling, secrets, permissions, dependencies/lockfiles,
 cryptography, network exposure, CI/supply-chain or IaC pulls Phase 4 Security back
-in; any user-facing surface change pulls Phase 2 back in. Classification runs off
-a deterministic changed-path check, not unaided judgment.
+in; any user-facing surface change pulls Phase 2 back in; **a large or structural
+diff pulls the Phase-4 `auditor` in** (the magnitude floor above) whatever the
+scope — a "bugfix" that rewrites 1500 lines is not small because it was labelled
+so. Classification runs off a deterministic changed-path check, not unaided
+judgment.
 
 ## Phase 0 — intent alignment (the most important phase)
 
@@ -149,7 +163,8 @@ structurally complete: every `Rn`/`Nn` has an acceptance clause and the file has
 `Scope:` line; `design.md`'s requirement→design map has no blank row. Incomplete
 is a gate failure, not a rounding error.
 
-**Verdict blocks.** The judgment gates — QA, Security, the architecture-change
+**Verdict blocks.** The judgment gates — QA, Security, the efficiency Auditor,
+the architecture-change
 review, the self-evolution reviewer, and the market analyst — each END their
 report with the machine-checkable ```yaml verdict block from
 `.claude/skills/aidlc/contracts/verdicts.template.md`. The orchestrator parses it
@@ -214,7 +229,7 @@ change is never auto-merged. Do not quietly downgrade this to a self-review.
 ## Cross-cutting rules
 
 - **Contracts are the interface.** Roles talk through `requirements.md` →
-  `design.md` / `standards.md` → PRs → QA/security reports. A downstream role
+  `design.md` / `standards.md` → PRs → QA / security / audit reports. A downstream role
   reads the contract file, not your paraphrase.
 - **The intent contract is supreme.** Any gate can fail a phase for drifting from
   a signed requirement. Drift is the default failure mode you guard against.

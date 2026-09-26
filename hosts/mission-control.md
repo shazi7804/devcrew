@@ -73,9 +73,10 @@ convention that mc's own functions then enforce for free.
 ┌─ L3 · devcrew — the AIDLC flow ───────────────────── source: ~/Github/devcrew ───┐
 │                                                                                  │
 │  P0 ─🔴→ P0.5 ─🔴→ P1 ─→ P2 ─🔴→ ┌ frontend ┐→┌ qa       ┐→ P5 ─→ P6 ─🔴→ P∞     │
-│  intent  market    arch  design  └ backend  ┘ └ security ┘  deploy  release      │
+│  intent  market    arch  design  └ backend  ┘ ├ security ┤  deploy  release      │
+│                                               └ auditor* ┘  (*big diffs only)    │
 │                                                                                  │
-│  11 roles   framework/agents/<role>.md          the role's system prompt         │
+│  12 roles   framework/agents/<role>.md          the role's system prompt         │
 │  protocol   framework/skills/aidlc/SKILL.md     phases · gates · harness         │
 │  contracts  framework/skills/aidlc/contracts/*.template.md                       │
 │  memory     framework/memory/{lessons,adr,retro}.md                              │
@@ -285,7 +286,7 @@ carries it, and the skill entry states it.
 |---|---|
 | Phase ordering | one task per phase in `tasks.json`; later phases carry `blockedBy: [<earlier task ids>]`. `isTaskUnblocked()` enforces the spine. |
 | Dispatch | `assignedTo: "<role id>"` (daemon mode: the daemon picks it up in Eisenhower order; board mode: the interactive orchestrator reads the board and dispatches). |
-| Parallel phases (P3 FE ∥ BE, P4 QA ∥ Security) | sibling tasks with the same `blockedBy`; `concurrency.maxParallelAgents` is the fan-out cap. |
+| Parallel phases (P3 FE ∥ BE, P4 QA ∥ Security ∥ Auditor) | sibling tasks with the same `blockedBy`; `concurrency.maxParallelAgents` is the fan-out cap. |
 | 🔴 CEO gate | a `decisions.json` row `{ requestedBy, taskId: <the task the gate blocks>, question, options, context, status: "pending" }`. `hasPendingDecision()` refuses to dispatch that task until the CEO answers in the Decisions page, and `buildRetryContext()` feeds the answer back into the next prompt. **A role writes the pending row and ENDS ITS TURN — it never assumes a gate passed.** In a non-interactive daemon run this is the only suspension mechanism available. |
 | Contracts | `requirements.md` / `design.md` / `standards.md` / verdict blocks as files in the product repo (e.g. `.aidlc/` or `projects/<slug>/aidlc/`); the task's `notes` names the path. Templates from the installed `aidlc/contracts/`. |
 | Intent hash / standards hash | `sha256` of the signed file, recorded in the phase task's `notes` and in the ledger; every later gate re-computes and compares. Drift without a fresh sign-off → halt and raise a pending decision. |
@@ -311,6 +312,14 @@ in every report, not quietly pass.
   tasks, via the pending-decision mechanism above. A phase whose gate must be held
   mid-run belongs in board mode.
 - **No per-project cwd** — see Step 0.5. Board mode is the answer, not a workaround.
+- **The `auditor`'s read-only guarantee is instruction-only in daemon mode.**
+  `agents.json` has no per-agent tool allowlist, so nothing mechanically stops the
+  auditor from editing code the way the Claude Code artifact's `tools:` line does.
+  Compensate: state the prohibition at the TOP of its `instructions`, keep the
+  `.claude/agents/auditor.md` form tool-restricted (that is what a manually
+  launched run uses), and assign the fix task to the implementing role — never to
+  `auditor`. Say "degraded, because mc has no per-agent tool allowlist" in the
+  install report.
 
 ## Verify
 
@@ -323,7 +332,9 @@ in every report, not quietly pass.
    `decisions` `requestedBy` exists in the registry (no orphans after a rename).
 4. The role files + `aidlc` skill + `contracts/` + memory exist in the repo the
    roles actually run in, and its `CLAUDE.md` has the devcrew section.
-5. The reviewer artifact mounts no shared memory (grep it for the memory path).
+5. The reviewer artifact mounts no shared memory (grep it for the memory path),
+   and the `auditor` artifact grants no write/edit tool (grep `.claude/agents/auditor.md`
+   for `Write`/`Edit`).
 6. Regenerate the context snapshot (`pnpm gen:context`) so the dashboard and every
    prompt see the new roster.
 7. Tell the CEO which mode is installed, that 🔴 gates appear in the **Decisions**

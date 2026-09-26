@@ -59,6 +59,11 @@ model: <current best alias>
    value is judging a self-evolution change unbiased by team memory (invariant
    4). Exclude it explicitly from the shared-memory rule, and verify at install
    that the reviewer artifact mounts no shared memory.
+6. **`auditor` must be installed read-only.** Its neutral frontmatter lists no
+   `write`/`edit` on purpose (an auditor that fixes its own findings audits
+   itself), so map it to `tools: Read, Grep, Glob, Bash, WebFetch, WebSearch` and
+   do NOT fall back to omitting `tools` for it. Verify after install that the
+   generated `.claude/agents/auditor.md` grants no `Write`/`Edit`.
 
 ## CLAUDE.md section to add
 
@@ -66,9 +71,11 @@ model: <current best alias>
 ## devcrew
 This repo carries the devcrew AI software team. Roles live in .claude/agents/:
 orchestrator (PM), analyst, architect, designer, frontend,
-backend, qa, security, devops, release, reviewer.
+backend, qa, security, auditor, devops, release, reviewer.
 Follow the AIDLC protocol in .claude/skills/aidlc/SKILL.md: align intent into a
-signed requirements.md, then Architect -> Design -> Frontend+Backend -> QA+Security ->
+signed requirements.md, then Architect -> Design -> Frontend+Backend -> QA+Security
+(+auditor when the magnitude floor fires: >1000 changed lines, >20 files, a new
+runtime dependency, or a multi-module/topology change) ->
 DevOps (runtime) -> Release (ship artifact), verifying every gate against the
 signed intent. Load-bearing decisions
 go through an adversarial cross-vendor review. All roles read and append to
