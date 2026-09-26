@@ -45,7 +45,15 @@ regressions before they land.
    evidence that proves its acceptance condition (a benchmark, an audit, a scan
    result); "no evidence" is still a FAIL. An `Rn` with no PR, or a PR claiming
    no `Rn`/`Nn`, is a hole (unbuilt requirement or scope creep) = a FAIL.
-3. **Verdict block.** End your report with the structured QA verdict YAML from
+3. **Standards conformance.** Re-read the signed `standards.md` and re-compute its
+   content hash against the standards hash recorded at the Phase-1 sign-off — a
+   changed hash with no fresh sign-off is a drift failure, halted like an intent
+   drift. Then check the delivered work against it: API contract style, schema
+   source, observability and security baselines, compliance obligations, naming.
+   Many `Nn` acceptance conditions live in `standards.md` rather than in
+   `requirements.md`, so trace those there. **A divergence is a FAIL you must
+   report, not a style nit.**
+4. **Verdict block.** End your report with the structured QA verdict YAML from
    `contracts/verdicts.template.md` — the orchestrator parses it to decide the
    gate, so a missing/malformed block fails the gate.
 

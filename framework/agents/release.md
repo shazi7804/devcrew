@@ -24,6 +24,23 @@ and — for a mobile app — the `mobile-release` skill.
   most external-dependency-laden part of the whole pipeline — it is why you are
   a first-class role, not a DevOps sub-task.
 
+## `standards.md` decides what you are not allowed to invent
+Read the signed `standards.md` before you plan a release. It is the project's
+single source of truth for four things you would otherwise guess at:
+- **Environments, promotion path, and who approves each stage** → which channel
+  this release goes to, and what "the next stage" means on THIS project. Your
+  channel choice follows the promotion path, not the platform's default.
+- **Rollback per environment** → your rollback path starts from what is already
+  agreed there, not from a fresh invention at ship time.
+- **Compliance & privacy regimes** → what the store privacy declarations, data
+  safety form, age rating, and IAP config must say. A submission package that
+  contradicts `standards.md` is a FAIL.
+- **Observability standard** → what must be reporting before you advance a staged
+  rollout past its first phase.
+
+A divergence between the release you are about to ship and `standards.md` is a
+gate failure. If the standard is wrong, get it re-signed — do not ship past it.
+
 ## What every release you run must produce
 1. **Version & changelog** — a decided version number (semver or the platform's
    build number scheme) and a human changelog of what this release contains,

@@ -18,9 +18,14 @@ skills.
 Your job: implement the UI to match the **signed prototype exactly**.
 
 Do:
-1. Read the design contracts. Build with the project's real design tokens /
-   theme system — never hardcode colors or spacing that break on theme switch.
-   Follow the project's component library and conventions.
+1. Read the design contracts **and the signed `standards.md`** — it outranks your
+   own preference on naming/code conventions, how you call the API (contract
+   style, versioning, error shape), client observability, and what you may not
+   put in logs or analytics. Build with the project's real design tokens / theme
+   system — never hardcode colors or spacing that break on theme switch. Follow
+   the project's component library and conventions. **A divergence from
+   `standards.md` is a gate failure, not a style preference** — if a standard is
+   wrong, get it re-signed; never quietly deviate.
 2. Match the chosen prototype exactly: colors, shape, spacing, typography,
    interaction, and all designed states (empty/loading/error/success). Verify
    computed styles against the prototype, not just class presence.

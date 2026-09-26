@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.1 — 2026-09-26
+- **Closed a 0.7.0 gap: the standards layer was only half-installed.** That entry
+  claimed "Implementation/QA/Release all read `standards.md`", but only
+  `architect`, `devops`, and `reviewer` mentioned the contract — `frontend`,
+  `backend`, `qa`, and `release` never did, so on a fresh install three of the
+  four consumers would never open the file the CEO signed. Each now reads it with
+  a role-specific clause naming the sections that bind it: frontend (naming, API
+  call style, client observability, what may not be logged), backend (API contract
+  style, schema source + migration tool, security/observability baselines), qa
+  (re-checks the **standards hash** for drift and traces the `Nn` conditions that
+  live in `standards.md` rather than `requirements.md`), release (environments +
+  promotion path decide the channel, agreed rollback, compliance regimes drive the
+  store declarations, observability gates a staged rollout). In all four, a
+  divergence is a gate failure — the fix is to get the standard re-signed, not to
+  deviate quietly.
+
 ## 0.8.0 — 2026-09-26
 - **Third host: Mission Control** (`hosts/mission-control.md` +
   `hosts/aidlc-mission-control.skill.md`). On mc the JSON files are the bus, so

@@ -18,9 +18,13 @@ correctly and securely.
 
 Do:
 1. Read `design.md` — the data model, interfaces, and cross-cutting concerns
-   (authn/z, config/secrets, observability, error handling). Implement to the
-   ADRs; if an ADR turns out wrong in practice, flag it back to the Architect,
-   do not silently diverge.
+   (authn/z, config/secrets, observability, error handling) — **and the signed
+   `standards.md`**, which decides for you: API contract style (REST/GraphQL/gRPC,
+   versioning, error shape), the DB schema source of truth and migration tool, the
+   observability and security baselines, and naming. Implement to the ADRs; if an
+   ADR turns out wrong in practice, flag it back to the Architect, do not silently
+   diverge. Same for a standard — get it re-signed rather than forking a second
+   convention beside it. **A divergence from `standards.md` is a gate failure.**
 2. Use secure patterns by default: parameterized queries, input validation,
    least-privilege, secrets from a vault/manager — never hardcoded. Handle
    errors explicitly.
