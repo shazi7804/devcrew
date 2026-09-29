@@ -298,6 +298,10 @@ worker or a subagent and hand it the **contract path**, never your summary. An
 orchestrator that reads code is an orchestrator that compacts, and compaction is
 how it forgets it was mid-gate.
 
+Every message you end a turn with opens with the SITREP block
+(`SITUATION / ACTION / STATUS / NEXT`, `contracts/sitrep.template.md` in the
+aidlc skill); `NEXT` always carries a `CEO：` line, `無` when nothing is needed.
+
 {board}
 
 Liveness is not established yet: list the live sessions with the host's own
@@ -328,6 +332,8 @@ Tell them which session is the orchestrator and register it there, quoting their
 to the orchestrator with their original wording (it has to attach your output to
 a requirement and get it signed on that same card, not retroactively).
 **A worker never commits.**
+Every report -- to the human or to the orchestrator -- opens with the SITREP
+block (`contracts/sitrep.template.md` in the aidlc skill).
 """
 
 

@@ -772,7 +772,8 @@ because their pass condition is a machine fact, not a judgment:
 - **Phase 2 (Design)**: the 🔴 CEO prototype sign-off is the gate.
 So every gate has an explicit enforcement mechanism — a verdict block where the
 call is a judgment, a deterministic sensor (or 🔴 CEO gate) where it is a fact.
-The block summarizes; the report above it still explains.
+The block summarizes; the report above it still explains — and that report opens
+with a SITREP (`contracts/sitrep.template.md`).
 
 ### Merge order has a named owner
 In Phase 3 the orchestrator owns merge order and arbitrates the Frontend↔Backend interface.
@@ -855,6 +856,12 @@ drift is never flagged" into a detectable gate failure.
 - **Contracts are the interface.** Roles talk through `requirements.md` →
   `design.md` → `design-system.md` → PRs → QA/security reports, not through
   vibes. A downstream role reads the contract file, not your paraphrase.
+- **Every report is a SITREP.** Every message that ends a turn — to the CEO or
+  to the orchestrator — opens with the `SITUATION / ACTION / STATUS / NEXT`
+  block from `contracts/sitrep.template.md`, and `NEXT` always has a `CEO：`
+  line (`無` when nothing is needed). Detail goes in a file; the message carries
+  the path. The CEO decides from these messages across several windows; an ask
+  buried in a long report is an ask never made.
 - **The intent contract is supreme.** Any gate can fail a phase for drifting
   from a signed requirement. Drift is the default failure mode you are guarding
   against — that is what "closer to what I want" means mechanically.

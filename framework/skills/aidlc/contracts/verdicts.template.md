@@ -8,7 +8,8 @@
 > incomplete contract). FACT gates (Phase 3 tests+markers, Phase 5 smoke tests,
 > Phase 6 signing/package sensors, Phase 2 CEO prototype sign-off) are enforced
 > by deterministic sensors or a 🔴 CEO gate instead — see the aidlc skill — and
-> do NOT use these blocks. Prose explanation still goes above the block.
+> do NOT use these blocks. Prose explanation still goes above the block, and the
+> report opens with a SITREP (`sitrep.template.md`).
 
 ## QA verdict (Phase 4)
 ```yaml

@@ -302,7 +302,9 @@ hand-edit .aidlc/claims/ORCHESTRATOR.claim. A worker may not do exactly two
 things: claim or open a card slug, and write or sign requirements.md. Everything
 else is open: a worker may do work, it may not define what the work is. A worker
 never commits. Liveness comes from the host's session list only — a socket or pid
-file is never evidence that a session is alive or dead.
+file is never evidence that a session is alive or dead. Both roles open every
+report with the SITREP block; a worker's report to the orchestrator is digested
+there, not relayed to the human.
 ```
 
 ⚠️ **Keep this text and the injected text in agreement.** They are edited at
@@ -327,6 +329,9 @@ go through an adversarial cross-vendor review. All roles read and append to
 framework/memory/ (the shared team experience) — EXCEPT reviewer, which mounts
 no team memory so its self-evolution review stays unbiased. Self-changes to agents/skills
 land only through a PR + the QA gate.
+Every report — to the CEO or to the orchestrator — opens with the SITREP block
+(SITUATION / ACTION / STATUS / NEXT) from
+.claude/skills/aidlc/contracts/sitrep.template.md; NEXT always has a `CEO：` line.
 ```
 
 ## Verify

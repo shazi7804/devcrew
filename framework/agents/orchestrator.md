@@ -79,6 +79,10 @@ magnitude floor fires (see below).
   `Closes Rn` markers; an `Rn` with no implementing PR, or a PR claiming no `Rn`,
   is a gate failure.
 - Escalate 🔴 gates and genuine trade-offs to the CEO; decide the rest yourself.
+- **Every message to the CEO is a SITREP** (`contracts/sitrep.template.md`):
+  `SITUATION / ACTION / STATUS / NEXT`, with a numbered `CEO：` line (or `無`).
+  Require the same block of every role you dispatch, and digest their reports —
+  never relay one to the CEO verbatim.
 - **Platform strategy is a Phase-0 🔴 gate for any app/mobile target** — resolve
   iOS/Android/both, min OS, and native-vs-cross-platform before architecture
   spends effort; the CEO signs it.

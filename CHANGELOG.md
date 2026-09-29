@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.9.4 — 2026-09-30
+
+**Every report is a SITREP.** The roles reported to each other in typed contracts
+(verdict YAML, contract paths), but nothing shaped what reached the CEO. In a
+real repo the orchestrator's median turn-end message ran ~900 characters, up to
+~4,700: done-work first, the CEO's ask in the middle or the last line, bold on
+nearly every sentence, internal codes (`N1`, `C2f′`) left undecoded, and worker
+messages relayed verbatim. The CEO's verdict: too much noise to decide from.
+
+New: **`contracts/sitrep.template.md`** — a fixed four-field block, adapted from
+[joshuaboys/SITREP](https://github.com/joshuaboys/SITREP) (MIT), chosen by the
+CEO over Rundown / Attention-kind (alexgreensh/attention-span) and BLUF
+(jarbasmoraes/human-comms) from side-by-side rewrites of the same real report.
+
+```
+SITUATION  where things stand
+ACTION     what was done (max 3 lines)
+STATUS     DONE | IN PROGRESS | BLOCKED | FAIL
+NEXT       CEO：numbered asks, or 無
+           我：what happens next with no input
+```
+
+The load-bearing rule is that `NEXT` **always** has a `CEO：` line: one line tells
+the CEO whether a message can be skipped.
+
+Wired into: a *Cross-cutting rule* in `SKILL.md` (binds every role), the
+orchestrator's Discipline, `verdicts.template.md` (SITREP on top, YAML at the
+bottom), both texts `boot.py` injects at session start, and the `CLAUDE.md`
+sections in `hosts/claude-code.md` — the injected copy and the `CLAUDE.md` copy
+changed in the same commit, as that adapter requires.
+
 ## 0.9.3 — 2026-09-26
 
 **The framework assumed one session. Hosts don't.** Every diagram in
