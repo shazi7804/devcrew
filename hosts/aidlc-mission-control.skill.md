@@ -53,7 +53,7 @@ contract, or (c) needs the **CEO's own sign-off** (🔴 — never self-approve).
 | 4 | Verification | qa ∥ security ∥ auditor* | QA report + security report + efficiency audit | sensors green + every `Rn` met + zero security blocker + zero audit blocker/high + intent hash unchanged |
 | 5 | Deployment (runtime) | devops | live env + smoke evidence | production smoke tests green |
 | 6 | Release (artifact to users) | release | signed artifact + channel evidence | 🔴 signing material; 🔴 submission/rollout; live on the channel |
-| ∞ | Evolution | all + reviewer | retrospective + framework PR | reviewer verdict + CEO merge — never self-merge |
+| ∞ | Evolution | all + qa + reviewer | retrospective + 🔴 signed `proposals/<slug>/requirements.md` + framework PR | CI green + qa verifies the proposal's `Rn` + reviewer verdict + CEO merge — never self-merge |
 
 Phase 3 (frontend ∥ backend) and Phase 4 (qa ∥ security ∥ auditor) fan out. Never
 dispatch a role whose input is another still-running role's output — that is what
@@ -214,14 +214,17 @@ mounts no team memory.)
 
 ## Phase ∞ — self-evolution, and this host's limit
 
-A change to devcrew's own framework is drafted as a PR and **never self-merged**.
-It is reviewed by `reviewer`, which runs with no team memory and on a DIFFERENT
+A change to devcrew's own framework starts at Phase 0: a
+`proposals/<slug>/requirements.md` the CEO signs (a pending decision row, like
+any 🔴 gate). Only then is it drafted as a PR, and it is **never self-merged**.
+CI runs first, then `qa` verifies every `Rn` of the proposal. It is reviewed by
+`reviewer`, which runs with no team memory and on a DIFFERENT
 model family than the author — that is what makes the review unbiased — and the
 CEO makes the final merge.
 
 **On Mission Control that cross-vendor review cannot run**: the daemon may only
 spawn the `claude` binary and has no per-agent model field. So per
-`ARCHITECTURE.md` §7 the degrade path is explicit — either the PR is reviewed on a
+`ARCHITECTURE.md` §8 the degrade path is explicit — either the PR is reviewed on a
 host that can run another vendor (KiroCrew), or the change is **HELD unmerged**
 with a pending decision telling the CEO the review gate cannot run here. A held
 change is never auto-merged. Do not quietly downgrade this to a self-review.

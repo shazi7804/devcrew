@@ -18,7 +18,7 @@ environment and how it is reached:
 - **Environments**: e.g. local / dev / staging / prod — list the ones this
   product actually has.
 - **Target per env**: cloud/provider/region OR on-prem OR hybrid (e.g.
-  prod = GCP asia-east1 / on-prem k8s / AWS us-east-1 — whatever THIS product is).
+  prod = a GCP region / on-prem k8s / an AWS account — whatever THIS product is).
 - **Promotion path**: how a build moves local → … → prod, and who approves each.
 - **Rollback**: how each env rolls back.
 - *This replaces any hardcoded "Local → AWS prod" assumption.* DevOps (Phase 5)

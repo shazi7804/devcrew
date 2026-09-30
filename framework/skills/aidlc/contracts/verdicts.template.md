@@ -90,7 +90,7 @@ verdict: APPROVE | REQUEST-CHANGES | REJECT
 model_used: <reviewer model id>          # must be a DIFFERENT vendor than author
 author_model_vendor: <vendor>            # to prove cross-vendor
 reviews_own_change: false                # MUST be false; else route to a 2nd reviewer
-invariants_checked: [1,2,3,4,5,6,7]        # the design invariants from AGENTS.md
+invariants_checked: [1,2,3,4,5,6,7,8,9]  # the design invariants from AGENTS.md
 concerns:
   - <specific concern, empty if APPROVE>
 ```

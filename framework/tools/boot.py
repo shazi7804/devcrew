@@ -377,7 +377,7 @@ def do_beat(payload):
     still being in charge."""
     sid = session_identity(payload)
     if sid is None:
-        return {"suppressOutput": True}
+        return QUIET
 
     cur = read_lock()
     mine = bool(cur) and cur.get("session_id") == sid
@@ -404,7 +404,7 @@ def do_beat(payload):
                 "Claim and open nothing until this is settled, and confirm the "
                 "pin was intended (its creation should have a ledger line).",
             )
-        return {"suppressOutput": True}
+        return QUIET
 
     if was == "orchestrator":
         try:
@@ -420,14 +420,14 @@ def do_beat(payload):
             "write or sign `requirements.md`. Finish the concrete work in your "
             "hands and report it to the current orchestrator.",
         )
-    return {"suppressOutput": True}
+    return QUIET
 
 
 def do_end(payload):
     """Release, so the next session does not wait out STALE_S for nothing."""
     sid = session_identity(payload)
     if sid is None:
-        return {"suppressOutput": True}
+        return QUIET
     cur = read_lock()
     if cur and cur.get("session_id") == sid:
         # Fixed filename: each release overwrites the last, so this leaves
@@ -438,29 +438,33 @@ def do_end(payload):
             os.rename(LOCK, RELEASED)
         except OSError:
             pass
-    return {"suppressOutput": True}
+    return QUIET
 
 
 # ---------------------------------------------------------------------------
-# The only host-specific part of this file
+# Output — neutral here, shaped by the host's adapter
 # ---------------------------------------------------------------------------
+
+QUIET = {"quiet": True}
+
 
 def render(payload, message, context):
-    """Shape the output the way this host consumes it.
+    """The neutral result: `message` is for the human, `context` for the model.
 
-    A new host adapter should need to replace THIS FUNCTION ONLY. The shape below
-    is Claude Code's hook protocol: `systemMessage` is shown to the human,
-    `hookSpecificOutput.additionalContext` is injected into the model's context.
-    A host that reads plain stdout instead can return the context as-is.
+    A host that needs another shape ships an adapter as `boot_host.py` beside
+    this file, with `adapt(out, payload) -> dict`. Its hosts/<host>.md says so.
+    This file stays host-neutral; the host's protocol lives in its adapter.
     """
-    return {
-        "systemMessage": message,
-        "suppressOutput": True,
-        "hookSpecificOutput": {
-            "hookEventName": payload.get("hook_event_name", "SessionStart"),
-            "additionalContext": context,
-        },
-    }
+    return {"message": message, "context": context, "quiet": True}
+
+
+def adapt(out, payload):
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import boot_host                                          # noqa: PLC0415
+    except ImportError:
+        return out
+    return boot_host.adapt(out, payload)
 
 
 def main():
@@ -480,8 +484,12 @@ def main():
         out = {"start": do_start, "beat": do_beat, "end": do_end}[mode](payload)
     except Exception as e:                                        # noqa: BLE001
         # Never let a broken governance script block a session.
-        out = {"systemMessage": f"(governance hook boot.py {mode} failed, skipped: {e!r})"}
+        out = {"message": f"(governance hook boot.py {mode} failed, skipped: {e!r})"}
 
+    try:
+        out = adapt(out, payload)
+    except Exception as e:                                        # noqa: BLE001
+        out = {"message": f"(boot_host adapter failed, skipped: {e!r})", **out}
     print(json.dumps(out, ensure_ascii=False))
     return 0
 

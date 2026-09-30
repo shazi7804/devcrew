@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.9.5 — 2026-10-01
+
+**Award-grade design, a readable README, and a framework that names no host.**
+Signed intent: `proposals/0.9.5-award-design-docs-neutrality/requirements.md`
+(R1–R10, N1). It is the first framework change to start from its own Phase-0
+contract.
+
+- **designer reaches award grade by iterating on itself** (R1). It uses
+  [impeccable](https://impeccable.style/) (pbakaus/impeccable, Apache-2.0), and
+  its bar is the Awwwards / Webby / FWA jury standard. Each round runs
+  screenshot → `critique` + `audit` + `npx impeccable detect` → score against a
+  weighted rubric → refine, and is recorded in `design-scorecard.md`. The loop
+  exits on the bar, or stops at a plateau and reports the gap to the CEO; a
+  sub-bar design is never passed off as done. Phase 2 of `SKILL.md` gains step ⑤
+  and the scorecard gate.
+- **README rewritten** (R2–R5). New sections: setup, how to talk to the
+  orchestrator, architecture, the team, native skills, See it work, docs,
+  license. Each of the 12 roles has its own page under `docs/agents/`. See it
+  work shows only output from commands that were actually run. There is now a
+  Traditional Chinese README (`README.zh-TW.md`), with a language switch at the
+  top of both.
+- **Invariant 9: host- and machine-neutral** (R6, R7). "The 128GB EC2 gateway"
+  and other host tool names (`spawn_run`, `ask_question`, `resource_status`,
+  the Browser panel, …) had sat in the neutral source since 0.4.0. The reviewer
+  reads diffs, and a line that already exists is never in one. Now:
+  - `framework/`, `ARCHITECTURE.md` and `docs/` use neutral terms (`spawn`, the
+    ledger, the gate primitive, a structured question, a resource check, a
+    browser preview), and each `hosts/*.md` maps them.
+  - `tools/check_neutral.py` scans the whole tree, not just the diff.
+  - `reviewer` REJECTs on a non-zero exit.
+- **Invariant 8 written down:** no gate is weakened without a recorded CEO
+  decision.
+- **A framework change starts at Phase 0** (R8). Loop C is now: signed
+  `proposals/<slug>/requirements.md` → PR (`Closes Rn`) → CI → `qa` (against
+  the proposal) ∥ `reviewer` → CEO merge. Before this, QA had nothing to verify
+  a framework change against, and the reviewer had no intent to judge it by.
+- **CI** (R9). `.github/workflows/checks.yml` runs `check_neutral.py` (and its
+  self-test), `tools/check_repo.py` (relative links and anchors, role
+  frontmatter, reviewer mounts no memory, auditor holds no write tool) and
+  `tools/diagram.py check`.
+- **boot.py speaks neutral output** (`message` / `context` / `quiet`). The
+  Claude Code hook field names moved to `hosts/claude-code.boot_host.py`,
+  installed next to it as `boot_host.py`. With the adapter installed, the
+  output is byte-identical to 0.9.4, and the race still elects exactly one.
+- **check_neutral.py deny-lists widened** after review: host config files and
+  hook fields (`CLAUDE.md`, `settings.json`, `.claude/`, `mcp__`, …), any
+  `<n>GB` size, GCP / Azure regions, and more file types. Four leaks it then
+  found were fixed.
+- **impeccable pinned** (`impeccable@4.1.0`) in every host guide. The edit hook
+  it installs is shown to the user before it is enabled, and the designer has a
+  by-hand path, recorded as `detect: unavailable`, when it cannot be installed.
+- **MIT license** (R10).
+
+How it was gated:
+- QA failed attempt 1 on R4 and R8: an unsourced example was called "real", and
+  four stale descriptions of the self-evolution path were missed by a
+  literal-string grep. Attempt 2 passed R1–R10.
+- No other vendor's model is available on this host, and the CEO's choice
+  (Fable) was not callable. The review therefore ran as the degraded council
+  fallback in `SKILL.md`, recorded in the proposal: two independent reviewers
+  with no team memory, Opus 5.5 and Sonnet 4.5. It was degraded, because both
+  are the same vendor and Opus is the author's own model. Opus returned
+  REQUEST-CHANGES: a host leak in boot.py, gaps in the deny-list, impeccable
+  unpinned, CI ordering, and a principle missing from the README. All of these
+  were fixed in this change. Sonnet returned APPROVE.
+
 ## 0.9.4 — 2026-09-30
 
 **Every report is a SITREP.** The roles reported to each other in typed contracts

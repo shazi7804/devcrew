@@ -20,7 +20,7 @@ arrow crossing a gap is either an install artifact or a host primitive.
 └────────────────────────────────────────────────────────────────────────┘
      │                                          ▲
      │ (A) INSTALL-TIME TRANSFORM — once,       │ (C) Phase ∞ writes back:
-     │     by you, following THIS file          │     retro/lessons → framework/
+     │     by you, following THIS file          │     retro → signed proposal →
      ▼                                          │     PR, never self-merged
 ┌─ L2 · adapter ────────────── this is the layer this file defines ──────┐
 │                                                                        │
@@ -46,24 +46,23 @@ arrow crossing a gap is either an install artifact or a host primitive.
 │   🔴 CEO gate   ▶ ask_question, then END THE TURN — the turn itself IS │
 │                   the suspension; this host has no decision QUEUE      │
 │   budgets       ▶ resource_status before each heavy step               │
+│   question      ▶ ask_question card · an [OPTIONS:] line               │
+│   preview       ▶ the dashboard Browser panel (web-preview)            │
 │   contracts     ▶ real files in the product repo                       │
 └────────────────────────────────────────────────────────────────────────┘
      │ reads / writes                            ▲ CEO answers in the dashboard
      ▼                                           │
 ┌─ L1 · KiroCrew runtime ────────────────────────────────────────────────┐
 │                                                                        │
-│  local Mac = CONTROL CONSOLE ONLY — no model turn ever runs here       │
-│        │                                                               │
-│        │  SSM — the ONLY ingress (no public port, no ssh)              │
-│        ▼                                                               │
-│  the 128 GB EC2 gateway                                                │
+│  the KiroCrew gateway — wherever this user runs it (a laptop, a        │
+│  workstation, or a remote host; read it off the machine, never assume) │
 │    ~/.kiro/agents/*.json  auto-loaded ──▶ dashboard agent switcher     │
 │    @kirocrew-core ── spawn_run ──▶ role agent processes (the fan-out)  │
 │    @kirocrew-cron ── schedules the meta-review digest                  │
 │    kiro-cli  = the model backend that actually runs a role's turns     │
 │        │                                                               │
 │        ▼  fan-out cap: resource_status FIRST; serialize when tight     │
-│    the gateway bills hourly ──▶ pause a long-idle run, do not spin     │
+│    on metered compute ──▶ pause a long-idle run, do not spin           │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,8 +76,9 @@ mid-run. This is the strongest of the three hosts — the list is short.
   the ledger records that a gate is open. `session_ledger_record` the pending gate
   **before** ending the turn, or a restart cannot tell "waiting on the CEO" from
   "never ran" — and the second guess is the dangerous one.
-- **The gateway bills hourly.** An idle suspended run costs money while it waits,
-  so a long 🔴 gate should pause the gateway rather than hold it.
+- **A gateway on metered compute bills while it waits.** If this user's
+  gateway runs on a billed host, an idle suspended run costs money, so a long 🔴
+  gate should pause the gateway rather than hold it. Ask; do not assume.
 
 ## What KiroCrew expects
 
@@ -160,6 +160,13 @@ For each `framework/agents/<name>.md`:
   `web-verify`, `deploy-web`, `artifact-deploy`) → the installed
   `~/.kiro/crew/skills/<name>/SKILL.md`. If one is absent, note it to the user
   rather than inventing a path.
+- `impeccable` (designer) is third-party: [pbakaus/impeccable](https://github.com/pbakaus/impeccable),
+  Apache-2.0. Install it at a pinned version with `npx impeccable@4.1.0 install`
+  (it detects the harness; pin the version you install and name it in the
+  report), then map it to wherever that put its `SKILL.md`. If the installer
+  does not support Kiro, tell the user: the designer then follows its *When
+  impeccable cannot be installed* path. Do not copy the repo's `.kiro/skills/` folder by
+  hand as if that were a documented route.
 - Find the kirocrew binary from the running host (it is the command backing the
   core MCP server); do not hardcode a version-specific path from memory.
 

@@ -85,8 +85,8 @@ convention that mc's own functions then enforce for free.
 └──────────────────────────────────────────────────────────────────────────────┘
         │                                             ▲
         │ (A) INSTALL-TIME TRANSFORM — run once,      │ (C) Phase ∞ writes back:
-        │     by you, following THIS file             │     retro/lessons → fw/
-        ▼                                             │     PR, not self-merged
+        │     by you, following THIS file             │     retro → proposal 🔴
+        ▼                                             │     → PR, no self-merge
 ┌─ L2 · adapter · "middleware" ─────────── this is the layer this file defines ┐
 │                                                                              │
 │ (A) install transform — which file becomes which                             │
@@ -192,7 +192,7 @@ in every report, not quietly pass.
 
 - **Cross-vendor reviewer is impossible.** `security.ts` allows only the `claude`
   binary and there is no per-agent model field, so invariant 4's "review on a
-  different model family" cannot run from mc. Per `ARCHITECTURE.md` §7: review the
+  different model family" cannot run from mc. Per `ARCHITECTURE.md` §8: review the
   self-evolution PR on a host that can (KiroCrew), or **HOLD it unmerged** with a
   pending decision telling the CEO the gate cannot run. A held change is never
   auto-merged. The `reviewer` still mounts **no** team memory.
@@ -260,6 +260,9 @@ in every report, not quietly pass.
 | web | `WebSearch`, `WebFetch` |
 | **spawn** | **not a tool.** Daemon mode: append a task with `assignedTo` + `blockedBy` and the daemon spawns it. Board mode: the interactive session's own subagent tool, with mc holding the plan. `Task` is off in a daemon run unless `execution.agentTeams` is true. |
 | **memory** | `Read`/`Write` of the memory files in the workspace (mc has no memory mount): `devcrew-memory/*.md` in daemon mode, the product repo's existing memory dir in board mode |
+| structured question | a `decisions.json` pending row with `options` (daemon mode); the interactive session's own question tool (board mode) |
+| browser preview | a headless-browser screenshot, as on Claude Code; mc has no preview panel |
+| host resource check | none as a tool: `concurrency.maxParallelAgents` in `daemon-config.json` is the fan-out cap |
 
 `model: best-available` → whatever the `claude` CLI is configured to use; record the
 intent in `description` if the CEO needs to know. `reviewer`'s
@@ -296,6 +299,11 @@ For each `framework/agents/<name>.md`:
 5. **`.claude/skills/aidlc/`** (+ the `mobile-*` skills if the product ships an
    app) — copy `framework/skills/…` into the repo the roles run in, so the full
    protocol and `contracts/` templates are readable in-workspace.
+   `impeccable` (designer) is third-party: install it into the same repo the
+   Claude Code way (`hosts/claude-code.md` § *Per-agent file to generate*,
+   step 4, pinned version and hook review included), and verify it with
+   `npx impeccable@4.1.0 detect <file>` (exit 0 clean,
+   2 findings, 1 failed).
 6. **Shared memory** — `framework/memory/*.md` into the workspace
    (`devcrew-memory/` if the repo has no memory dir yet).
 7. **`CLAUDE.md`** of that repo — the devcrew section (roles, AIDLC flow, memory

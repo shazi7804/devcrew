@@ -14,4 +14,8 @@
 ```
 
 ## Entries
-_(none yet)_
+
+### 2026-10-01 — devcrew 0.9.5 — P4/qa
+- worked: re-running every output the README shows proved all three were real, not invented.
+- failed: attempt 1 FAIL — R8's literal-string grep missed four stale descriptions of the self-evolution path; an unsourced example was called "real".
+- change: -> lesson (search requirements by concept, not string)

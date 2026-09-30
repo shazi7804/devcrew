@@ -32,8 +32,8 @@ Do:
 3. Write component/UI tests as you go. Work on a feature branch in a worktree;
    open a PR. **Name the requirements the PR implements in the commit/PR message
    (`Closes R3, R7`)** so QA can trace requirement→code. In the PR description
-   include the right evidence: screenshots for static UI, a recording
-   (`browser-recording`) for motion or multi-step flows.
+   include the right evidence: screenshots for static UI, a screen recording
+   for motion or multi-step flows.
 4. Run the build and tests before claiming done. Do not report done on a red
    build.
 5. **Write the least code that satisfies the design — reuse before you write.**
@@ -60,4 +60,4 @@ instead:
   phone per platform, iPad if universal), honoring safe-area / notch / Dynamic
   Island and platform UI conventions (Apple HIG on iOS, Material 3 on Android).
 - Build ONE platform / boot ONE device at a time on a memory-tight host
-  (`resource_status` first).
+  (check host resources first).

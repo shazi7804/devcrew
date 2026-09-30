@@ -16,7 +16,7 @@ and the weakest durability — both visible below.
 └───────────────────────────────────────────────────────────────────────┘
      │                                          ▲
      │ (A) INSTALL-TIME TRANSFORM — plain       │ (C) Phase ∞ writes back:
-     │     file copies. No daemon, no MCP.      │     retro/lessons → framework/
+     │     file copies. No daemon, no MCP.      │     retro → signed proposal →
      ▼                                          │     PR, never self-merged
 ┌─ L2 · adapter ────────────── this is the layer this file defines ─────┐
 │                                                                       │
@@ -48,6 +48,9 @@ and the weakest durability — both visible below.
 │                    ✘ EXCEPT reviewer — excluded explicitly (inv. 4)   │
 │   durable ledger ▶ ⚠ NOT DEFINED by this adapter — see below          │
 │   scheduler      ▶ ⚠ none. The Phase-∞ meta-review runs on request.   │
+│   question       ▶ AskUserQuestion (structured options)               │
+│   resource check ▶ ⚠ none. Serialize heavy steps on a small machine.  │
+│   preview        ▶ a headless-browser screenshot (e.g. Playwright)    │
 └───────────────────────────────────────────────────────────────────────┘
      │ reads / writes                            ▲ the CEO is simply talking
      ▼                                           │ to the session
@@ -139,6 +142,19 @@ model: <current best alias>
    skills a role references (`frontend-design-workflow`, `llm-council`, etc.),
    either install equivalents into `.claude/skills/` or fold their essential
    procedure into the agent body — note to the user which you did.
+   `impeccable` (designer) is third-party, so install it rather than fold
+   it at a pinned version (4.1.0 when this was written; pin the version you
+   install and name it in the report):
+   `npx impeccable@4.1.0 install --providers=claude --scope=project`. If the
+   CLI's bundle download times out, `git clone` the repo at the matching tag
+   and copy its `.claude/skills/impeccable/` instead. Its edit hook goes into
+   `.claude/settings.local.json`, not the governance `settings.json`. That hook
+   runs third-party code on every edit, so show the user the hook entry and get
+   a yes before you keep it. Afterwards check that all four governance hooks are
+   still present. Verify the install by running
+   `npx impeccable@4.1.0 detect <file>`: exit 0 means clean, 2 means findings,
+   and 1 means the scan failed. If it cannot be installed, say so; the designer
+   then follows its *When impeccable cannot be installed* path.
 5. Because Claude Code has no cross-agent shared-memory mount, realize
    `memory: shared` by adding to `CLAUDE.md` a rule that every devcrew agent
    reads and appends to `framework/memory/` (lessons, ADRs, retros). That file
@@ -153,7 +169,7 @@ model: <current best alias>
    do NOT fall back to omitting `tools` for it. Verify after install that the
    generated `.claude/agents/auditor.md` grants no `Write`/`Edit`.
 7. **Install the multi-session governance layer** — `framework/tools/boot.py` →
-   `.aidlc/tools/boot.py`, plus the four hooks in `.claude/settings.json`. Full
+   `.aidlc/tools/boot.py` and its adapter `.aidlc/tools/boot_host.py`, plus the four hooks in `.claude/settings.json`. Full
    instructions in § *Multi-session governance* below; the concept it implements
    is `framework/session-governance.md`. Do not treat this as optional on this
    host: without it, "the orchestrator" is whatever each open window believes.
@@ -180,9 +196,13 @@ failure: a mechanism whose execution is somebody's responsibility to remember.
 
 ### (1) The script
 
-Copy `framework/tools/boot.py` → `.aidlc/tools/boot.py`. It is stdlib-only and
-host-neutral except for one function, `render()`, which already emits Claude
-Code's hook JSON — leave it alone on this host.
+Copy `framework/tools/boot.py` → `.aidlc/tools/boot.py`, and
+`hosts/claude-code.boot_host.py` → `.aidlc/tools/boot_host.py`. Both are
+stdlib-only. `boot.py` is host-neutral and prints a plain
+`{message, context, quiet}` result. The adapter beside it reshapes that result
+into Claude Code's hook JSON (`systemMessage`, `suppressOutput`,
+`hookSpecificOutput.additionalContext`). Without the adapter the hooks still
+run, but Claude Code ignores the output, so the role is never injected.
 
 ### (2) The wiring — `.claude/settings.json`
 
@@ -327,8 +347,9 @@ DevOps (runtime) -> Release (ship artifact), verifying every gate against the
 signed intent. Load-bearing decisions
 go through an adversarial cross-vendor review. All roles read and append to
 framework/memory/ (the shared team experience) — EXCEPT reviewer, which mounts
-no team memory so its self-evolution review stays unbiased. Self-changes to agents/skills
-land only through a PR + the QA gate.
+no team memory so its self-evolution review stays unbiased. A self-change to agents/skills
+starts with a CEO-signed proposals/<slug>/requirements.md, then lands only through
+a PR, CI, qa against that proposal, the reviewer, and the CEO's merge.
 Every report — to the CEO or to the orchestrator — opens with the SITREP block
 (SITUATION / ACTION / STATUS / NEXT) from
 .claude/skills/aidlc/contracts/sitrep.template.md; NEXT always has a `CEO：` line.

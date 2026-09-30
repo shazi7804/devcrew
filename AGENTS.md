@@ -170,9 +170,12 @@ the single source of truth; the host files are generated artifacts.
    real adversarial review, one shared `framework/memory/` for shared experience.
 3. **Adversarial by design** — load-bearing decisions (architecture, design, QA)
    go through a cross-vendor `llm-council`, not a single model's say-so.
-4. **Gated self-evolution, reviewed by a different model** — an agent may draft
-   changes to the framework, but it opens a PR and NEVER pushes `main` or merges
-   its own change. Review is done inside AIDLC by the `reviewer` role,
+4. **Gated self-evolution, reviewed by a different model** — a framework change
+   starts at Phase 0 like any product change: a
+   `proposals/<slug>/requirements.md` the CEO signs. An agent may then draft the
+   change, but it opens a PR and NEVER pushes `main` or merges its own change.
+   CI runs first. `qa` verifies the change against its signed requirements.
+   Review is done inside AIDLC by the `reviewer` role,
    dispatched on a DIFFERENT model family than the author and with no team memory
    mounted (that is what makes it unbiased). The reviewer never reviews its own
    change and never merges; the CEO makes the final merge. Never rewrite
@@ -196,3 +199,13 @@ the single source of truth; the host files are generated artifacts.
    fail the gate. Do not fold it into QA and do not downgrade it to advisory-only.
    A size floor cannot catch a small expensive change — that is what the
    implementer roles' reuse-first rule and the Security floor are for.
+8. **No gate is weakened to make something pass** — an approval gate, a safety
+   control, a permission boundary or a trigger is never loosened without a
+   CEO decision recorded with its reasoning.
+9. **The framework is host- and machine-neutral** — `framework/`,
+   `ARCHITECTURE.md` and `docs/` name no host's tools and no specific
+   machine's facts (instance size, cloud service, region, home directory). A
+   host's tool names live only in `hosts/<host>.md`, which maps the neutral
+   terms (`spawn`, the ledger, the gate primitive, a resource check) onto
+   them. `tools/check_neutral.py` enforces this over the whole tree, not just
+   the diff, so a leak that predates a change is still caught.

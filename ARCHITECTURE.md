@@ -10,7 +10,7 @@ this doc is the map.
 ```
 ┌───────────────────────────────────────────────────────────────┐
 │ LAYER 3 — ROLES (the "who")                                   │
-│   orchestrator (PM) + 10 role agents.                         │
+│   orchestrator (PM) + 11 role agents.                         │
 │   Each = its own prompt, tools, model, memory mount.          │
 ├───────────────────────────────────────────────────────────────┤
 │ LAYER 2 — HARNESS (the "how it stays reliable")               │
@@ -24,9 +24,9 @@ this doc is the map.
 │   • orchestrator election (hosts that run N sessions) — §9    │
 ├───────────────────────────────────────────────────────────────┤
 │ LAYER 1 — RUNTIME (the "where")                               │
-│   KiroCrew gateway on the 128GB EC2. spawn_run dispatches     │
-│   role agents; kiro-cli is the model backend; SSM is the      │
-│   only ingress. Local Mac is just the control console.        │
+│   The host that runs the roles: KiroCrew, Mission Control or  │
+│   Claude Code. Each hosts/<host>.md maps the harness onto     │
+│   that host's primitives. The framework names none of them.   │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -46,8 +46,8 @@ CEO idea
 │    (iOS/Android/both, min OS, native vs cross-platform) —                │
 │    a 🔴 CEO gate; the concrete stack lives in the project.               │
 │  HARNESS: schema check (every Rn has an acceptance clause)               │
-│  🔴 CEO GATE — orchestrator SUSPENDS here (ask_question /                │
-│     monitor loop) until the CEO signs. Never self-approves.              │
+│  🔴 CEO GATE — orchestrator SUSPENDS here (the host's gate               │
+│     primitive) until the CEO signs. Never self-approves.                 │
 │  LOCK: on sign, record requirements.md content hash =                    │
 │         "intent hash". Every later gate re-checks this hash.             │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -119,8 +119,9 @@ CEO idea
 └──────────────────────────────────────────────────────────────────────────┘
   │
   ▼
-┌─ PHASE ∞ · Evolution (all + reviewer) — see loops below ─────────────────┐
-│  retrospective → gated self-change (PR + cross-vendor review)            │
+┌─ PHASE ∞ · Evolution (all + qa + reviewer) — see loops below ────────────┐
+│  retro → signed proposal 🔴 → PR → CI → qa ∥ cross-vendor reviewer       │
+│  → 🔴 CEO merge                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -145,7 +146,8 @@ can run forever. Where they attach to the spine:
                                      │ a retro yields a        │
                                      ▼ framework change        │
                              (C) SELF-EVOLUTION ◀─────────────┘
-                             draft ▶ PR ▶ reviewer ▶ 🔴 CEO merge
+                             proposal requirements 🔴 ▶ PR ▶
+                             CI ▶ qa ∥ reviewer ▶ 🔴 CEO merge
                              (detail: SKILL.md § Phase ∞)
 ```
 
@@ -167,19 +169,19 @@ a counter:
 |---|---|---|---|
 | **A. Fix loop** | a gate FAILS (QA / Security / Auditor / build) | re-runs the phase that owns the fix | the 3/5 counter above — the only loop that needs one |
 | **B. Reflection** | end of every task, and on the meta-review | each role writes a retro; repeated failure modes become a self-improvement proposal | the task ending. The meta-review is a scheduled `cron`, not an open loop |
-| **C. Self-evolution** | a retro yields a framework change | draft → PR → cross-vendor reviewer → 🔴 CEO merge | one pass per proposal; the verdict is terminal for that round |
+| **C. Self-evolution** | a retro yields a framework change | 🔴 signed `proposals/<slug>/requirements.md` → PR → CI → qa ∥ cross-vendor reviewer → 🔴 CEO merge | one pass per proposal; the verdict is terminal for that round |
 
 ## 4. Budgets (the other stop condition)
 
 Every run carries ceilings, checked by the orchestrator before each heavy step
-(`resource_status` first on a memory-tight host):
+(a host resource check first on a memory-tight host):
 
 - **Step/attempt budget**: Loop A's 3/5 rule above.
 - **Fan-out cap**: never more parallel role agents than the host can hold
-  (serialize on a tight host; a wide wave only when `resource_status` is ample).
+  (serialize on a tight host; a wide wave only when resources are ample).
 - **Token/time budget**: a run that blows its budget STOPS and reports to the
   CEO rather than pressing on. State the budget when a run starts.
-- **Cost awareness**: the EC2 gateway bills hourly; a long-idle run should be
+- **Cost awareness**: on a host that bills for compute, a long-idle run should be
   paused, not left spinning.
 
 ## 5. The contracts — who produces what, who reads it
@@ -256,12 +258,12 @@ Most confusion about "where does that live?" is these three being conflated:
 │  · Loop-A attempt counts · requirement→PR→test map · tech debt   │
 │  written by  the orchestrator ONLY (roles do not bookkeep)       │
 │  read by     the orchestrator after a compaction or restart      │
-│  lifetime    the run. KiroCrew session_ledger · MC missions.json │
+│  lifetime    the run. Stored by the host's ledger (hosts/)       │
 │  authority   the resume point — without it, bounds reset to 0    │
 └──────────────────────────────────────────────────────────────────┘
 ┌─ MEMORY · across runs, the EXPERIENCE ───────────────────────────┐
 │  framework/memory/{lessons,adr,retro}.md                         │
-│  written by  the orchestrator (retros) · learn_add (lessons)     │
+│  written by  the orchestrator (retros and lessons)               │
 │  read by     11 of the 12 roles, mounted read-only               │
 │  lifetime    forever, across projects. Append-only.              │
 │  authority   advisory — it informs judgment, it does not gate    │
@@ -308,8 +310,8 @@ adapter verifies them rather than assuming the frontmatter was honoured.
 | Platform strategy gate (app/mobile) | `framework/skills/aidlc/SKILL.md` Phase 0 |
 | Role behavior (the "who") | `framework/agents/*.md` |
 | Shared experience (feeds reflection loop) | `framework/memory/` |
-| Durable state (survives restart) | KiroCrew `session_ledger`; on Mission Control `missions.json` + `activity-log.json` |
-| Self-evolution gate | `reviewer` + the PR + CEO merge |
+| Durable state (survives restart) | the host's ledger primitive, mapped per host in `hosts/<host>.md` |
+| Self-evolution gate | `proposals/<slug>/requirements.md` + CI (`tools/check_neutral.py`, `tools/check_repo.py`, `.github/workflows/`) + `qa` + `reviewer` + CEO merge |
 | Cross-host install | `AGENTS.md` + `hosts/` |
 
 ## 8. Reviewer availability fallback
@@ -344,7 +346,7 @@ not a mechanism.
 |---|---|
 | The concept, the decision tree, the non-goals | `framework/session-governance.md` |
 | Reference implementation (stdlib, host-neutral) | `framework/tools/boot.py` |
-| Claude Code wiring (4 hooks + settings.json) | `hosts/claude-code.md` § *Multi-session governance* |
+| Claude Code wiring (4 lifecycle hooks + the output adapter) | `hosts/claude-code.md` § *Multi-session governance* |
 
 It does **not** decide what to work on, and it does not reach a dispatcher that
 lives outside the repo. It decides who may decide.

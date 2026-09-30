@@ -272,4 +272,7 @@ For a host adapter claiming to implement this file:
       exclusion should be made to demonstrate it.
 
 Reference implementation: `framework/tools/boot.py` (host-neutral, stdlib only).
+It prints a neutral `{message, context, quiet}` result. A host that needs
+another output shape supplies a `boot_host.py` adapter beside it, and its
+`hosts/<host>.md` says where that adapter comes from.
 Wiring: `hosts/claude-code.md` § *Multi-session governance*.

@@ -82,7 +82,7 @@ do not stand up a role agent for a one-line change.
 | `devops` | DevOps / SRE | CI/CD, infra, deploy, smoke tests | live URL + smoke evidence |
 | `release` | Release Manager | Version, signing, store/track distribution, staged rollout, rollback | signed artifact + release/review evidence |
 
-Dispatch with `spawn_run(agents=["architect"], task="...")`. Hand each
+Dispatch with the host's `spawn` primitive (named in `hosts/<host>.md`). Hand each
 role the **upstream contract path**, not a re-summary — contracts are the
 single source of truth so nothing gets lost in a paraphrase.
 
@@ -133,13 +133,13 @@ the ones a gate does have always run in that order.
 | 4 | Verification | QA + Security + Auditor* (parallel) | QA report + security report + efficiency audit | CI green + every requirement met + no security blocker + no audit blocker/high |
 | 5 | Deployment (runtime — service targets) | DevOps | live URL + smoke evidence | Production smoke tests green |
 | 6 | Release (ship the artifact to users) | Release Manager | signed artifact + channel/review evidence | 🔴 signing material present; 🔴 store/prod submission signed; live/approved on the target channel |
-| ∞ | Evolution | all + reviewer | retrospective + framework PRs | `reviewer` (different model) review + CEO merge before any self-change lands |
+| ∞ | Evolution | all + qa + reviewer | retrospective + 🔴 signed `proposals/<slug>/requirements.md` + framework PR | CI green + `qa` verifies every `Rn` of the proposal + `reviewer` (different model) + CEO merge before any self-change lands |
 
 `*` **Auditor is conditional** — it runs when the change trips the *magnitude
 floor* below, not on every change. A small diff does not need a waste audit.
 
 **Phase 3 and Phase 4 fan out**: Frontend and Backend are independent → dispatch in one
-`spawn_run` batch. QA, Security and (when triggered) Auditor likewise — all three
+`spawn` batch. QA, Security and (when triggered) Auditor likewise — all three
 read the same delivered diff and none consumes another's output. Never dispatch a
 role whose input is another still-running role's output.
 
@@ -315,8 +315,8 @@ ROLE   orchestrator — you, wearing the PM hat. Do NOT start building.
 IN     the CEO's idea, often a single sentence
 DO     ① ask the SMALLEST set of questions that actually change the design:
           target users · the one core outcome · hard constraints · what
-          success looks like. 3–5 sharp questions, not 20. Prefer an
-          ask_question card or an [OPTIONS:] line.
+          success looks like. 3–5 sharp questions, not 20. Prefer the
+          host's structured-question primitive over free text.
        ② write requirements.md in EARS phrasing — R1..Rn functional,
           N1..Nn non-functional, one explicit ACCEPTANCE CONDITION each,
           plus the Scope: line.  → contracts/requirements.template.md
@@ -456,17 +456,30 @@ DO     ① DESIGN SYSTEM FIRST — tokens (color · type scale · spacing · rad
        ② IA & user flows — the screens, and the paths between them
        ③ HI-FI INTERACTIVE PROTOTYPE, per the frontend-design-workflow skill:
           2–3 GENUINELY DISTINCT options, self-contained HTML using the real
-          tokens, shown in the Browser panel via web-preview
+          tokens, shown in a browser preview via web-preview
        ④ ACCESSIBILITY PASS — contrast · focus order · keyboard paths ·
           semantic structure. a11y is a requirement, not a nicety.
-GATE   🔴 CEO signs the chosen prototype BEFORE frontend builds it
-OUT    design-system.md + the chosen prototype file ──▶ frontend
+       ⑤ AWARD-GRADE LOOP, per the impeccable skill: critique · audit ·
+          detect → score (Awwwards rubric, Webby/FWA vetoes) → refine →
+          repeat until the bar is met or the loop plateaus
+GATE   ① design-scorecard.md shows the bar met: weighted ≥ 8.0 · no category
+          < 7.5 · no veto · `impeccable detect` exit 0
+          (a plateau is REPORTED to the CEO with the gap, never passed)
+       ② 🔴 CEO signs the chosen prototype BEFORE frontend builds it
+OUT    design-system.md + the chosen prototype file + design-scorecard.md
+          ──▶ frontend
 ```
 
 You do not hand back a picture; you hand back a **verifiable design contract**.
 The CEO picks one option and **that chosen prototype IS the visual spec** — which
 is why there have to be 2–3 real alternatives and not one option with two
 variations of its button colour.
+
+The bar is **award grade** — what wins Awwwards Site of the Day, a Webby and FWA
+of the Day — and the designer reaches it by scoring its own work and raising it,
+round after round, before the CEO ever sees it. The rubric, the exit condition
+and the plateau stop are in the `designer` role. The CEO is shown only designs
+that passed, or a named gap.
 
 ## Phase 3 — Implementation (Frontend + Backend)
 
@@ -584,17 +597,26 @@ IN     what actually happened this run
 DO     ① RETROSPECTIVE — each role that ran writes 3 lines: what worked, what
           failed, what to change next time. The orchestrator folds them in.
        ② turn a lesson into a DURABLE change:
-            a behaviour correction that generalizes ▶ learn_add
+            a behaviour correction that generalizes ▶ lessons.md append
             a gap in a role's procedure            ▶ edit that role's prompt
             a missing capability                   ▶ propose a new skill
        ③ route it through the gate below — additive memory appends land
-          directly; any STRUCTURAL edit is review-gated.
-GATE   `reviewer` on a DIFFERENT VENDOR, no team memory ─▶ then 🔴 CEO merges
-OUT    retrospective in framework/memory/retro.md · framework PRs
+          directly; any STRUCTURAL edit runs its own AIDLC:
+          P0 proposals/<slug>/requirements.md 🔴 CEO signs
+          P3 the PR, `Closes Rn` · P4 CI, then qa ∥ reviewer
+GATE   CI green · qa: every Rn of the proposal met · `reviewer` on a
+          DIFFERENT VENDOR, no team memory ─▶ then 🔴 CEO merges
+OUT    retrospective in framework/memory/retro.md · proposals/<slug>/ ·
+          framework PRs
 ```
 
 The scope of "structural": anything under `framework/`, `hosts/`, or
-`AGENTS.md`. The author **drafts and opens a PR. It never pushes `main` and never
+`AGENTS.md`. **A structural change has an intent contract too.** Before
+anything is drafted, the orchestrator writes `proposals/<slug>/requirements.md`
+from the retro evidence or the CEO's ask, with EARS requirements and an
+acceptance condition each. The CEO signs it: the same Phase-0 🔴 gate as a
+product. Without it, QA has nothing to verify and the reviewer has no intent to
+judge the diff against. The author then **drafts and opens a PR. It never pushes `main` and never
 merges its own change**, and it never rewrites operating instructions in place —
 that is the exact failure mode this gate exists to catch.
 
@@ -611,12 +633,23 @@ change to `reviewer` itself, and no cross-vendor model being available:
   a retro yields a change to framework/ · hosts/ · AGENTS.md
         │
         ▼
-  is it an ADDITIVE memory append? (learn_add, framework/memory/*.md)
+  is it an ADDITIVE memory append? (framework/memory/*.md)
         ├── yes ──▶ land it. Audited correction, no review gate.
         └── no — a structural edit to an agent / skill / prompt file
               │
               ▼
-        the author DRAFTS it and opens a PR
+        P0: proposals/<slug>/requirements.md ──▶ 🔴 CEO signs
+              │
+              ▼
+        the author DRAFTS it and opens a PR (`Closes Rn`)
+              │
+              ▼
+        CI sensors: tools/check_neutral.py · links · frontmatter ·
+        diagrams. Red ──▶ back to the author, no review yet
+              │
+              ▼
+        qa: every Rn of the proposal met? behaviour regressions?
+        (runs beside the reviewer — neither reads the other)
         NEVER pushes main · NEVER merges its own change · never edits
         operating instructions in place
               │
@@ -676,13 +709,15 @@ There are exactly THREE loops (see `ARCHITECTURE.md` §3):
   terminal for that round.
 
 ### Budgets — the cost of RUNNING the team
-Before each heavy step, check `resource_status`. Enforce:
+Before each heavy step, check host resources (the adapter names the tool, where
+one exists). Enforce:
 - the fix-loop attempt bound above;
 - a fan-out cap — serialize role agents on a memory-tight host; a wide parallel
   wave only when headroom is ample;
 - a token/time budget — a run that blows its stated budget STOPS and reports to
   the CEO rather than pressing on;
-- cost awareness — a remote gateway bills hourly; pause a long-idle run.
+- cost awareness — if the host runs on metered compute, pause a long-idle run
+  rather than let it bill while it waits.
 
 These budgets govern the cost of **running the team**. The cost of the **code the
 team produces** — its size, its runtime efficiency, its monthly bill — is a
@@ -693,9 +728,9 @@ is not a win.
 ### A 🔴 gate is a hard stop, and you may not self-approve it
 A 🔴 gate is a HARD STOP for automation. The orchestrator must genuinely suspend
 and hand control to the human — it MUST NOT self-approve a 🔴 gate. Mechanism:
-post the artifact for sign-off with `ask_question` (or an `[OPTIONS:]` line) and
-END THE TURN; the CEO's reply is the signal to proceed. For a long wait, arm a
-monitor loop or `register_hook`. Record the signed decision in the ledger before
+post the artifact for sign-off through the host's gate primitive and END THE
+TURN (or, on a queue-based host, leave the pending decision in the queue); the
+CEO's reply is the signal to proceed. `hosts/<host>.md` names the primitive. Record the signed decision in the ledger before
 advancing. "The CEO signed" is only true when a CEO message says so.
 
 ### Intent hash + standards hash — the version locks
@@ -867,17 +902,18 @@ drift is never flagged" into a detectable gate failure.
   against — that is what "closer to what I want" means mechanically.
 - **Wake roles on demand, not all at once.** Only dispatch the roles a phase
   needs. On a memory-tight host, serialize instead of a wide parallel wave, and
-  check `resource_status` before a heavy step.
+  check host resources before a heavy step.
 - **Escalate real decisions to the CEO; decide the rest yourself.** 🔴 gates and
   genuine trade-offs go to the CEO. Do not ask what you can discover or
   reasonably decide.
-- **Keep a durable ledger.** Use `session_ledger_record` for the current goal,
+- **Keep a durable ledger.** Use the host's ledger primitive (or a file under
+  `.aidlc/` where there is none) for the current goal,
   phase, gate status, and next step, so a compaction or restart resumes cleanly.
 
 ## Bootstrapping a run
 
 When the CEO switches to `orchestrator` and drops an idea:
-1. `session_ledger_record` the goal and set phase = 0.
+1. Record the goal in the ledger and set phase = 0.
 2. Run Phase 0 (intent alignment) → get the requirements signed.
 3. Walk the pipeline, one gate at a time, dispatching roles and verifying.
 4. Retrospect and evolve at the end.

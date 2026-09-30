@@ -49,11 +49,11 @@ SITREP goes on top for the reader, the YAML at the bottom for the parser.
 **Orchestrator → CEO, asks pending**
 ```
 SITUATION  瓶頸是簽核：已簽 8 / 草稿 8 / 沒需求 8
-ACTION     CLAUDE.md 併行 2→10 改完，跨廠審查 APPROVE
+ACTION     專案規則檔 併行 2→10 改完，跨廠審查 APPROVE
            派出 iOS 截圖、字型、金流、Sentry
 STATUS     BLOCKED — 等 CEO 簽核
 NEXT       CEO：① 批 8 張草稿卡
-                ② commit CLAUDE.md
+                ② commit 專案規則檔
                 ③ 重簽 css-scope（architect 要補一條需求）
                 ④ 商標：自查／律師／擱著
            我：iOS 截圖回來後補 css-scope 視覺驗收
