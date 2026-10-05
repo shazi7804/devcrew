@@ -1,0 +1,11 @@
+{
+  "id": "R7",
+  "verify": "local",
+  "command": "grep -n 'becomes a mechanism the same day' framework/skills/aidlc/SKILL.md framework/agents/orchestrator.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)SKILL\\.md:\\d+:.*orchestrator\\.md:\\d+:",
+  "observed": "framework/skills/aidlc/SKILL.md:948:- **A CEO mandate becomes a mechanism the same day** — a sensor, template field\nframework/agents/orchestrator.md:91:- **A CEO ruling on how work is verified becomes a mechanism the same day** — a",
+  "result": "pass",
+  "sha": "6e0c443779852edf6e72b39689690d6b6c120907",
+  "at": "2026-10-05T18:33:38+00:00"
+}

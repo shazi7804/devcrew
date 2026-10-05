@@ -1,0 +1,11 @@
+{
+  "id": "R4",
+  "verify": "local",
+  "command": "grep -l 'check_live.py --requirements' framework/agents/frontend.md framework/agents/backend.md framework/skills/aidlc/SKILL.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)frontend\\.md.*backend\\.md.*SKILL\\.md",
+  "observed": "framework/agents/frontend.md\nframework/agents/backend.md\nframework/skills/aidlc/SKILL.md",
+  "result": "pass",
+  "sha": "6e0c443779852edf6e72b39689690d6b6c120907",
+  "at": "2026-10-05T18:33:38+00:00"
+}
