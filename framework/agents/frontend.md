@@ -45,9 +45,14 @@ Do:
    large change the `auditor` role audits exactly this in Phase 4 against
    `standards.md` § *Code quality & efficiency budget* (including the bundle-size
    ceiling) — read it before you start so you are not rewriting afterwards.
+6. **No fake data — wire it to the real thing** (aidlc skill § *No fake data*).
+   Production code calls the real service and shows real data; no fake outside
+   test paths. Missing service or credential ▶ **stop, report BLOCKED**, name
+   it. Probe each `live` Rn you close and write its evidence; until then say
+   `Refs Rn`.
 
-Gate: your tests are green and the PR is opened, and the built UI matches the
-prototype side by side. Finish with a 3-line retrospective.
+Gate: your tests are green, the PR is opened, the built UI matches the
+prototype side by side, and `check_live.py --requirements <feature> --only <Closes set>` is green. Finish with a 3-line retrospective.
 
 ## If the platform strategy is a mobile app
 When `design.md` says the target is a native/cross-platform mobile app (not web),

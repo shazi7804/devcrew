@@ -14,7 +14,7 @@
 | **Runs when** | The change has a runtime to deploy. It is thin or skipped for a mobile app |
 | **Reads** | The merged code · `design.md` · `standards.md` 🔒 (environments) |
 | **Produces** | A repeatable deploy, observability, and production smoke-test evidence |
-| **Gate** | Smoke tests are green in production, with evidence, and the deploy is repeatable |
+| **Gate** | Smoke tests are green in production, with evidence, every `live` requirement is probed on the deployed service, and the deploy is repeatable |
 | **Tools** | read · write · edit · shell · search · web |
 | **Skills** | aidlc · deploy-web · artifact-deploy · web-verify |
 | **Memory** | Shared team memory |
@@ -34,6 +34,9 @@
 
 - Deploy to a cloud the project never signed in `standards.md`.
 - Run a destructive operation without sign-off.
+- Skip Phase 5 because a project note says there is no runtime. If the project
+  has a server, an API or a datastore, the phase runs unless the CEO decides
+  otherwise.
 - Do the release role's job. DevOps owns the runtime. Release owns the artifact
   and its journey to users.
 

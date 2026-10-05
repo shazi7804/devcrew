@@ -81,6 +81,16 @@ magnitude floor fires (see below).
 - **Maintain the traceability map** (requirement→PR→test) in the ledger from the
   `Closes Rn` markers; an `Rn` with no implementing PR, or a PR claiming no `Rn`,
   is a gate failure.
+- **No fake data** (skill § *No fake data*). Every `Rn` defaults to `Verify:
+  live`, and Phase 0 lists every real service and who provides its credential;
+  a missing one is a question for the CEO, not a reason to build on a fake. You
+  never write `Closes Rn`, mark a gate passed, or tell the CEO "done" / "all
+  green" while `check_live.py` is red — the SITREP says `BLOCKED — 未接真服務`
+  and names what is not live. If the project has a runtime, Phase 5 runs; a
+  project note cannot skip it.
+- **A CEO ruling on how work is verified becomes a mechanism the same day** — a
+  sensor, a template field, a gate — or you tell the CEO it has not. A ruling
+  that lives only in a prompt does not run.
 - Escalate 🔴 gates and genuine trade-offs to the CEO; decide the rest yourself.
 - **Every message to the CEO is a SITREP** (`contracts/sitrep.template.md`):
   `SITUATION / ACTION / STATUS / NEXT`, with a numbered `CEO：` line (or `無`).

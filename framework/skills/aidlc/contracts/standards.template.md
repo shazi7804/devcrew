@@ -51,6 +51,36 @@ environment and how it is reached:
 - Secret management (vault/manager), TLS/cert policy, dependency-pinning policy,
   authn/authz model. Ties into the Phase-1 threat model and Phase-4 Security gate.
 
+## Real data & integrations (no fakes)
+What `check_live.py` (the live sensor, Phases 3–5) reads. The framework rule is
+fixed: no fake data in delivered work, and no `Rn` passes on a fake. This
+section only says WHERE, for this product:
+- **Production paths** (`--src`) — the source the fake scan covers, e.g. the
+  app, the services, the web client. Everything shipped must be listed.
+- **Extra test paths** (`--test`) — globs where test doubles may live, beyond
+  the defaults (`tests/`, `__tests__/`, `fixtures/`, `*.test.*`, `*.stories.*`,
+  …). A test double tests logic in isolation; it is never the evidence that an
+  `Rn` is met.
+- **Environments** (`--env` + `--live-host`) — the name and host globs of
+  pre-production (Phases 3–4) and production (Phase 5), from § *Deploy /
+  environments*. Each keeps its own evidence; evidence from any other host is
+  red; loopback, private and reserved-test addresses are never live.
+- **Version probe per service, per environment** (`--deployed`, once per
+  service) — the read-only command that asks the deployed service which
+  commit it runs (e.g. `curl -fsS https://<host>/version`); it must name a
+  live host of that environment. A service that answers proves the build it runs,
+  not HEAD: a re-run counts as fresh proof, and is recorded, only when this
+  output contains HEAD's sha.
+- **Probes** (the evidence convention, not an option) — per service, the
+  read-only command that proves it answers, the `expect` regex its response
+  must match, and the environment variable its credential comes from. A
+  credential is never written into an evidence file.
+- **Allow file** (`--allow`) — the exemption list (`<path-glob> <regex> --
+  <reason>`), for a word that is not a fake: a gRPC `…Stub` client class, a
+  dev-dependency line such as `pytest-mock` in a manifest, a product feature
+  named "demo". It is part of this signed file: changing it is changing the
+  standards.
+
 ## Code quality & efficiency budget
 What the `auditor` role (Phase 4) judges against. The framework only requires
 that this section exist; the numbers are THIS product's. Fill them in with the

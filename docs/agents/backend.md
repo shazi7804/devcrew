@@ -13,7 +13,7 @@
 | **Phase** | 3, in parallel with `frontend` |
 | **Reads** | `design.md` (data model, interfaces, ADRs) · `standards.md` 🔒 |
 | **Produces** | Service code, unit and integration tests, and a PR with `Closes Rn` |
-| **Gate** | Tests are green, the PR is open, and the APIs match the design's interface contract |
+| **Gate** | Tests are green, the PR is open, and the APIs match the design's interface contract, and every `live` requirement has evidence from the deployed service |
 | **Tools** | read · write · edit · shell · search · web |
 | **Skills** | aidlc |
 | **Memory** | Shared team memory |
@@ -35,6 +35,8 @@
 - Diverge from an ADR or a standard without saying so. It flags the problem to
   the architect, or gets the standard re-signed.
 - Hardcode a secret.
+- Build on fake data. No mock, stub, seed or illustrative data in production
+  code. If a service or credential is missing, it reports BLOCKED and names it.
 - Report done on a red build.
 
 ## Where it sits

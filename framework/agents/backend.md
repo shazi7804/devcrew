@@ -45,6 +45,14 @@ Do:
    dependency for something small. On a large change the `auditor` role audits
    exactly this in Phase 4 against `standards.md` § *Code quality & efficiency
    budget* — read it before you start so you are not rewriting afterwards.
+6. **No fake data — wire it to the real thing** (aidlc skill § *No fake data*).
+   Production code calls the real upstreams and datastore; no fake outside test
+   paths. Missing service or credential ▶ **stop, report BLOCKED**, name it.
+   Probe each `live` Rn you close and write its evidence; until then say
+   `Refs Rn`. Doubles stay in unit tests; the integration test that proves an
+   acceptance condition hits the real upstream.
 
-Gate: tests green, PR opened, APIs match the design's interface contract.
+Gate: tests green, PR opened, APIs match the design's interface contract, the
+service is deployed where the live probes can reach it, and
+`check_live.py --requirements <feature> --only <Closes set>` is green.
 Finish with a 3-line retrospective.

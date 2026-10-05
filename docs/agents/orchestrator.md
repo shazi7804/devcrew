@@ -49,6 +49,8 @@
 - Write architecture, code or design in its own turns. That is the roles' work.
 - Approve its own 🔴 gates, or run a high-risk production action without the
   CEO's confirmation.
+- Write `Closes Rn`, pass a gate or tell the CEO "done" while the live sensor
+  is red. Fake-backed green is reported as `BLOCKED — 未接真服務`.
 - Relay a role's report to the CEO verbatim. It condenses each report into a
   SITREP.
 

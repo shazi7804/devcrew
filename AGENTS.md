@@ -92,6 +92,8 @@ source of truth, so on a new machine you re-run this file and the tree is rebuil
   other cross-cutting rules — never hardcoded in a skill.
 - `framework/memory/` — the shared team memory (lessons, ADRs, retrospectives,
   style). Every role mounts it, so experience is shared across the team.
+- `framework/tools/check_live.py` — the no-fake-data sensor (invariant 10),
+  installed into every project the team works on.
 - `framework/session-governance.md` + `framework/tools/boot.py` — how the
   orchestrator role is held when the host can run **several sessions at once**
   (an `O_EXCL` lock, an mtime lease, a human escape hatch). Read this whenever
@@ -209,3 +211,14 @@ the single source of truth; the host files are generated artifacts.
    terms (`spawn`, the ledger, the gate primitive, a resource check) onto
    them. `tools/check_neutral.py` enforces this over the whole tree, not just
    the diff, so a leak that predates a change is still caught.
+10. **No fake data in delivered work** — an AI implementer can make every
+   sensor green with fakes: stubbed upstreams, a fake DOM, seed data, a backend
+   that was never deployed. So every requirement is `Verify: live` by default
+   (the only other level, `local`, is for work that touches no service and no
+   remote data, and the CEO signs it); there is no level that accepts a fake.
+   `framework/tools/check_live.py` is the sensor: each requirement needs fresh
+   evidence from a probe against the real, deployed service, and production
+   code may not carry a mock, stub, seed or illustrative data. A test double
+   tests logic; it never proves a requirement. A missing service or credential
+   is a question for the CEO, never a reason to build on a fake, and work
+   without live evidence is never reported as done.

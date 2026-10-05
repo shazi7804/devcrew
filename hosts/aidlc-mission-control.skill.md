@@ -49,9 +49,9 @@ contract, or (c) needs the **CEO's own sign-off** (🔴 — never self-approve).
 | 0.5 | Market validation (if commercial) | analyst | market analysis + charts | 🔴 CEO reads the verdict, decides GO / PIVOT / NO-GO |
 | 1 | Architecture & tech selection | architect | `design.md` + ADRs + `standards.md` + threat model | every `Rn` maps to a design element |
 | 2 | UI/UX design (if user-facing) | designer | design system + 2–3 hi-fi prototypes | 🔴 CEO picks a prototype |
-| 3 | Implementation | frontend ∥ backend | code + PRs + tests | own tests green, PR opened, `Closes Rn` present |
-| 4 | Verification | qa ∥ security ∥ auditor* | QA report + security report + efficiency audit | sensors green + every `Rn` met + zero security blocker + zero audit blocker/high + intent hash unchanged |
-| 5 | Deployment (runtime) | devops | live env + smoke evidence | production smoke tests green |
+| 3 | Implementation | frontend ∥ backend | code + PRs + tests + live evidence | own tests green, PR opened, `Closes Rn` present, `check_live.py --requirements <feature> --only <Closes set>` green |
+| 4 | Verification | qa ∥ security ∥ auditor* | QA report + security report + efficiency audit | sensors green (incl. `check_live.py --rerun --record --env <pre-production> --live-host <its hosts> --deployed <its version probe>`) + every `Rn` met on the real service + zero security blocker + zero audit blocker/high + intent hash unchanged |
+| 5 | Deployment (runtime) | devops | live env + smoke evidence | production smoke tests green + every `live` `Rn` probed on the deployed service |
 | 6 | Release (artifact to users) | release | signed artifact + channel evidence | 🔴 signing material; 🔴 submission/rollout; live on the channel |
 | ∞ | Evolution | all + qa + reviewer | retrospective + 🔴 signed `proposals/<slug>/requirements.md` + framework PR | CI green + qa verifies the proposal's `Rn` + reviewer verdict + CEO merge — never self-merge |
 
@@ -130,6 +130,15 @@ consultation. Both are then presented as ONE 🔴 sign-off, and only after it do
 the intent hash get recorded.
 
 ## Harness rules (not optional)
+
+**No fake data.** Every `Rn` is `Verify: live` unless the CEO signed `local`,
+and no level accepts a fake. A mock, stub, seed or illustrative data in
+production code, or an `Rn` proven only on a test double, fails the gate; the
+sensor is `.aidlc/tools/check_live.py` (full rule: the installed `aidlc/SKILL.md`
+§ *No fake data*). A missing service or credential is a pending decision for the
+CEO, never a reason to build on a fake. A task whose live evidence is missing is
+not done: its report says `BLOCKED — 未接真服務` and names what is missing. If
+the project has a runtime, Phase 5 runs.
 
 **Intent & standards hash.** Every later gate re-reads `requirements.md` and
 re-checks the hash. A hash change mid-run without a fresh 🔴 sign-off is a **drift

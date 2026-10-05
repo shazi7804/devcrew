@@ -16,14 +16,25 @@ What this product is, for whom, and the single core outcome it must deliver.
 - Where/how it is used:
 
 ## Functional requirements (EARS)
-Use EARS phrasing. Each requirement has an ID and an explicit acceptance condition.
+Use EARS phrasing. Each requirement has an ID, an explicit acceptance condition,
+and a verification level. There is no level that accepts a fake (see the aidlc
+skill § *No fake data*):
+- `live` — the DEFAULT, and what a missing line means. Proven against the real,
+  deployed service and real data it depends on.
+- `local` — only for a requirement that touches NO external service and NO
+  remote data (layout, an on-device computation). Proven on the real runtime
+  with real input. Say why in one clause; the CEO signs the level with the rest.
 
 - **R1** — WHEN <trigger>, the system SHALL <response>.
-  - *Acceptance*: <observable, testable condition that proves R1 is met>
+  - *Acceptance*: <observable, testable condition that proves R1 is met — on
+    the real service, not "a contract test passes">
+  - *Verify*: live
 - **R2** — WHILE <state>, the system SHALL <response>.
   - *Acceptance*:
+  - *Verify*: live
 - **R3** — WHERE <feature is included>, the system SHALL <response>.
   - *Acceptance*:
+  - *Verify*: local — <why it touches no service or remote data>
 
 ## Non-functional requirements
 - **N1** — Performance: <e.g. p95 < 200ms at 50 concurrent users>
@@ -51,6 +62,17 @@ and get it signed before Phase 1:
   none.
   - *Acceptance*: the platform matrix above is decided and CEO-signed; every
     later phase builds only for these platforms/OS versions.
+
+## Real services & data (every one this product talks to)
+One row per external service, API, datastore or data feed, so nobody discovers
+at Phase 4 that it was never connected:
+
+| Service / data | Used by | Account + credential owner | Exists today? |
+|---|---|---|---|
+| <e.g. weather API> | R2 | <who provides the key> | yes / no — <what is missing> |
+
+A credential or service that does not exist yet is an **open question blocking
+design** (below), answered by the CEO — never a reason to build on a fake.
 
 ## Constraints & dependencies
 Budget, timeline, external APIs needing approval, accounts, compliance.

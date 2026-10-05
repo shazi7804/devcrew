@@ -26,11 +26,11 @@ Find your row, read those sections, skip the rest.
 | `analyst` | Phase 0.5 | every other phase · Harness |
 | `architect` | Phase 1 · Phase 0 *Platform strategy* · Harness *Architecture changes are contracts* | P0.5 · P2 · P6 |
 | `designer` | Phase 2 | P0.5 · P1 · P3–P6 |
-| `frontend` `backend` | Phase 3 · Harness *Merge order* · *Traceability* | P0.5 · P2 · P5 · P6 |
-| `qa` | Phase 4 · Harness *Sensors run first* · *Traceability* · *Contracts must be structurally complete* | P0.5 · P2 · P5 |
+| `frontend` `backend` | Phase 3 · Harness *Merge order* · *Traceability* · *No fake data* | P0.5 · P2 · P5 · P6 |
+| `qa` | Phase 4 · Harness *Sensors run first* · *No fake data* · *Traceability* · *Contracts must be structurally complete* | P0.5 · P2 · P5 |
 | `security` | Phase 4 · *Scope routing* (your floor overrides every scope) · Harness *Sensors run first* | P0.5 · P2 · P6 |
 | `auditor` | Phase 4 · *Magnitude floor* | P0 · P0.5 · P2 · P5 · P6 |
-| `devops` | Phase 5 | P0–P2 · P6 |
+| `devops` | Phase 5 · Harness *No fake data* | P0–P2 · P6 |
 | `release` | Phase 6 | P0–P2 · P5 |
 | `reviewer` | Phase ∞ · *Magnitude floor* (the deterministic check) | P0–P6 |
 
@@ -98,6 +98,7 @@ later layer never rescues an earlier one:
           ▼
   ① DETERMINISTIC SENSORS — machine facts. Binary. The model may not overrule.
      lint · typecheck · test · build   (the PROJECT's own commands, discovered)
+     live evidence · no fakes shipped  (check_live.py — QA)
      dependency scan · secret scan     (Security)
      artifact exists + verifiably signed · package complete   (Phase 6)
           │
@@ -130,8 +131,8 @@ the ones a gate does have always run in that order.
 | 1 | Architecture & tech selection | Architect | `design.md` + ADRs | Design maps to every requirement |
 | 2 | UI/UX design | Design | `design-system.md` + prototype | 🔴 CEO signs the prototype |
 | 3 | Implementation | Frontend + Backend (parallel) | code + PRs + tests | Self-tests green, PR opened |
-| 4 | Verification | QA + Security + Auditor* (parallel) | QA report + security report + efficiency audit | CI green + every requirement met + no security blocker + no audit blocker/high |
-| 5 | Deployment (runtime — service targets) | DevOps | live URL + smoke evidence | Production smoke tests green |
+| 4 | Verification | QA + Security + Auditor* (parallel) | QA report + security report + efficiency audit | CI green + live sensor green + every requirement met on the real service + no security blocker + no audit blocker/high |
+| 5 | Deployment (runtime — service targets) | DevOps | live URL + smoke evidence | Production smoke tests green, every `live` Rn probed on the deployed service |
 | 6 | Release (ship the artifact to users) | Release Manager | signed artifact + channel/review evidence | 🔴 signing material present; 🔴 store/prod submission signed; live/approved on the target channel |
 | ∞ | Evolution | all + qa + reviewer | retrospective + 🔴 signed `proposals/<slug>/requirements.md` + framework PR | CI green + `qa` verifies every `Rn` of the proposal + `reviewer` (different model) + CEO merge before any self-change lands |
 
@@ -175,6 +176,14 @@ fixed column:
 `T` = the phase runs only if its trigger question above is true for this change.
 A scope NEVER hard-skips Phase 5 for a runtime-affecting change or Phase 6 for a
 user-shipped artifact — omitting them is a target decision, not a scope shortcut.
+
+The trigger question is asked of the **repo as it is today**, never answered by a
+note. If the project has a server, a function, an API or a datastore it calls,
+it has a runtime, and Phase 5 runs. A project file that says "no runtime, Phase
+5 downgraded" goes stale the day a backend appears — one project closed two
+backend features against a server that was never deployed that way. Skipping
+Phase 5 for a project with a runtime is a CEO decision recorded with its
+reasoning (invariant 8), not a line in a project file.
 
 Routing pushes phases OUT; the safety floors pull them BACK IN. Both directions
 act on the same spine, so read it as one picture:
@@ -319,7 +328,10 @@ DO     ① ask the SMALLEST set of questions that actually change the design:
           host's structured-question primitive over free text.
        ② write requirements.md in EARS phrasing — R1..Rn functional,
           N1..Nn non-functional, one explicit ACCEPTANCE CONDITION each,
-          plus the Scope: line.  → contracts/requirements.template.md
+          a Verify level each (live by default), the Real services
+          table, plus the Scope: line.  → contracts/requirements.template.md
+          A service or credential that does not exist yet is an OPEN
+          QUESTION for the CEO, never a reason to plan on a fake.
        ③ if the target is an app/mobile surface, also run Platform strategy
           below — it joins THIS gate, it does not add a second one.
 GATE   🔴 CEO signs requirements.md. Nothing downstream starts before that.
@@ -489,10 +501,18 @@ IN     design.md · standards.md @ hash · design-system.md + prototype (fronten
 DO     build to match the signed prototype EXACTLY — colors/spacing/type come
           from tokens, never hardcoded
        write your own tests as you go
+       wire every feature to the REAL service and data — no mock, stub,
+          seed or illustrative data in production code. A service or
+          credential that is missing ▶ STOP, report BLOCKED, name it.
+       probe each `live` Rn against the deployed service ▶ evidence file
        work in a git worktree/branch; one PR per role
        PR message carries `Closes Rn` and the evidence the change needs:
           screenshots for static UI · a recording for motion or multi-step flows
+          · the evidence file for each `live` Rn
 GATE   ① your own tests green  ② PR opened  ③ requirements traced
+       ④ check_live.py --requirements <feature> --only <Closes set> green
+          on pre-production — a
+          `Closes Rn` with no live evidence is red
        Deterministic, not a judgment — do not claim done without RUNNING the
        build and the tests.
 OUT    code + PR + tests ──▶ the orchestrator sets merge order (see Harness)
@@ -506,15 +526,17 @@ ROLE   qa ∥ security ∥ auditor* — three agents, dispatched in ONE batch
 IN     the delivered diff · requirements.md @ hash · standards.md @ hash
        (all three read the SAME diff; none consumes another's output)
 DO     qa       — is the SIGNED INTENT met? Check every Rn/Nn acceptance
-                  condition against the built system. Not "tests pass".
-                  A requirement with no evidence is a FAIL.
+                  condition against the built system ON THE REAL SERVICE.
+                  Not "tests pass". A requirement with no evidence, or
+                  proven only on a fake, is a FAIL.
        security — is it SAFE? Threat model the surface · dependency scan ·
                   secret scan · authn/authz review.
        auditor  — was this the AMOUNT OF CODE it takes, and does it cost what
                   it should to run? Redundancy · duplication/missed reuse ·
                   over-abstraction · hot-path cost · running cost · dependency
                   weight, against the budget in standards.md.
-GATE   ① CI green (sensors)
+GATE   ① CI green + check_live.py --rerun --record --env <pre-production>
+         --live-host <its hosts> --deployed <its version probe> green (sensors)
        ② every Rn met · zero security blockers · zero audit blocker|high
        ③ —
 OUT    qa report + coverage table · security report · efficiency audit
@@ -544,8 +566,12 @@ IN     design.md · standards.md @ hash (the environments + promotion path)
 DO     pick the deploy path the architecture implies — static ▶ deploy-web /
           artifact-deploy · a backend service ▶ the project's own IaC
        set up CI/CD so the pipeline is REPEATABLE, not a one-off
-       run production smoke tests
+       run production smoke tests: a health check proves the service is
+          up, not that a feature works — re-probe every `live` Rn on
+          production and rewrite its evidence file
 GATE   smoke green end-to-end, WITH EVIDENCE (deterministic sensor)
+       + check_live.py --rerun --record --env <production> --live-host
+         <its hosts> --deployed <its version probe> green
 OUT    live URL + smoke evidence
 ```
 
@@ -800,7 +826,8 @@ The remaining gates are enforced by DETERMINISTIC SENSORS, not a verdict block,
 because their pass condition is a machine fact, not a judgment:
 - **Phase 3 (Frontend/Backend)**: the role's own tests + `Closes Rn` markers —
   the sensor is "tests green AND PR opened AND requirements traced".
-- **Phase 5 (DevOps)**: production smoke tests green with evidence.
+- **Phase 5 (DevOps)**: production smoke tests green with evidence, and the
+  live sensor green against production.
 - **Phase 6 (Release)**: the signing/package sensors from `mobile-release`
   (artifact exists + verifiably signed + submission package structurally
   complete) plus the 🔴 CEO signing/submission gates.
@@ -862,6 +889,10 @@ pass/fail the model does not get to overrule:
   (targeted on a memory-tight host), and `build` commands — discovered from the
   project (package.json / Cargo.toml / Makefile / pyproject, etc.), not assumed.
   A red sensor fails the gate before QA even reads for intent.
+- **Live sensor**: `check_live.py --rerun` with the phase's options (see *No
+  fake data* below) — every
+  `Rn` has fresh evidence from the real service, and production code ships no
+  fake.
 - **Security sensors**: dependency scan + secret scan run as commands, not "the
   agent looked".
 - **Phase 6 sensors (mobile)**: the signed artifact exists and is verifiably
@@ -872,13 +903,59 @@ command they ran and its result, so "CI green" is an observed command output, no
 a claim. A gate with no runnable sensor says so explicitly rather than pretending
 one ran.
 
+### No fake data — nothing is done until it runs on the real thing
+Every gate above can be made green with fakes: one project closed two features
+on 244 tests against fake upstreams and 3610 assertions on a fake DOM, with no
+backend deployed, after the CEO had twice said "connect everything for real".
+So the rule is a sensor, `check_live.py` (its docstring is the full spec):
+
+```
+  every Rn/Nn ── Verify: live (default) │ local (no service, no remote data)
+     └─ <dir of requirements.md>/evidence/<env>/<Rn>.json, from a READ-ONLY
+        probe run after the commit: command · target · expect · observed · sha
+        ✘ no file · ✘ target loopback/private/test domain/names a mock
+        ✘ target outside --live-host · ✘ stale sha · ✘ secret in the file
+  production code ── ✘ mock/fake/stub/dummy · placeholder or illustrative
+        data · a TODO to wire it · an import from a test path
+  no level accepts a fake; exemptions only via the signed allow file
+```
+
+Where it runs — environments, hosts, version probes and paths come from
+`standards.md`; the gate hashes the project's copy itself (`shasum -a 256`, all
+64 hex) and it must equal the framework copy's:
+- **Phase 3**: `--requirements <the feature> --only <the PR's Closes set>
+  --env <pre-production> --live-host <its hosts>`.
+- **Phase 4**: `--rerun --record --env <pre-production> --live-host <its
+  hosts> --deployed <its version probe>` — QA re-runs every probe. A service
+  that answers proves the build it runs, not HEAD, so a passing re-run
+  refreshes stale evidence only when every service's version probe (one
+  `--deployed` each, asking a live host) prints HEAD's sha.
+- **Phase 5**: devops writes each `live` Rn's production evidence, then
+  `--rerun --record --env <production> --live-host <its hosts> --deployed
+  <its version probe>` — every
+  feature, so a regression in an old one is caught on the real service.
+- **Framework proposals** have no runtime: their items are `Verify: local`,
+  proven by the commands that check them (self-tests, `check_neutral.py`).
+
+What follows:
+- **A test double tests logic; it never proves a requirement.** Doubles stay in
+  test paths and are never evidence.
+- **Missing service or credential ▶ BLOCKED, not faked.** Stop, name what is
+  missing and who provides it. Seed data "until the backend exists" is the
+  failure above.
+- **`Closes Rn` requires the evidence;** until then the commit says `Refs Rn`.
+- **Fake-backed green is not a status.** The SITREP says `BLOCKED — 未接真服務`.
+- **A CEO mandate becomes a mechanism the same day** — a sensor, template field
+  or gate — or the orchestrator tells the CEO it has not.
+
 ### Traceability — `Closes Rn` is the design→code edge
 The requirement→design map (Phase 1) links Rn→design; the missing half is
 design→code. Enforce it cheaply, no database:
 - Every PR / commit that implements a requirement names it in the message:
   `Closes R3, R7` (or `Refs Rn` for partial). This is the code→requirement edge.
 - **QA builds the coverage table from these markers**: every `Rn` must trace to
-  at least one PR/commit AND to a test proving its acceptance condition. An `Rn`
+  at least one PR/commit AND to a test proving its acceptance condition AND to
+  its evidence file at the signed Verify level (*No fake data*). An `Rn`
   with no implementing PR, or a PR that claims no `Rn`, is a traceability hole =
   a gate failure (either an unbuilt requirement or unrequested scope creep).
 - The orchestrator records the requirement→PR→test map in the ledger, so a later
@@ -897,6 +974,8 @@ drift is never flagged" into a detectable gate failure.
   line (`無` when nothing is needed). Detail goes in a file; the message carries
   the path. The CEO decides from these messages across several windows; an ask
   buried in a long report is an ask never made.
+- **No fake data.** Delivered work runs on the real services and real data; no
+  `Rn` passes on a fake, and fake-backed green is never reported as done.
 - **The intent contract is supreme.** Any gate can fail a phase for drifting
   from a signed requirement. Drift is the default failure mode you are guarding
   against — that is what "closer to what I want" means mechanically.

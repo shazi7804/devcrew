@@ -22,6 +22,8 @@ jobs:
         run: python3 tools/check_neutral.py --self-test
       - name: Host- and machine-neutral source (invariant 9)
         run: python3 tools/check_neutral.py
+      - name: Live sensor proves it can fail (invariant 10)
+        run: python3 framework/tools/check_live.py --self-test
       - name: Relative links and role frontmatter
         run: python3 tools/check_repo.py
       - name: Diagrams aligned and within 80 columns

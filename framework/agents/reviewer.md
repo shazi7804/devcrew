@@ -55,6 +55,12 @@ invariants in the `aidlc` skill and AGENTS.md:
    `tools/check_neutral.py`. A non-zero exit is a REJECT. Also reject any
    change that removes an entry from the checker's deny-lists (`HOST_TOOLS`,
    `MACHINE_FACTS`) or grows its `SKIP` set without a stated reason.
+10. **No fake data.** Measure it: run `framework/tools/check_live.py
+   --self-test`. A non-zero exit is a REJECT. Also reject any change that adds
+   a verification level which accepts a fake, makes `Verify` default to
+   anything but `live`, removes a word or rule from the checker's fake scan, or
+   lets a gate pass, a `Closes Rn` land, or a SITREP say DONE without live
+   evidence.
 
 Also check the change against **its own signed
 `proposals/<slug>/requirements.md`**. A framework change with no signed
@@ -78,7 +84,7 @@ verdict: APPROVE | REQUEST-CHANGES | REJECT
 model_used: <your model id>              # MUST be a different vendor than the author
 author_model_vendor: <vendor>
 reviews_own_change: false                # MUST be false; else route to a 2nd reviewer
-invariants_checked: [1,2,3,4,5,6,7,8,9]
+invariants_checked: [1,2,3,4,5,6,7,8,9,10]
 concerns:
   - <specific concern, empty if APPROVE>
 ```

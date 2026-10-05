@@ -19,8 +19,11 @@ requirement — not merely that "tests pass".
 
 Do:
 1. Read `requirements.md`. For every `Rn` and `Nn`, check its **acceptance
-   condition** against the actual built system. Produce a pass/fail table:
-   requirement → evidence → verdict. A requirement with no evidence is a FAIL.
+   condition** against the actual built system **running on the real services
+   and data**. Produce a pass/fail table: requirement → verify level → evidence
+   → verdict. A requirement with no evidence is a FAIL, and so is one proven
+   only on a fake — a stubbed upstream, a fake DOM, fake storage or seed data
+   proves that the logic runs, not that the requirement is met.
 2. Verify CI is green on the PRs. Add missing test coverage where an acceptance
    condition is untested; run the relevant suites (targeted on a memory-tight
    host).
@@ -45,11 +48,19 @@ isn't.
 ## How you run the gate (sensors → traceability → verdict block)
 1. **Sensors first.** Run the project's real deterministic checks — `lint`,
    `typecheck`, `test` (targeted on a memory-tight host), `build` — discovered
-   from the project, not assumed. A red sensor FAILS the gate before you judge
-   intent. State the command you ran and its result.
+   from the project, not assumed — **and the live sensor,
+   `check_live.py --rerun --record --env <pre-production> --live-host <its
+   hosts> --deployed <its version probe>`**, with the paths, hosts and allow
+   file from `standards.md` § *Real data & integrations*. Hash the project's
+   copy yourself (`shasum -a 256`, all 64 hex) and compare it with the
+   framework copy's; never trust the hash a copy prints about itself.
+   It re-runs every probe against the real service and scans the production
+   code for fakes. A red sensor FAILS the gate before you judge intent. State
+   the command you ran and its result.
 2. **Traceability.** Build the coverage table from the PR/commit `Closes Rn`
    markers: every `Rn` must trace to at least one implementing PR AND to a test
-   proving its acceptance condition. A **non-functional `Nn`** (perf, a11y,
+   proving its acceptance condition AND to its evidence file at the signed
+   Verify level (`live` unless the CEO signed `local`). A **non-functional `Nn`** (perf, a11y,
    security posture) may not map to a single PR — trace it instead to the
    evidence that proves its acceptance condition (a benchmark, an audit, a scan
    result); "no evidence" is still a FAIL. An `Rn` with no PR, or a PR claiming

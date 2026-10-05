@@ -26,6 +26,10 @@ so a parser (and the eye) can find them.
 
 - **STATUS is one of four words.** `BLOCKED` means *waiting on someone* — name
   who. `FAIL` means a gate or sensor went red.
+- **`DONE` means it runs on the real thing.** Work whose live evidence is missing
+  is never `DONE` and never "green": it is `BLOCKED — 未接真服務：<what is
+  missing, who provides it>`. Say what is not live in SITUATION, before the CEO
+  has to ask. Fake-backed tests passing is not a status.
 - **NEXT always has a `CEO：` line.** When nothing is needed it says `無` — the
   CEO must be able to skip a message by reading one line. Every ask is numbered,
   starts with a verb, and offers the answers (`① 接受 ② 砍掉 ③ 先擱著`). A

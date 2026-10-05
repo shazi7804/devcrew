@@ -13,7 +13,7 @@
 | **Phase** | 3, in parallel with `backend` |
 | **Reads** | `design.md` · `design-system.md` · the signed prototype · `standards.md` 🔒 |
 | **Produces** | UI code, component tests, and a PR with `Closes Rn` plus visual evidence |
-| **Gate** | Its own tests are green, the PR is open, and the built UI matches the prototype side by side |
+| **Gate** | Its own tests are green, the PR is open, and the built UI matches the prototype side by side, and the live sensor is green |
 | **Tools** | read · write · edit · shell · search · web |
 | **Skills** | aidlc · frontend-design-workflow · web-preview · web-verify · mobile-build |
 | **Memory** | Shared team memory |
@@ -43,6 +43,8 @@ and platform conventions respected.
 
 - Hardcode colors or spacing instead of using the tokens.
 - Report done on a red build.
+- Build on fake data. No mock, stub, seed or illustrative data in production
+  code. If a service or credential is missing, it reports BLOCKED and names it.
 - Quietly deviate from a standard. If a standard is wrong, it gets re-signed.
 
 ## Where it sits

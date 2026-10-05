@@ -170,8 +170,17 @@ For each `framework/agents/<name>.md`:
 - Find the kirocrew binary from the running host (it is the command backing the
   core MCP server); do not hardcode a version-specific path from memory.
 
+## The live sensor
+
+Copy `framework/tools/check_live.py` into each project the team works on as
+`.aidlc/tools/check_live.py` (stdlib only), so `qa` runs it as a Phase-4 sensor
+(aidlc skill § *No fake data*). Without it there is no deterministic check that
+delivered work runs on real services — say so to the user if you skip it.
+
 ## Verify
 
+Run `python3 .aidlc/tools/check_live.py --self-test` (expects `self-test ok`), and
+confirm `shasum -a 256` of the installed copy equals that of `framework/tools/check_live.py` (all 64 hex).
 Parse every generated JSON, confirm each `prompt`, `skill://`, and `file://`
 memory path resolves, and confirm `orchestrator` is listed by the host's agent
 listing. Then tell the user to pick **orchestrator** in the dashboard agent switcher.

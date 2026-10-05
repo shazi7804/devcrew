@@ -306,6 +306,7 @@ adapter verifies them rather than assuming the frontmatter was honoured.
 | Structured verdict schemas | `framework/skills/aidlc/contracts/verdicts.template.md` |
 | Deterministic sensors (per gate) | `framework/skills/aidlc/SKILL.md` + each gate role |
 | Traceability (requirement→PR→test) | `Closes Rn` markers + orchestrator ledger |
+| No fake data (live verification, invariant 10) | `requirements.md` `Verify:` lines + `evidence/` beside each requirements file + `framework/tools/check_live.py` (Phase 3/4/5 sensor) |
 | Architecture-change guard (re-review + human escalation) | `framework/skills/aidlc/SKILL.md` + `architect` |
 | Platform strategy gate (app/mobile) | `framework/skills/aidlc/SKILL.md` Phase 0 |
 | Role behavior (the "who") | `framework/agents/*.md` |

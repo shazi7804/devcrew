@@ -307,7 +307,9 @@ For each `framework/agents/<name>.md`:
 6. **Shared memory** — `framework/memory/*.md` into the workspace
    (`devcrew-memory/` if the repo has no memory dir yet).
 7. **`CLAUDE.md`** of that repo — the devcrew section (roles, AIDLC flow, memory
-   rule, the reviewer exception).
+   rule, the reviewer exception, the no-fake-data rule).
+8. **The live sensor** — `framework/tools/check_live.py` → `.aidlc/tools/check_live.py`
+   in that repo, so qa can run it at Phase 4 (aidlc skill § *No fake data*).
 
 ## The AIDLC dispatch contract on Mission Control
 
@@ -343,8 +345,10 @@ carries it, and the skill entry states it.
 5. The reviewer artifact mounts no shared memory (grep it for the memory path),
    and the `auditor` artifact grants no write/edit tool (grep `.claude/agents/auditor.md`
    for `Write`/`Edit`).
-6. Regenerate the context snapshot (`pnpm gen:context`) so the dashboard and every
+6. `python3 .aidlc/tools/check_live.py --self-test` prints `self-test ok` in the
+   repo the roles run in, and `shasum -a 256` of the installed copy equals the framework's (all 64 hex).
+7. Regenerate the context snapshot (`pnpm gen:context`) so the dashboard and every
    prompt see the new roster.
-7. Tell the CEO which mode is installed, that 🔴 gates appear in the **Decisions**
+8. Tell the CEO which mode is installed, that 🔴 gates appear in the **Decisions**
    page, and — in board mode — that role agents must not be launched from the mc
    Launch/daemon UI.

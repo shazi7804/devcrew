@@ -251,7 +251,7 @@ finding's one-line fix hint.)
 | [framework/skills/aidlc/contracts/](framework/skills/aidlc/contracts/) | Templates: requirements, design, standards, verdicts, SITREP |
 | [framework/session-governance.md](framework/session-governance.md) | How one orchestrator is chosen when several sessions are open |
 | [hosts/](hosts/) | Install guides: KiroCrew, Mission Control, Claude Code |
-| [AGENTS.md](AGENTS.md) | The AI bootstrap and the nine design invariants |
+| [AGENTS.md](AGENTS.md) | The AI bootstrap and the ten design invariants |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version, and why |
 
 ## Repository layout

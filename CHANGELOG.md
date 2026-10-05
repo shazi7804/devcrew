@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.9.6 — 2026-10-06
+
+**No fake data: nothing is done until it runs on the real service.**
+Signed intent: `proposals/0.9.6-live-verification/requirements.md` (R1–R10,
+N1–N2). The CEO waived the sign-off turn by ruling: 「我無法接受任何假資料的開發。」
+
+Why: on ttfriday every gate passed while the product was fake. The backend was
+never deployed, 244 backend tests ran on fake upstreams, 3610 UI assertions ran
+on a fake DOM, and the data was hardcoded seeds. Two features were still closed
+and reported done. QA's question ("has a commit, an assertion, and is it
+green?") is answered yes by a fake. The CEO's earlier 「全部接真的」 was a
+sentence, so it never ran.
+
+- **`framework/tools/check_live.py` — a deterministic sensor** (R2). Every
+  `Rn`/`Nn` needs `<dir of its requirements.md>/evidence/<env>/<id>.json` from
+  a read-only probe against the real, deployed service. Each environment keeps
+  its own evidence. The check goes red when evidence is missing or names
+  another id, or when the target or any URL in the probe is not live: loopback
+  or private in any notation, a bare service name, a reserved, cluster or
+  loopback-DNS domain, a public mock service, a mock-named host, or a host
+  outside `--live-host`. It is also red when the probe failed, `expect` matches
+  anything or `observed` doesn't match it, the sha isn't a full commit, the
+  working tree changed since the sha, or the file holds a secret. `--rerun`
+  re-runs each probe with only the credentials it names, and its fresh output
+  must match `expect`. A service that answers proves the build it runs, not
+  HEAD, so a passing re-run is fresh proof (and `--record` writes it back,
+  for an item with no other hit) only when `--deployed` — one version probe
+  per service, each asking a live host — prints HEAD's sha. It also scans production code (lockfiles and stories excluded) for
+  mock/fake/stub/dummy identifiers, illustrative-only data, TODOs to wire
+  things up, and imports from test paths (JS, Python, Go). Allow-file lines
+  that exempt a whole tree are rejected. `--requirements <feature> --only`
+  checks a PR's `Closes` set at Phase 3. The gate hashes the installed copy
+  itself and compares all 64 hex with the framework's. 89 self-test cases each assert the reason
+  they fail, and a mutation sweep confirmed that deleting any rule fails the
+  self-test. Run read-only on ttfriday, it caught the backend server importing
+  `tests/stubs.mjs`.
+- **`Verify: live` by default** (R1). The requirements template gives every item
+  a level. A missing line means `live`; `local` is only for work that touches no
+  service and no remote data. No level accepts a fake. A new *Real services &
+  data* table lists every service and who owns its credential, and a missing one
+  is an open question for the CEO.
+- **QA** runs the live sensor first and fails anything proven only on a fake.
+  The verdict YAML gains `sensors.live` and a `verify` field per requirement
+  (R3).
+- **Implementers** may not ship fakes in production code, stop BLOCKED on a
+  missing service or credential, and write `Refs Rn` (not `Closes Rn`) until the
+  feature is live (R4).
+- **Phase 5 can't be skipped by a note** (R5). If the repo has a runtime, Phase
+  5 runs. Smoke tests probe every `live` requirement on the deployed service,
+  because a health check only shows the service is up.
+- **SITREP**: fake-backed work is `BLOCKED — 未接真服務`, never DONE (R6).
+- **A CEO ruling on verification becomes a mechanism the same day** (R7).
+- **Invariant 10** in AGENTS.md (R8). The reviewer measures it with the
+  self-test, and CI runs the self-test as well.
+- All three host adapters install the sensor as `.aidlc/tools/check_live.py`
+  and verify it (R9). `standards.template.md` gains *Real data &
+  integrations*, which covers production paths, test paths, the live
+  environment, the probe for each service, and the allow file (R10).
+
 ## 0.9.5 — 2026-10-01
 
 **Award-grade design, a readable README, and a framework that names no host.**

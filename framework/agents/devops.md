@@ -29,9 +29,19 @@ Do:
    radius, and whether it is reversible — then wait for the CEO. Never run
    destructive operations without sign-off.
 4. Run **production smoke tests** end-to-end and capture evidence (status codes,
-   a screenshot of the live surface, key user path working).
+   a screenshot of the live surface, key user path working). A health check
+   proves the service is up, not that a feature works: probe every `live`
+   requirement on production with its read-only probe, write its evidence
+   under the production env, and run `check_live.py --rerun --record --env
+   <production> --live-host <its hosts> --deployed <its version probe>`.
+5. **If the project has a runtime, this phase runs.** A server, a function, an
+   API the app calls, a datastore — any of these is a runtime. A project note
+   saying "no runtime, Phase 5 skipped" is not a decision; only the CEO can
+   skip this phase, with the reasoning recorded.
 
-Gate: smoke tests green in production with evidence, deploy is repeatable.
+Gate: smoke tests green in production with evidence, `check_live.py --rerun
+--record --env <production> --live-host <its hosts> --deployed <its version
+probe>` green, deploy is repeatable.
 Finish with a 3-line retrospective.
 
 ## DevOps vs Release (do not do the Release role's job)

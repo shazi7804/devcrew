@@ -13,7 +13,7 @@
 | **Phase** | 4, in parallel with `security` and, on a large diff, `auditor` |
 | **Reads** | `requirements.md` 🔒 · `standards.md` 🔒 · the implementation PRs |
 | **Produces** | A requirement → evidence → verdict table, and the QA verdict YAML |
-| **Gate** | CI is green, every Rn/Nn is met, and no QA blocker is open |
+| **Gate** | CI and the live sensor are green, every Rn/Nn is met on the real service, and no QA blocker is open |
 | **Tools** | read · write · edit · shell · search · web |
 | **Skills** | aidlc · web-verify · mobile-verify |
 | **Memory** | Shared team memory |
@@ -21,10 +21,13 @@
 ## How it runs the gate
 
 1. **Sensors first**: lint, typecheck, test and build, using the project's
-   real commands. A red sensor fails the gate before intent is judged.
+   real commands, plus `check_live.py --rerun`, which re-runs every probe
+   against the real service and scans production code for fakes. A red sensor
+   fails the gate before intent is judged.
 2. **Traceability**: every `Rn` must trace to a PR (`Closes Rn`) and to a test.
    Every `Nn` must trace to its proof: a benchmark, an audit or a scan. A
-   requirement with no evidence fails, and so does a PR that claims no
+   requirement with no evidence fails, and so does one proven only on a fake
+   (a stubbed upstream, a fake DOM, seed data), and so does a PR that claims no
    requirement.
 3. **Standards conformance**: it re-computes the `standards.md` hash, then
    checks the delivered work against the file.

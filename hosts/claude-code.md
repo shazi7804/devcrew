@@ -175,6 +175,11 @@ model: <current best alias>
    host: without it, "the orchestrator" is whatever each open window believes.
    If you skip it deliberately (single-window user, no `python3`), say so to the
    user in those words rather than leaving them to assume they are covered.
+8. **Install the live sensor** — `framework/tools/check_live.py` →
+   `.aidlc/tools/check_live.py`. `qa` runs it at Phase 4 and `devops` at Phase 5
+   (aidlc skill § *No fake data*). It is the only deterministic check that the
+   delivered work runs on real services rather than on fakes; skipping it is a
+   thing to say out loud.
 
 ## Multi-session governance
 
@@ -350,6 +355,12 @@ framework/memory/ (the shared team experience) — EXCEPT reviewer, which mounts
 no team memory so its self-evolution review stays unbiased. A self-change to agents/skills
 starts with a CEO-signed proposals/<slug>/requirements.md, then lands only through
 a PR, CI, qa against that proposal, the reviewer, and the CEO's merge.
+No fake data: every requirement is verified live against the real, deployed
+service (Verify: live by default; no level accepts a fake), production code
+ships no mock/stub/seed data, and nothing is Closes'd, passed or reported done
+while `python3 .aidlc/tools/check_live.py --rerun` is red. A missing service or
+credential is a question for the CEO, never a reason to build on a fake. If the
+project has a runtime, Phase 5 runs; no note in this file can skip it.
 Every report — to the CEO or to the orchestrator — opens with the SITREP block
 (SITUATION / ACTION / STATUS / NEXT) from
 .claude/skills/aidlc/contracts/sitrep.template.md; NEXT always has a `CEO：` line.
@@ -357,6 +368,9 @@ Every report — to the CEO or to the orchestrator — opens with the SITREP blo
 
 ## Verify
 
-Confirm each `.claude/agents/*.md` frontmatter is valid, the skill copied, and
-`CLAUDE.md` has the devcrew section. Tell the user they can now ask the main
+Confirm each `.claude/agents/*.md` frontmatter is valid, the skill copied,
+`CLAUDE.md` has the devcrew section, and
+`python3 .aidlc/tools/check_live.py --self-test` prints `self-test ok` (and
+`shasum -a 256` of the installed copy equals that of
+`framework/tools/check_live.py`, all 64 hex). Tell the user they can now ask the main
 agent to "act as devcrew" or delegate to a specific role.

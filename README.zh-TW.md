@@ -233,7 +233,7 @@ $ echo $?
 | [framework/skills/aidlc/contracts/](framework/skills/aidlc/contracts/) | 範本：requirements、design、standards、verdicts、SITREP |
 | [framework/session-governance.md](framework/session-governance.md) | 開了多個 session 時，如何選出唯一的 orchestrator |
 | [hosts/](hosts/) | 安裝指南：KiroCrew、Mission Control、Claude Code |
-| [AGENTS.md](AGENTS.md) | 給 AI 的啟動檔，以及九條設計不變條件 |
+| [AGENTS.md](AGENTS.md) | 給 AI 的啟動檔，以及十條設計不變條件 |
 | [CHANGELOG.md](CHANGELOG.md) | 每個版本改了什麼、為什麼改 |
 
 ## Repo 結構
