@@ -1,0 +1,17 @@
+# Efficiency audit (auditor role, Claude, no write tool) of 49d78dd..3f1968e.
+# Findings fixed since: hot-path (verify one stat, top_gen probes from a hint),
+# orchestrator.md duplication, CI path filter + jar cache -- see design.md § 6.
+verdict: PASS-WITH-DEBT
+trigger: changed-lines, changed-files
+diff_size: {added: 3400, removed: 622, files: 55}
+budget_source: framework-default
+findings:
+  - {severity: medium, category: hot-path, detail: "boot.py beat lists the claims dir twice; dir grows, never pruned", status: fixed in 9740fb4}
+  - {severity: medium, category: running-cost, detail: "SKILL.md former-gate map (945 B) in every role prompt", status: "debt D1 -- R6 requires it in SKILL.md"}
+  - {severity: medium, category: duplication, detail: "orchestrator.md restated the batch/interrupt sets", status: fixed in 9740fb4}
+  - {severity: medium, category: running-cost, detail: "models CI job unmeasured, ran on every change", status: "path filter fixed in 9740fb4; wall time -> debt D2"}
+  - {severity: low, category: duplication, detail: "ElectionV096.tla repeats Election.tla's lifecycle layer", status: "debt D3 -- frozen record of 0.9.6"}
+  - {severity: low, category: dependency-weight, detail: "tla2tools downloaded every run", status: fixed (actions/cache) in 9740fb4}
+  - {severity: low, category: duplication, detail: "check_formal.run_cmd vs check_live.probe", status: "debt D4 -- probe scrubs the env the checker needs"}
+  - {severity: low, category: redundancy, detail: "demotion rule stated three times", status: "debt D5"}
+blocks_gate: false

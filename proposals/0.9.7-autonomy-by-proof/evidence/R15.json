@@ -1,0 +1,11 @@
+{
+  "id": "R15",
+  "verify": "local",
+  "command": "python3 tools/check_models.py --holds Election:Election && python3 tools/check_models.py --accepts real && grep -c '^| A[1-4]' framework/session-governance.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)Election/Election: holds.*accepted.*\\n4\\s*$",
+  "observed": "Election/Election: holds\nboot.py (real) scripted trace, 52 steps: accepted\n4",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T19:57:01+00:00"
+}

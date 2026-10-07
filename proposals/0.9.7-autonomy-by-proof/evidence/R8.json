@@ -1,0 +1,11 @@
+{
+  "id": "R8",
+  "verify": "local",
+  "command": "grep -n 'Pre-authorized actions' framework/skills/aidlc/contracts/requirements.template.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "Pre-authorized actions",
+  "observed": "117:## Pre-authorized actions (what the run may do on its own)",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T19:43:03+00:00"
+}

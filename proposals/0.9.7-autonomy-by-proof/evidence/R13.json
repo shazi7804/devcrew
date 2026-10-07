@@ -1,0 +1,11 @@
+{
+  "id": "R13",
+  "verify": "local",
+  "command": "python3 tools/check_models.py --trace && python3 tools/check_repo.py",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)skip-gen.*rejected.*models: ok.*repo: ok",
+  "observed": "ede: 37 steps accepted by the model\n  ok  boot.py concurrent seed 0: 136 steps accepted by the model\n  ok  boot.py concurrent seed 1: 129 steps accepted by the model\n  ok  boot.py concurrent seed 2: 137 steps accepted by the model\n  ok  boot.py mutant ('if mine:'): 52 steps rejected\n  ok  boot.py skip-gen ('if create(sid, n + 2, cwd) and verify(sid, n + 2):'): 52 steps rejected\nmodels: ok\nrepo: ok",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T19:53:57+00:00"
+}

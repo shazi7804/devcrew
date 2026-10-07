@@ -1,0 +1,11 @@
+{
+  "id": "R1",
+  "verify": "local",
+  "command": "grep -n \"Keep TASKS.md — the run's only ledger\" framework/skills/aidlc/SKILL.md && grep -c 'In progress' framework/skills/aidlc/contracts/tasks.template.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "Keep TASKS\\.md — the run's only ledger",
+  "observed": "1120:- **Keep TASKS.md — the run's only ledger.** Current state only: what is Done\n2",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T19:42:50+00:00"
+}

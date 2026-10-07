@@ -1,0 +1,31 @@
+{
+  "id": "R15",
+  "property": "boot.py satisfies AtMostOneActing /\\ ActingHoldsTop under assumptions A1-A4",
+  "level": "checked",
+  "conformance": "trace",
+  "tool": "TLC 2.19 (tla2tools 1.7.4)",
+  "command": "python3 tools/check_models.py --holds Election:Election",
+  "sources": [
+    "tools/check_models.py",
+    "framework/formal/Election.tla",
+    "framework/tools/boot.py"
+  ],
+  "bounds": "3 concurrent sessions, any number of turns, under symmetry",
+  "expect": "Election/Election: holds",
+  "observed": "Election/Election: holds",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T20:05:13+00:00",
+  "vacuity": {
+    "command": "python3 tools/check_models.py --holds ElectionV096",
+    "expect": "AtMostOneActing",
+    "observed": "ElectionV096/ElectionV096: AtMostOneActing",
+    "result": "fail"
+  },
+  "conformance_check": {
+    "command": "python3 tools/check_models.py --accepts real",
+    "expect": "accepted",
+    "observed": "boot.py (real) scripted trace, 52 steps: accepted",
+    "result": "pass"
+  }
+}

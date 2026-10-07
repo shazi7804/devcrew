@@ -1,0 +1,11 @@
+{
+  "id": "R12",
+  "verify": "local",
+  "command": "python3 tools/check_models.py --models",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "models: ok",
+  "observed": "s)\n  ok  Election/ElectionLiveBroken: temporal (expected temporal; 15984 states, 6s)\n  ok  Aidlc/Aidlc: holds (expected holds; 131872 states, 7s)\n  ok  Aidlc/AidlcLive: holds (expected holds; 131872 states, 67s)\n  ok  Aidlc/AidlcBroken: NoPhasePastUnsignedBatch (expected NoPhasePastUnsignedBatch; 650 states, 6s)\n  ok  Aidlc/AidlcLiveBroken: temporal (expected temporal; 11772 states, 9s)\nmodels: ok",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T19:49:22+00:00"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "R6",
+  "verify": "local",
+  "command": "grep -n '^| Former 🔴 gate' framework/skills/aidlc/SKILL.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "\\| Former 🔴 gate",
+  "observed": "794:| Former 🔴 gate | Now |",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T19:43:03+00:00"
+}

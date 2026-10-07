@@ -1,0 +1,11 @@
+{
+  "id": "R5",
+  "verify": "local",
+  "command": "! grep -q 'NOT DEFINED' hosts/claude-code.md && grep -l 'check_tasks.py' hosts/claude-code.md hosts/kirocrew.md hosts/mission-control.md hosts/aidlc-mission-control.skill.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)claude-code\\.md.*kirocrew\\.md.*mission-control\\.md.*aidlc-mission-control\\.skill\\.md",
+  "observed": "hosts/claude-code.md\nhosts/kirocrew.md\nhosts/mission-control.md\nhosts/aidlc-mission-control.skill.md",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T19:43:03+00:00"
+}

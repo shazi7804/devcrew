@@ -1,0 +1,26 @@
+{
+  "id": "R12",
+  "property": "Election: AtMostOneActing /\\ ActingHoldsTop at 3 sessions, HooksEnd /\\ ElectedAfterGone at 2; Aidlc: NoPhasePastUnsignedBatch /\\ DoneHasEvidence /\\ LoopBounded /\\ AsksOnlyForBatchOrInterrupt /\\ StopsOnlyForCEO /\\ NeverStuck /\\ LoopTerminates /\\ TroubleReachesCEO",
+  "level": "checked",
+  "conformance": "none",
+  "tool": "TLC 2.19 (tla2tools 1.7.4)",
+  "command": "python3 tools/check_models.py --models",
+  "sources": [
+    "tools/check_models.py",
+    "framework/formal/Election.tla",
+    "framework/formal/Aidlc.tla",
+    "framework/formal/ElectionV096.tla"
+  ],
+  "bounds": "Election: 3 sessions under symmetry (safety), 2 (liveness); Aidlc: 2 items, Loop A 5/3, every scope subset; broken variants: 1-2",
+  "expect": "models: ok",
+  "observed": "models:\n  ok  Election/Election: holds (expected holds; 2940901 states, 131s)\n  ok  Election/ElectionLive: holds (expected holds; 54507 states, 28s)\n  ok  ElectionV096/ElectionV096: AtMostOneActing (expected AtMostOneActing; 98310 states, 7s)\n  ok  Election/ElectionLiveBroken: temporal (expected temporal; 20220 states, 5s)\n  ok  Aidlc/Aidlc: holds (expected holds; 131872 states, 6s)\n  ok  Aidlc/AidlcLive: holds (expected holds; 131872 states, 43s)\n  ok  Aidlc/AidlcBroken: NoPhasePastUnsignedBatch (expected NoPhasePastUnsignedBatch; 649 states, 2s)\n  ok  Aidlc/AidlcLiveBroken: temporal (expected temporal; 14077 states, 4s)\nmodels: ok",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T20:01:02+00:00",
+  "vacuity": {
+    "command": "python3 tools/check_models.py --holds ElectionV096 || python3 tools/check_models.py --holds Aidlc:AidlcBroken",
+    "expect": "NoPhasePastUnsignedBatch",
+    "observed": "ElectionV096/ElectionV096: AtMostOneActing\nAidlc/AidlcBroken: NoPhasePastUnsignedBatch",
+    "result": "fail"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "N4",
+  "verify": "local",
+  "command": "grep -n '^verdict: PASS' proposals/0.9.7-autonomy-by-proof/verdicts/audit.yaml && ! grep -nE 'severity: (blocker|high)' proposals/0.9.7-autonomy-by-proof/verdicts/audit.yaml",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "verdict: PASS-WITH-DEBT",
+  "observed": "4:verdict: PASS-WITH-DEBT",
+  "result": "pass",
+  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
+  "at": "2026-10-07T20:06:43+00:00"
+}
