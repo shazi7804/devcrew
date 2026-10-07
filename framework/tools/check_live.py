@@ -166,7 +166,9 @@ def fields(path):
     the indented lines below it."""
     found, cur, key = {}, None, None
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        m = re.match(r"\s*(?:[-*+]\s+|#{2,6}\s+)?\*\*([RN]\d+)\b", line) or \
+        # an item, not a mention: the id is followed by its closing `**`, a
+        # space or a dash -- "**R12's note**" in prose is not R12
+        m = re.match(r"\s*(?:[-*+]\s+|#{2,6}\s+)?\*\*([RN]\d+)(?=\*\*|\s|[—–.:-])", line) or \
             re.match(r"#{2,6}\s+([RN]\d+)\b", line) or \
             re.match(r"\s*\|\s*\**([RN]\d+)\**\s*\|", line)
         f = re.match(r"(\s*)- \*(\w+)\*:\s*(.*)$", line)
@@ -193,6 +195,16 @@ def requirements(path):
     return {i: (re.match(r"`?([\w-]+)", f["verify"]).group(1).lower()
                 if re.match(r"`?[\w-]+", f.get("verify", "")) else "live")
             for i, f in fields(path).items()}
+
+
+def clean_head(root, *evidence):
+    """The checkout is HEAD's tree: no change to a tracked file and no
+    untracked file, outside the evidence dirs, the state and docs -- so a
+    local probe that ran here ran on what is committed."""
+    keep = [f":!{os.path.relpath(e if e.is_dir() else e.parent, root)}" for e in evidence]
+    st = git(root, "status", "--porcelain", "--untracked-files=all", "--", ".",
+             *keep, f":!{STATE}", ":!*.md")
+    return st.returncode == 0 and not out(st).strip()
 
 
 def drifted(root, sha, *evidence):
@@ -385,8 +397,7 @@ def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pro
                     # The service answered -- it is HEAD's proof only if the
                     # environment is proven to run HEAD (--deployed). A local
                     # probe ran on this checkout: proof if it is HEAD's tree.
-                    fresh = proven or (not live and not git(
-                        root, "diff", "--quiet", "HEAD", "--").returncode)
+                    fresh = proven or (not live and clean_head(root, evidence, reqfile))
                     excerpt = text[max(0, m.start() - 80):m.end() + 80].strip()
             except subprocess.TimeoutExpired:
                 hits.append(f"{tag}: re-run timed out after 300s")
@@ -569,6 +580,8 @@ def self_test():
         ("clean", {}, None, {}, None),
         ("clean local", {req: "- **R1** — x\n  - *Verify*: local\n"}, local_ok, {}, None),
         ("a bolded title", {req: "- **R1 — Weather.** SHALL show it.\n"}, None, {}, None),
+        ("a prose mention is not an item", {req: base[req] + "## Notes\n- **R1's text** changed\n"},
+         None, {}, None),
         ("a heading item", {req: "## R1 —— weather\nSHALL show it.\n"}, None, {}, None),
         ("a table row", {req: "| ID | Need |\n|---|---|\n| **R1** | weather |\n"}, None,
          {}, None),
@@ -709,6 +722,10 @@ def self_test():
         git(d, *quiet, "commit", "-qm", "y")
         if not check("a local re-run on a clean HEAD", run(root, rerun=True), None):
             return 1
+        write(d, {"src/helper.sh": "echo 'temp: 21'\n"})
+        if not check("a local re-run beside an untracked file", run(root, rerun=True), "stale"):
+            return 1
+        (root / "src/helper.sh").unlink()
         write(d, {"src/app.js": "export const temp = 3;\n"})
         if not check("a local re-run on a dirty tree", run(root, rerun=True), "stale"):
             return 1
@@ -768,7 +785,7 @@ def self_test():
         if not check("a squashed history, re-run on HEAD",
                      attempt(root, env="pre", rerun=True, **on_head), None):
             return 1
-    print(f"self-test ok ({len(cases) + 21} cases)")
+    print(f"self-test ok ({len(cases) + 22} cases)")
     return 0
 
 

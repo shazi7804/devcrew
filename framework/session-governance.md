@@ -272,11 +272,13 @@ a counterexample.
 **Trace validation ties the code to the model.** With `DEVCREW_TRACE=<file>`,
 `boot.py` logs every step that touches a claim — under an exclusive lock, so
 the log's order is the order the steps happened in — with what it saw.
-`check_models.py` runs real concurrent elections, takeovers, renewals and
-releases this way and has TLC accept each trace as a behaviour of the model
-(`framework/formal/ElectionTrace.tla`); a mutant `boot.py` (0.9.6's "refresh
-my lease whatever its age") must be rejected. A change to `boot.py` that the
-model does not allow fails CI.
+`check_models.py` runs sampled real concurrent elections, takeovers, renewals
+and releases this way and has TLC accept each trace as a behaviour of the
+model (`framework/formal/ElectionTrace.tla`); three mutants of `boot.py` must
+be rejected. That catches a change to `boot.py` the model does not allow
+*when a sampled run exercises it* — it samples, it does not enumerate; the
+exhaustive check is the model's, and the bridge between them is that each
+real step means what the model's step means.
 
 The model takes these as constants. **They are assumptions, not results**, and
 an install that cannot meet one must say so:

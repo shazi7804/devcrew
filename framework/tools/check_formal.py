@@ -238,7 +238,9 @@ def check(root, reqfile, evidence=None, only=None, rerun=False):
             except OSError:
                 pass
         word = str(e["tool"]).split()[0].lower() if str(e["tool"]).split() else ""
-        if word and word not in cmd.lower() and not any(word in t.lower() for t in texts.values()):
+        code = [ln for t in texts.values() for ln in t.lower().splitlines()
+                if not re.match(r"\s*(#|//|--|\(\*|\*|\\\*)", ln)]
+        if word and word not in cmd.lower() and not any(word in ln for ln in code):
             hits.append(f"{tag}: tool {e['tool']!r} is named by neither the command nor a "
                         "source -- nothing shows it ran")
         tla = "\n".join(t for s_, t in texts.items() if str(s_).endswith(".tla"))
@@ -282,8 +284,9 @@ def check(root, reqfile, evidence=None, only=None, rerun=False):
 
 
 # The self-test's stand-in model checker: a real program, so a re-run means it.
-CHECKER = """# a stand-in for TLC in the self-test
+CHECKER = """# a stand-in model checker for the self-test
 import sys
+TOOL = "TLC"
 a = sys.argv[1:]
 if "--broken" in a or "--fail" in a:
     print("Invariant is violated")
@@ -348,6 +351,9 @@ def self_test():
          "no vacuity run that failed", False),
         ("a no-op check", {"command": "true"}, {}, "names none of its sources", False),
         ("a tool nothing names", {"tool": "Apalache"}, {}, "named by neither", False),
+        ("a tool named only in a comment", {"tool": "Quint"},
+         {"spec/check.py": CHECKER.replace("# a stand-in", "# Quint: a stand-in")},
+         "named by neither", False),
         ("a check naming no source", {"command": "python3 elsewhere.py"}, {},
          "names none of its sources", False),
         ("a bare-false vacuity run", {"vacuity": {"command": "false", "expect": "x",

@@ -232,11 +232,14 @@ def create(sid, n, cwd):
     try:
         CLAIMS.mkdir(parents=True, exist_ok=True)
         tmp.write_text(body)
+        staged = True
     except OSError:
-        return False
+        staged = False              # still one create step, and it failed
     with step(sid, "create") as seen:
         seen["n"] = n
         try:
+            if not staged:
+                raise OSError("could not stage the claim")
             os.link(tmp, claim(n))
             seen["ok"] = True
         except OSError:

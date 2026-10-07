@@ -286,7 +286,7 @@ changes, one idea:
   is verified; no item's intent or acceptance changed. Where an item is prose
   or is proven by a sensor's self-test, it says `none` and why, rather than
   dressing an example test up as a formal method.
-- **R12's Property was corrected after review (2026-10-08):** the model
+- **A correction to the R12 Property after review (2026-10-08):** the model
   replaced `LoopBounded` with `AtBoundNoProgress` and `BoundInterrupts`
   (reviewer round 2, QA). That is a change to signed text, so it needs the
   CEO's re-signature: until then `check_tasks.py` reports DRIFT on this file

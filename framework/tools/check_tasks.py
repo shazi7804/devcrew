@@ -139,7 +139,7 @@ def check(root, tasks, evidence=True, env=None, rerun=False):
         hits.append(f"TASKS.md: Gate `{gate}` is not `🔴 <{'|'.join(BATCHES)}> — awaiting CEO`")
     reqfile = tasks.parent / signed[0][0]
     req = check_live.fields(reqfile) if reqfile.is_file() else {}
-    if reqfile.name != "requirements.md" or not req:
+    if signed[0][0] != "requirements.md" or not req:
         return hits + [f"TASKS.md: the first `Signed:` file, {signed[0][0]}, is not named "
                        "requirements.md, or has no Rn/Nn items -- nothing can be checked"]
     seen = {}
@@ -197,9 +197,10 @@ def progress(tag, parts):
     else:
         n, cap, k, kcap = (int(x) for x in m.groups())
         raised = f[0].startswith("blocked on loop-bound")
-        if cap > MAX_ATTEMPTS or kcap > MAX_STALLED:
-            hits.append(f"{tag}: a bound past Loop A's {MAX_ATTEMPTS} total / "
-                        f"{MAX_STALLED} stalled -- raising it is a CEO decision")
+        if cap != MAX_ATTEMPTS or kcap != MAX_STALLED:
+            hits.append(f"{tag}: the bounds are Loop A's {MAX_ATTEMPTS} total / "
+                        f"{MAX_STALLED} stalled, written as such -- changing them is a "
+                        "CEO decision")
         elif n > cap or k > kcap:
             hits.append(f"{tag}: {f[2]} -- past Loop A's bound: the run should have "
                         "stopped at it")
@@ -238,13 +239,17 @@ def self_test():
         ("5/5 attempts, raised", lambda t: t.replace("verifying · qa · 2/5",
                                                      "blocked on loop-bound (CEO) · qa · 5/5"), None),
         ("no stalled counter", lambda t: t.replace("2/5 stalled 0/3", "2/5"), "both counters"),
-        ("a stalled count past its own bound", lambda t: t.replace("stalled 1/3", "stalled 2/1"),
+        ("a stalled count past its bound", lambda t: t.replace("stalled 1/3", "stalled 4/3"),
          "past Loop A's bound"),
         ("a decoy requirements file signed first", lambda t: t.replace(
             "Signed: requirements.md", "Signed: fake-requirements.md"), "not named requirements.md"),
         ("stalled 3/3, still trying", lambda t: t.replace("stalled 1/3", "stalled 3/3").replace(
             "blocked on the CRM key", "fixing"), "bound is reached"),
-        ("a raised bound", lambda t: t.replace("2/5", "2/9"), "raising it is a CEO decision"),
+        ("a raised bound", lambda t: t.replace("2/5", "2/9"), "changing them is a CEO decision"),
+        ("a lowered bound", lambda t: t.replace("stalled 0/3", "stalled 0/2"),
+         "changing them is a CEO decision"),
+        ("a nested decoy requirements file", lambda t: t.replace(
+            "Signed: requirements.md", "Signed: nested/requirements.md"), "not named requirements.md"),
         ("4/3 stalled", lambda t: t.replace("stalled 1/3", "stalled 4/3"), "past Loop A's bound"),
         ("a bad in-progress line", lambda t: t.replace(" · next: rerun", ""), "in progress needs"),
         ("a Gate naming no batch", lambda t: t.replace("\n\n## Done", "\nGate: 🔴 later\n\n## Done"),
@@ -272,6 +277,8 @@ def self_test():
         (root / "req/standards.md").write_text("# s\n", encoding="utf-8")
         (root / "req/design.md").write_text("# d\n", encoding="utf-8")
         (root / "req/fake-requirements.md").write_text(req, encoding="utf-8")
+        (root / "req/nested").mkdir()
+        (root / "req/nested/requirements.md").write_text(req, encoding="utf-8")
         q = ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
         subprocess.run(["git", "-C", d, "init", "-q"], check=True)
         subprocess.run(["git", "-C", d, "add", "-A"], check=True)
