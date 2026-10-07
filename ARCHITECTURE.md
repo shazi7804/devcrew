@@ -394,9 +394,11 @@ Two rules keep them honest:
   variant that must yield a counterexample: `AidlcBroken.cfg` opens the design
   gate; `ElectionV096.tla` is the 0.9.6 election, in which TLC finds two acting
   orchestrators in 14 steps.
-- **A model is not the code.** `boot.py` is trace-validated: real concurrent
-  runs log every claim step and TLC must accept each trace as a behaviour of
-  `Election.tla` (`ElectionTrace.tla`); a mutant `boot.py` must be rejected.
+- **A model is not the code.** Sampled real runs of `boot.py` are checked
+  against the model: concurrent runs log every claim step and TLC must accept
+  each trace as a behaviour of `Election.tla` (`ElectionTrace.tla`); mutants
+  of `boot.py` must be rejected. That catches drift in the runs it samples;
+  it is not the exhaustive check — that is the model's.
   The orchestrator is a model, not a program, so `Aidlc.tla` is tied to the
   protocol differently: its stages, batches and interrupts must equal the sets
   `SKILL.md` names (`tools/check_repo.py`).

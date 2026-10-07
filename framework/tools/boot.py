@@ -208,6 +208,7 @@ def touch(sid, n):
     """Refresh the lease. False if it could not be: then it was NOT refreshed,
     and the caller must not go on as if it had been."""
     with step(sid, "touch") as seen:
+        seen["n"] = n
         try:
             os.utime(claim(n), None)
             seen["ok"] = True
@@ -251,6 +252,7 @@ def verify(sid, n):
     """Is the generation I touched or made still the highest? Contiguous
     generations make that one stat: nobody has made n+1."""
     with step(sid, "verify") as seen:
+        seen["n"] = n
         seen["ok"] = claim(n).exists() and not claim(n + 1).exists()
     if seen["ok"]:
         try:
@@ -262,6 +264,7 @@ def verify(sid, n):
 
 def release(sid, n):
     with step(sid, "release") as seen:
+        seen["n"] = n
         try:
             released(n).touch()
             seen["ok"] = True

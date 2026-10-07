@@ -1,5 +1,5 @@
 Signed: requirements.md sha256:e4468b647089
-Gate: 🔴 ship — awaiting CEO
+Gate: 🔴 intent — awaiting CEO
 
 ## Done
 - [x] R1 TASKS.md defined as the only ledger
@@ -22,7 +22,7 @@ Gate: 🔴 ship — awaiting CEO
 - [x] N4 small on purpose (auditor: PASS-WITH-DEBT)
 
 ## In progress
-- [~] N1 no gate weakened — verifying · reviewer · 2/5 · next: reviewer re-review of 9740fb4 + a second reviewer
+- [~] N1 no gate weakened — verifying · reviewer · 3/5 stalled 0/3 · next: reviewer round 3 on the fixed tree
 
 ## Todo
 - [ ] D1 SKILL.md's former-gate map costs every role ~240 tokens (R6 keeps it there)
@@ -30,3 +30,6 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer
 - [ ] D4 check_formal.run_cmd beside check_live.probe (probe scrubs the env)
 - [ ] D5 the demotion rule is stated in three places
+- [ ] D6 mechanise `unauthorized`: a host guard on irreversible commands, checked against the pre-authorized list
+- [ ] D7 mechanise the budget part of `loop-bound`: a token/time counter the run cannot skip
+- [ ] D8 mechanise the judgment part of `cross-design`: code that departs from an unchanged design

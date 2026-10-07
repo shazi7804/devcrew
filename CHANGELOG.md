@@ -61,9 +61,11 @@ so the bounds became code first.
     Done-needs-evidence, for safety and liveness under stated fairness.
   - Each model has a seeded broken variant that must fail, for safety and
     for liveness.
-  - `boot.py` is trace-validated: real concurrent runs log every step with
-    its generation number and outcome, and TLC must accept each trace as a
-    behaviour of the model. Two mutants must be rejected. A run that broke
+  - Sampled real runs of `boot.py` are checked against the model (trace
+    validation): concurrent runs log every step with its generation number
+    and outcome, and TLC must accept each trace as a behaviour of the model.
+    Three mutants must be rejected. This samples runs; exhaustiveness is the
+    model's job. A run that broke
     an assumption is re-run and never counted as a pass.
   - `tools/check_repo.py` keeps SKILL.md's stages, batches and interrupts
     equal to the model's.
@@ -81,7 +83,7 @@ so the bounds became code first.
 
   A beat now runs after every tool call. Without it, a long autonomous turn
   outlives its lease (assumption A2). The assumptions the fix still needs
-  (A1–A4) are written in `framework/session-governance.md` § 8.
+  (A1–A5) are written in `framework/session-governance.md` § 8.
 - **Invariant 11** in AGENTS.md (R14): between batches the run proceeds only on
   bounds a machine checks.
 - **Reviewed across vendors.** The reviewer ran on `gpt-5.6-sol` with no team

@@ -16,8 +16,9 @@ vocabulary the adapters map; `memory` must be `shared` or `none`. Two
 capabilities are withheld by design and checked here, not assumed: `reviewer`
 mounts no memory (invariant 4) and `auditor` holds no write tool (invariant 7).
 
-PROTOCOL SETS — the stages, batches and interrupts that SKILL.md names must be
-the ones framework/formal/Aidlc.tla model-checks. The orchestrator is a model,
+PROTOCOL SETS — the stages, batches and interrupts that SKILL.md names (in its
+protocol-sets block, and in the batch and interrupt tables) must be the ones
+framework/formal/Aidlc.tla model-checks. The orchestrator is a model,
 not a program, so this is the conformance there is: a phase, batch or interrupt
 added to the prose and not to the model is one nobody proved anything about.
 """
@@ -123,10 +124,31 @@ def tla_set(text, name):
     return set(re.findall(r'"([^"]+)"', m.group(1))) if m else None
 
 
+def table_ids(skill, header, bold):
+    """The first-column ids of the table whose header row starts `header`."""
+    lines, ids, on = skill.splitlines(), set(), False
+    for ln in lines:
+        if ln.startswith(header):
+            on = True
+            continue
+        if on:
+            if not ln.startswith("|"):
+                break
+            m = re.match(r"\|\s*\*\*(\w[\w-]*)\*\*" if bold else r"\|\s*`([\w-]+)`", ln)
+            if m:
+                ids.add(m.group(1))
+    return ids
+
+
 def check_protocol_sets():
     model = (ROOT / "framework/formal/Aidlc.tla").read_text(encoding="utf-8")
     skill = (ROOT / "framework/skills/aidlc/SKILL.md").read_text(encoding="utf-8")
     problems = []
+    for name, header, bold in (("batches", "| Batch |", True), ("interrupts", "| Interrupt |", False)):
+        tla, rows = tla_set(model, name.capitalize()), table_ids(skill, header, bold)
+        if tla is not None and rows != tla:
+            problems.append(f"{name}: SKILL.md's `{header}` table and Aidlc.tla differ -- "
+                            f"table {sorted(rows)}, model {sorted(tla)}")
     for name in ("stages", "batches", "interrupts"):
         m = re.search(rf"^{name}:\s*(.+)$", skill, re.M)
         prose = set(m.group(1).split()) if m else None

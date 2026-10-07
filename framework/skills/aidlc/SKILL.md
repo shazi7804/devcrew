@@ -789,7 +789,9 @@ else the orchestrator wants to ask waits for the next batch's SITREP.
 | **ship** | the production release · signing material · store/production submission · the merge (framework changes). With none of these, the CEO's acceptance of the delivered run |
 
 No item the CEO signed before 0.9.7 is dropped — each former 🔴 gate is in a
-batch, or became an interrupt a sensor raises:
+batch, or became an interrupt. An interrupt is still a hard stop that the CEO
+decides; what changed is only who notices it — a sensor where one exists,
+rather than the orchestrator remembering to ask:
 
 | Former 🔴 gate | Now |
 |---|---|
@@ -805,16 +807,22 @@ batch, or became an interrupt a sensor raises:
 | an architecture change crossing a signed boundary | interrupt `cross-design` |
 | a high-risk / production / infra-mutating action | the pre-authorized list (intent batch), else interrupt `unauthorized` |
 
-The interrupts are exactly six, each raised by a mechanism, not by a mood:
+The interrupts are exactly six. Each says which part a machine raises and
+which part is still a role's judgment — named here, never hidden:
 
-| Interrupt | Raised by |
-|---|---|
-| `drift` | `check_tasks.py` — a `Signed:` hash no longer matches its file |
-| `cross-design` | `check_tasks.py` — a file signed in the design batch (`design.md`, an ADR) changed; plus the architect's architecture-delta check, a judgment, for code that departs from the design without editing it |
-| `loop-bound` | `check_tasks.py` — an item at `5/5` or `stalled 3/3`; or the run's token/time budget is spent (§ Budgets) |
-| `missing-service` | `check_live.py` / an implementer's BLOCKED — a real service, credential or signing material does not exist |
-| `unauthorized` | the pre-authorized list — an irreversible action that is not on it |
-| `model-fail` | the protocol model check (`framework/formal/`, run in CI) fails |
+| Interrupt | Raised by | Kind |
+|---|---|---|
+| `drift` | `check_tasks.py` — a `Signed:` hash no longer matches its file | machine |
+| `cross-design` | `check_tasks.py` — a file signed in the design batch (`design.md`, an ADR) changed · the architect's architecture-delta check, for code that departs from an unchanged design | machine · judgment |
+| `loop-bound` | `check_tasks.py` — an item at `5/5` or `stalled 3/3` · the run's token/time budget is spent (§ Budgets) | machine · judgment |
+| `missing-service` | `check_live.py` — no live evidence can exist · an implementer's BLOCKED | machine · judgment |
+| `unauthorized` | the role about to act reads the pre-authorized list — an irreversible action that is not on it | judgment |
+| `model-fail` | the protocol model check (`framework/formal/`, run in CI) fails | machine |
+
+A judgment stop is **fail-closed**: unsure means raise it. Mechanising the
+three judgment parts needs the host — a guard on irreversible commands, a
+budget counter, a design-to-code check — and is tracked as debt, not
+claimed as done.
 
 ```
 <!-- protocol sets: tools/check_repo.py checks these against framework/formal/Aidlc.tla -->

@@ -101,8 +101,8 @@ source of truth, so on a new machine you re-run this file and the tree is rebuil
   evidence). Both import `check_live.py`, so the three travel together.
 - `framework/formal/` + `tools/check_models.py` — TLA+ models of the AIDLC run
   and of the orchestrator election, checked by TLC in CI, each with a seeded
-  broken variant that must fail, and `boot.py` trace-validated against its
-  model. This is CI for devcrew itself; nothing here is installed into a
+  broken variant that must fail, and sampled real runs of `boot.py`
+  checked step by step against its model (trace validation). This is CI for devcrew itself; nothing here is installed into a
   project.
 - `framework/session-governance.md` + `framework/tools/boot.py` — how the
   orchestrator role is held when the host can run **several sessions at once**
@@ -243,7 +243,10 @@ the single source of truth; the host files are generated artifacts.
    models in `framework/formal/`, which `tools/check_models.py` checks in CI.
    The run stops between batches only on one of six interrupts a sensor
    raises (drift, cross-design, loop-bound, missing-service, unauthorized,
-   model-fail); any other reason to ask waits for the next batch. Formal
+   model-fail); any other reason to ask waits for the next batch. Where a
+   stop is still a role's judgment (SKILL.md names each one), it fails
+   closed — unsure means stop — and is debt to mechanise, never presented as
+   machine-checked. Formal
    evidence adds to live evidence, never replaces it. Loosening a bound, or
    adding a way to proceed that no machine checks, is a gate weakened
    (invariant 8).

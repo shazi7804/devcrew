@@ -69,6 +69,8 @@ MUTANTS = {
     "mutant": ('if mine and top["age"] == "fresh":', "if mine:"),
     "skip-gen": ("if create(sid, n + 1, cwd) and verify(sid, n + 1):",
                  "if create(sid, n + 2, cwd) and verify(sid, n + 2):"),
+    "touch-old": ("if touch(sid, n) and verify(sid, n):",
+                  "if touch(sid, n - 1) and verify(sid, n):"),
 }
 
 

@@ -1,3 +1,6 @@
+# Efficiency audit — auditor, round 1
+
+```yaml
 # Efficiency audit (auditor role, Claude, no write tool) of 49d78dd..3f1968e.
 # Findings fixed since: hot-path (verify one stat, top_gen probes from a hint),
 # orchestrator.md duplication, CI path filter + jar cache -- see design.md § 6.
@@ -15,3 +18,4 @@ findings:
   - {severity: low, category: duplication, detail: "check_formal.run_cmd vs check_live.probe", status: "debt D4 -- probe scrubs the env the checker needs"}
   - {severity: low, category: redundancy, detail: "demotion rule stated three times", status: "debt D5"}
 blocks_gate: false
+```

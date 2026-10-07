@@ -187,7 +187,7 @@ changes, one idea:
     bounds and every property holds; a CI step proves the check can fail by
     checking a seeded broken variant and expecting a counterexample.
   - *Verify*: local
-  - *Property*: Election: AtMostOneActing /\ ActingHoldsTop at 3 sessions, HooksEnd /\ ElectedAfterGone at 2; Aidlc: NoPhasePastUnsignedBatch /\ DoneHasEvidence /\ LoopBounded /\ AsksOnlyForBatchOrInterrupt /\ StopsOnlyForCEO /\ NeverStuck /\ LoopTerminates /\ TroubleReachesCEO
+  - *Property*: Election: AtMostOneActing /\ ActingHoldsTop at 3 sessions, HooksEnd /\ ElectedAfterGone at 2; Aidlc: NoPhasePastUnsignedBatch /\ DoneHasEvidence /\ AtBoundNoProgress /\ AsksOnlyForBatchOrInterrupt /\ StopsOnlyForCEO /\ NeverStuck /\ LoopTerminates /\ BoundInterrupts /\ TroubleReachesCEO
   - *Formal*: checked
   - *Conformance*: none
 - **R13** — The model and the code SHALL NOT drift. `boot.py` SHALL be
@@ -286,6 +286,11 @@ changes, one idea:
   is verified; no item's intent or acceptance changed. Where an item is prose
   or is proven by a sensor's self-test, it says `none` and why, rather than
   dressing an example test up as a formal method.
+- **R12's Property was corrected after review (2026-10-08):** the model
+  replaced `LoopBounded` with `AtBoundNoProgress` and `BoundInterrupts`
+  (reviewer round 2, QA). That is a change to signed text, so it needs the
+  CEO's re-signature: until then `check_tasks.py` reports DRIFT on this file
+  and the run is at the `drift` interrupt, as the protocol requires.
 - This change edits `reviewer.md`, so the reviewer may not review it alone; if
   no other vendor is callable, review runs as a council of independent agents
   with no team memory and is recorded as degraded.

@@ -23,7 +23,9 @@
          STALE - MARGIN -- one beat per tool call, so no single tool call
          runs longer than that
      A3  a session told it is a worker stops acting as orchestrator
-     A4  the claim directory is on a local file system (O_EXCL is atomic) *)
+     A4  the claim directory is on a local file system (O_EXCL is atomic)
+     A5  (liveness only) a file operation does not fail forever: a create or
+         touch that keeps becoming possible eventually succeeds *)
 EXTENDS Naturals, FiniteSets, TLC
 
 CONSTANTS Sessions, None,
@@ -133,6 +135,14 @@ Create(s) ==
             /\ UNCHANGED <<top, valid>>
   /\ UNCHANGED <<snap, life>>
 
+\* the link failed although nobody made n+1 (a full disk, a permission): no
+\* claim was made, so the session is a worker
+CreateFail(s) ==
+  /\ pc[s] = "create"
+  /\ valid[s]
+  /\ Finish(s, "worker")
+  /\ UNCHANGED <<top, snap, valid, life>>
+
 \* list the claims again: is the generation I touched or made still the top?
 Verify(s) ==
   /\ pc[s] = "verify"
@@ -161,7 +171,7 @@ Age ==
   /\ top' = [top EXCEPT !.age = IF @ = "fresh" THEN "margin" ELSE "stale"]
   /\ UNCHANGED <<snap, valid, pc, hook, role, acting, life>>
 
-Step(s) == Scan(s) \/ Touch(s) \/ TouchFail(s) \/ Create(s) \/ Verify(s)
+Step(s) == Scan(s) \/ Touch(s) \/ TouchFail(s) \/ Create(s) \/ CreateFail(s) \/ Verify(s)
            \/ Release(s) \/ ReleaseFail(s)
 Host(s) == Open(s) \/ Turn(s) \/ Mid(s) \/ Stop(s) \/ Close(s) \/ Crash(s)
 
@@ -169,9 +179,12 @@ Next == Age \/ \E s \in Sessions : Step(s) \/ Host(s)
 
 \* Fairness: time passes, a running hook finishes, and a session that is open
 \* keeps taking turns (somebody is using it). Nothing forces a crash or a close.
+\* A5: a create or touch that keeps becoming possible eventually succeeds --
+\* without it a disk that is full forever elects nobody, which TLC shows.
 Fairness ==
   /\ WF_vars(Age)
   /\ \A s \in Sessions : WF_vars(Step(s)) /\ WF_vars(Turn(s)) /\ WF_vars(Stop(s))
+                         /\ SF_vars(Create(s)) /\ SF_vars(Touch(s))
 Spec == Init /\ [][Next]_vars /\ Fairness
 
 \* Sessions are interchangeable: safety may be checked up to their permutation

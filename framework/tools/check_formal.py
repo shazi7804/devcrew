@@ -41,7 +41,10 @@ THE EVIDENCE SIDE (<dir>/formal/<ID>.json, written after the code is committed)
     whose command names none of its sources, or is a no-op (`true`, `:`,
     `echo`, `exit 0`), or a vacuity run that is a bare `false` / `exit 1` or
     the check itself; an `expect` missing, matching anything, or not matched by
-    its observed output; a source missing, or holding an escape hatch -- a proof that is not a proof
+    its observed output; a `tool` that neither the command nor a source names;
+    a Property naming a TLA+ definition (a CamelCase identifier, when a source
+    is a .tla) that no source defines -- the checked property drifted from
+    the signed one; a source missing, or holding an escape hatch -- a proof that is not a proof
     (`sorry`, `admit`, `Admitted`, `axiom`, `assume`, `{:axiom}`, `OMITTED`,
     `assume(false)` ...); the sha not a full commit in HEAD's history, or the
     shipped tree changed since it (stale, same rule as check_live).
@@ -52,7 +55,10 @@ WHAT THIS CANNOT DO
     Stored evidence is its writer's claim: an agent that can write the file
     can write a plausible one. The rules above make a lazy fake fail; only a
     re-run is proof. So QA runs `--rerun`, and so does `check_tasks.py --rerun`
-    before the Ship batch -- never sign on stored evidence alone.
+    before the Ship batch -- never sign on stored evidence alone. And a re-run
+    proves only that the command still says what it said: whether the command
+    is a faithful checker of the property is read by a person or a reviewer in
+    the diff, where the command and its sources are. No sensor can decide it.
 
 Formal evidence adds to live evidence; it never replaces it (check_tasks.py
 requires both before an item is Done).
@@ -79,13 +85,15 @@ FALSE = re.compile(r"\s*(false|exit\s+[1-9]\d*|!\s*true)\s*$")
 # "-- sorry, fix later" is exactly the confession this looks for.
 ANY = [r"\bassume\s*\(\s*(false|False)\s*\)"]
 HATCHES = {
-    ".lean": [r"\bsorry\b", r"\badmit\b", r"^\s*axiom\b", r"\bnative_decide\b"],
-    ".v": [r"\bAdmitted\b", r"\badmit\b", r"^\s*Axiom\b"],
+    ".lean": [r"\bsorry\b", r"\badmit\b",
+              r"^\s*(@\[[^\]]*\]\s*)?((private|protected|noncomputable)\s+)*axiom\b",
+              r"\bnative_decide\b"],
+    ".v": [r"\bAdmitted\b", r"\badmit\b", r"^\s*(Local\s+|Global\s+)?(Axiom|Axioms|Parameter|Parameters|Hypothesis|Hypotheses|Conjecture)\b"],
     ".dfy": [r"\bassume\b", r"\{:axiom\}", r"\{:verify\s+false\}"],
     ".rs": [r"\bassume\s*\(", r"\badmit\s*\(", r"verifier::external_body",
             r"verifier\(external_body\)"],
     ".tla": [r"\bOMITTED\b"],
-    ".thy": [r"\bsorry\b", r"\boops\b"],
+    ".thy": [r"\bsorry\b", r"\boops\b", r"\baxiomatization\b"],
     ".fst": [r"\badmit\b", r"\bassume\b"],
     ".fsti": [r"\badmit\b", r"\bassume\b"],
 }
@@ -102,8 +110,9 @@ def signed(reqfile):
         prop = norm(f.get("property", ""))
         level = norm(f.get("formal", "")).lower().split(" ")[0] if f.get("formal") else ""
         conf = norm(f.get("conformance", "none")).lower().split(" ")[0]
-        out[rid] = (None if re.match(r"none\b", prop) else prop, level, conf,
-                    prop[4:].strip(" -—–:") if re.match(r"none\b", prop) else "")
+        none = re.match(r"none\s*(?:[—–:-]|$)", prop)
+        out[rid] = (None if none else prop, level, conf,
+                    prop[none.end():].strip(" -—–:") if none else "")
     return out
 
 
@@ -222,6 +231,22 @@ def check(root, reqfile, evidence=None, only=None, rerun=False):
         vx = pattern(tag, "the vacuity run", v, hits) if v.get("command") else None
         cx = pattern(tag, "the conformance check", c, hits) if isinstance(c, dict) and \
             c.get("command") else None
+        texts = {}
+        for src in sources:
+            try:
+                texts[src] = (root / src).read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                pass
+        word = str(e["tool"]).split()[0].lower() if str(e["tool"]).split() else ""
+        if word and word not in cmd.lower() and not any(word in t.lower() for t in texts.values()):
+            hits.append(f"{tag}: tool {e['tool']!r} is named by neither the command nor a "
+                        "source -- nothing shows it ran")
+        tla = "\n".join(t for s_, t in texts.items() if str(s_).endswith(".tla"))
+        if tla:
+            for ident in sorted(set(re.findall(r"\b[A-Z][a-z]+(?:[A-Z][a-z]+)+\b", prop))):
+                if not re.search(rf"^\s*{ident}\s*(\(.*\))?\s*==", tla, re.M):
+                    hits.append(f"{tag}: the signed Property names {ident}, which no .tla "
+                                "source defines -- the checked property is not the signed one")
         for src in sources:
             p = root / src
             if not p.is_file():
@@ -257,7 +282,8 @@ def check(root, reqfile, evidence=None, only=None, rerun=False):
 
 
 # The self-test's stand-in model checker: a real program, so a re-run means it.
-CHECKER = """import sys
+CHECKER = """# a stand-in for TLC in the self-test
+import sys
 a = sys.argv[1:]
 if "--broken" in a or "--fail" in a:
     print("Invariant is violated")
@@ -321,6 +347,7 @@ def self_test():
                                                     "result": "pass"}}, {},
          "no vacuity run that failed", False),
         ("a no-op check", {"command": "true"}, {}, "names none of its sources", False),
+        ("a tool nothing names", {"tool": "Apalache"}, {}, "named by neither", False),
         ("a check naming no source", {"command": "python3 elsewhere.py"}, {},
          "names none of its sources", False),
         ("a bare-false vacuity run", {"vacuity": {"command": "false", "expect": "x",
@@ -349,6 +376,8 @@ def self_test():
         ("a clean re-run", {}, {}, None, True),
     ]
     for ext, line in [(".lean", "theorem t : p := by sorry"), (".lean", "axiom magic : False"),
+                      (".lean", "private axiom magic : False"), (".v", "Parameter magic : False."),
+                      (".v", "Hypothesis h : False."), (".thy", "axiomatization where ax: False"),
                       (".v", "Admitted."), (".dfy", "assume x > 0;"), (".dfy", "lemma {:axiom} L()"),
                       (".rs", "assume(n > 0);"), (".rs", "#[verifier::external_body]"),
                       (".tla", "THEOREM T == Spec => Inv PROOF OMITTED"), (".thy", "  sorry"),
@@ -365,6 +394,12 @@ def self_test():
             if not ((not got) if want is None else any(want in h for h in got)):
                 print(f"self-test FAILED: {label}: expected {want or 'clean'}, got {got or 'clean'}")
                 return 1
+    with tempfile.TemporaryDirectory() as d:
+        tree(d, req_text="# r\n- **R1** — x\n  - *Property*: none of the orders is lost\n")
+        got = check(pathlib.Path(d), pathlib.Path(d, "req/requirements.md"))
+        if not any("Formal" in h for h in got):
+            print(f"self-test FAILED: a property starting with 'none of': got {got or 'clean'}")
+            return 1
     more = [
         ("stale evidence", "stale"),
         ("Property: none without a reason", "needs a reason"),
@@ -388,7 +423,7 @@ def self_test():
             if not any(want in h for h in got):
                 print(f"self-test FAILED: {label}: got {got or 'clean'}")
                 return 1
-    print(f"self-test ok ({len(cases) + len(more)} cases)")
+    print(f"self-test ok ({len(cases) + len(more) + 1} cases)")
     return 0
 
 

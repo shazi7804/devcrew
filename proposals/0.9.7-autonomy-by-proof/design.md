@@ -35,12 +35,12 @@ proof of the general case.
 |---|---|---|---|
 | `framework/formal/Election.tla` | checked · trace | 3 sessions (safety), 2 (liveness) | `AtMostOneActing`, `ActingHoldsTop`, `HooksEnd`, `ElectedAfterGone` |
 | `framework/formal/ElectionV096.tla` | the seeded broken variant | 3 sessions | must violate `AtMostOneActing` |
-| `framework/formal/Aidlc.tla` | checked · set sync | 2 items, Loop A 5/3, every scope | `NoPhasePastUnsignedBatch`, `DoneHasEvidence`, `LoopBounded`, `AsksOnlyForBatchOrInterrupt`, `StopsOnlyForCEO`, `NeverStuck`, `LoopTerminates`, `TroubleReachesCEO` |
+| `framework/formal/Aidlc.tla` | checked · set sync | 2 items, Loop A 5/3, every scope | `NoPhasePastUnsignedBatch`, `DoneHasEvidence`, `AtBoundNoProgress`, `AsksOnlyForBatchOrInterrupt`, `StopsOnlyForCEO`, `NeverStuck`, `LoopTerminates`, `BoundInterrupts`, `TroubleReachesCEO` |
 | `Aidlc.tla` + `AidlcBroken.cfg` | the seeded broken variant | 1 item | must violate `NoPhasePastUnsignedBatch` |
 
 Time is modelled as age classes of the claim's mtime (fresh ≤ STALE−MARGIN <
 margin ≤ STALE < stale), and the timing assumptions are constraints on when
-it may age (A1–A4, `framework/session-governance.md` § 8). The orchestrator is
+it may age (A1–A5, `framework/session-governance.md` § 8). The orchestrator is
 an LLM, so `Aidlc.tla` has no trace to validate; its conformance is that its
 stages, batches and interrupts are the ones SKILL.md names
 (`tools/check_repo.py`).

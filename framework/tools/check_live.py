@@ -63,7 +63,9 @@ CHECK 1 -- EVIDENCE (every Rn/Nn in each requirements file)
     contain HEAD's sha. Only then is a passing
     re-run fresh proof -- a stale or rewritten-history sha is not a hit -- and
     only then may --record write it back (sha = HEAD), for an item with no
-    other hit.
+    other hit. A `local` probe runs on this checkout, not on a deployed
+    service, so its re-run is HEAD's proof when the tracked tree is HEAD's
+    (no uncommitted change) -- it needs no --deployed.
 
 CHECK 2 -- NO FAKES IN PRODUCTION CODE
     Scans tracked files outside test paths and lockfiles for: an identifier
@@ -381,8 +383,10 @@ def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pro
                     hits.append(f"{tag}: re-run output does not match expect")
                 elif not bad:
                     # The service answered -- it is HEAD's proof only if the
-                    # environment is proven to run HEAD (--deployed).
-                    fresh = proven
+                    # environment is proven to run HEAD (--deployed). A local
+                    # probe ran on this checkout: proof if it is HEAD's tree.
+                    fresh = proven or (not live and not git(
+                        root, "diff", "--quiet", "HEAD", "--").returncode)
                     excerpt = text[max(0, m.start() - 80):m.end() + 80].strip()
             except subprocess.TimeoutExpired:
                 hits.append(f"{tag}: re-run timed out after 300s")
@@ -692,6 +696,22 @@ def self_test():
         if not check("a re-run that never reached the service", run(root, rerun=True),
                      "re-run output does not match"):
             return 1
+    # A local item: a re-run on a clean checkout of HEAD refreshes it; on a
+    # dirty tree it does not (the probe ran on code nobody committed).
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
+        sha = commit(d, {**base, **lreq})
+        ev(d, sha, verify="local", target="this checkout", command="echo 'temp: 21'",
+           expect=r"temp: \d+", observed="temp: 21")
+        write(d, {"src/app.js": "export const temp = 2;\n"})
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "y")
+        if not check("a local re-run on a clean HEAD", run(root, rerun=True), None):
+            return 1
+        write(d, {"src/app.js": "export const temp = 3;\n"})
+        if not check("a local re-run on a dirty tree", run(root, rerun=True), "stale"):
+            return 1
     # Two features: one PR's run, staleness after another feature lands, a
     # re-run that refreshes it, and environments that do not overwrite each other.
     with tempfile.TemporaryDirectory() as d:
@@ -748,7 +768,7 @@ def self_test():
         if not check("a squashed history, re-run on HEAD",
                      attempt(root, env="pre", rerun=True, **on_head), None):
             return 1
-    print(f"self-test ok ({len(cases) + 19} cases)")
+    print(f"self-test ok ({len(cases) + 21} cases)")
     return 0
 
 

@@ -287,6 +287,7 @@ an install that cannot meet one must say so:
 | A2 | An acting orchestrator beats more often than `STALE − MARGIN`: a beat at both ends of every turn **and after every tool call**, so no single tool call runs longer than that | a long autonomous turn lets the lease expire while the holder is still acting — the more autonomy, the likelier |
 | A3 | A session told it is a worker stops acting as orchestrator at once | the claim moves, the behaviour does not |
 | A4 | `<state>/claims/` is on a local file system, where `link` and `O_EXCL` are atomic (APFS, ext4, NTFS) — not NFS/SMB, not a sync folder (Dropbox, iCloud, OneDrive) | the CAS degrades to advisory and so does everything above it |
+| A5 | (liveness only) A file operation does not fail forever — a create or a refresh that keeps becoming possible eventually succeeds | a disk that stays full, or a permission that stays wrong, elects nobody, ever; safety is unaffected — nothing fails into two orchestrators |
 
 **Not modelled:**
 
