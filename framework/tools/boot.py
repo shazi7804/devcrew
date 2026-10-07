@@ -75,6 +75,7 @@ STATE = ROOT / STATE_DIR
 CLAIMS = STATE / "claims"
 PIN = STATE / "ORCHESTRATOR.pin"          # the escape hatch; normally absent
 GEN = re.compile(r"^ORCHESTRATOR\.(\d+)\.claim$")
+TOP_HINT = CLAIMS / "ORCHESTRATOR.top"     # a hint for top_gen(), never trusted
 
 # How long the lock may go without a heartbeat before another session may take
 # it. The cost is asymmetric: too short and you overwrite a live session's work,
@@ -143,8 +144,20 @@ def released(n):
 
 
 def top_gen():
-    gens = (GEN.match(p.name) for p in CLAIMS.glob("ORCHESTRATOR.*.claim"))
-    return max((int(m.group(1)) for m in gens if m), default=0)
+    """The highest generation. Generations are contiguous (n+1 is only ever
+    made by someone who read n), so probe upward from the last top seen; list
+    the directory only when that hint is missing or wrong. The directory keeps
+    every generation as evidence, so it grows; a beat must not grow with it."""
+    try:
+        n = int(TOP_HINT.read_text())
+        if n < 1 or not claim(n).exists():
+            raise ValueError
+    except (OSError, ValueError):
+        gens = (GEN.match(p.name) for p in CLAIMS.glob("ORCHESTRATOR.*.claim"))
+        n = max((int(m.group(1)) for m in gens if m), default=0)
+    while claim(n + 1).exists():
+        n += 1
+    return n
 
 
 def fired(sid, mode):
@@ -186,16 +199,21 @@ def scan(sid):
                                "margin" if age <= STALE_S else "stale")
             except OSError:
                 pass
+        seen["n"] = top["n"]
         seen["top"] = {k: top[k] for k in ("sid", "age", "rel")}
     return top
 
 
 def touch(sid, n):
-    with step(sid, "touch"):
+    """Refresh the lease. False if it could not be: then it was NOT refreshed,
+    and the caller must not go on as if it had been."""
+    with step(sid, "touch") as seen:
         try:
             os.utime(claim(n), None)
+            seen["ok"] = True
         except OSError:
-            pass
+            seen["ok"] = False
+    return seen["ok"]
 
 
 def create(sid, n, cwd):
@@ -216,6 +234,7 @@ def create(sid, n, cwd):
     except OSError:
         return False
     with step(sid, "create") as seen:
+        seen["n"] = n
         try:
             os.link(tmp, claim(n))
             seen["ok"] = True
@@ -229,18 +248,25 @@ def create(sid, n, cwd):
 
 
 def verify(sid, n):
-    """Is the generation I touched or made still the highest?"""
+    """Is the generation I touched or made still the highest? Contiguous
+    generations make that one stat: nobody has made n+1."""
     with step(sid, "verify") as seen:
-        seen["ok"] = top_gen() == n
+        seen["ok"] = claim(n).exists() and not claim(n + 1).exists()
+    if seen["ok"]:
+        try:
+            TOP_HINT.write_text(str(n))
+        except OSError:
+            pass
     return seen["ok"]
 
 
 def release(sid, n):
-    with step(sid, "release"):
+    with step(sid, "release") as seen:
         try:
             released(n).touch()
+            seen["ok"] = True
         except OSError:
-            pass
+            seen["ok"] = False
 
 
 def pinned():
@@ -278,8 +304,9 @@ def elect(sid, cwd, may_take=True):
     top = scan(sid)
     n, mine = top["n"], top["sid"] == sid and not top["rel"]
     if mine and top["age"] == "fresh":
-        touch(sid, n)
-        return ("orchestrator", "kept", top) if verify(sid, n) else ("worker", "lost", top)
+        if touch(sid, n) and verify(sid, n):
+            return "orchestrator", "kept", top
+        return "worker", "lost", top
     free = top["rel"] or top["sid"] is None or top["age"] == "stale"
     if mine or (free and may_take):
         if create(sid, n + 1, cwd) and verify(sid, n + 1):

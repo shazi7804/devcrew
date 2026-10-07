@@ -5,7 +5,7 @@
     check_models.py --models           only the model checks
     check_models.py --trace            only trace validation of boot.py
     check_models.py --holds SPEC:CFG   exit 0 iff that one model holds
-    check_models.py --accepts real|mutant
+    check_models.py --accepts real|mutant|skip-gen
                                        exit 0 iff the scripted trace of boot.py
                                        (or of the mutant) matches the model
                                        -- single checks for formal evidence;
@@ -48,30 +48,42 @@ TLA_VERSION = "1.7.4"
 TLA_SHA256 = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
 
 # (spec, config, expectation): "holds", or the property that must be violated
+# "temporal" = a liveness property violated. Every model has a seeded broken
+# variant for safety AND for liveness: a check that cannot fail proves nothing.
 MODELS = [
     ("Election", "Election", "holds"),
     ("Election", "ElectionLive", "holds"),
     ("ElectionV096", "ElectionV096", "AtMostOneActing"),
+    ("Election", "ElectionLiveBroken", "temporal"),
     ("Aidlc", "Aidlc", "holds"),
     ("Aidlc", "AidlcLive", "holds"),
     ("Aidlc", "AidlcBroken", "NoPhasePastUnsignedBatch"),
+    ("Aidlc", "AidlcLiveBroken", "temporal"),
 ]
 
 STALE, MARGIN = 4, 2          # seconds, for the trace runs: fresh <= 2 < margin <= 4 < stale
 RETRIES = 3                   # a run that broke an assumption is re-run, not judged
-MUTANT = ('if mine and top["age"] == "fresh":', "if mine:")
+# Mutants of boot.py the trace check must reject, each a different way to be
+# wrong: 0.9.6's "refresh my lease whatever its age", and skipping a generation.
+MUTANTS = {
+    "mutant": ('if mine and top["age"] == "fresh":', "if mine:"),
+    "skip-gen": ("if create(sid, n + 1, cwd) and verify(sid, n + 1):",
+                 "if create(sid, n + 2, cwd) and verify(sid, n + 2):"),
+}
 
 
-def tlc(java, jar, spec, cfg, cwd, timeout=900):
+def tlc(java, jar, spec, cfg, cwd, timeout=1800):
     meta = tempfile.mkdtemp(prefix="tlc-")
     try:
         r = subprocess.run([java, "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC",
                             "-workers", "auto", "-metadir", meta, "-config", f"{cfg}.cfg",
                             f"{spec}.tla"], cwd=cwd, capture_output=True, text=True,
                            timeout=timeout)
+        return r.stdout + r.stderr
+    except subprocess.TimeoutExpired:
+        return f"TIMEOUT after {timeout}s -- no verdict"
     finally:
         shutil.rmtree(meta, ignore_errors=True)
-    return r.stdout + r.stderr
 
 
 def outcome(text):
@@ -200,6 +212,8 @@ def trace_module(events, path):
             f.append(f'mode |-> "{e["mode"]}"')
         if "ok" in e:
             f.append(f'ok |-> {"TRUE" if e["ok"] else "FALSE"}')
+        if "n" in e:
+            f.append(f'n |-> {int(e["n"])}')
         if "top" in e:
             t = e["top"]
             f.append(f'top |-> [sid |-> "{t["sid"] or "none"}", age |-> "{t["age"]}", '
@@ -236,7 +250,7 @@ def attempt(java, jar, script, scenario):
         trace_module(events, work / "TraceData.tla")
         (work / "ElectionTrace.cfg").write_text(
             "CONSTANTS\n  Sessions = {" + ", ".join(f'"{s}"' for s in sids) + "}\n"
-            "  None = None\nSPECIFICATION TSpec\nINVARIANT Unmatched\nCHECK_DEADLOCK FALSE\n")
+            "  None = None\n  TakeOnBeat = TRUE\nSPECIFICATION TSpec\nINVARIANT Unmatched\nCHECK_DEADLOCK FALSE\n")
         got = outcome(tlc(java, jar, "ElectionTrace", "ElectionTrace", work))
         return got == "Unmatched", len(events), got
     finally:
@@ -256,21 +270,21 @@ def check_trace(java, jar):
             hits.append(f"boot.py trace ({name}): " + (
                 f"could not be run inside the model's assumptions -- {got}"
                 if got.startswith("outside") else "not a behaviour of Election.tla"))
-    with tempfile.TemporaryDirectory() as d:
-        mutant = pathlib.Path(d) / "boot.py"
-        src = BOOT.read_text()
-        if MUTANT[0] not in src:
-            hits.append(f"mutation site {MUTANT[0]!r} not found in boot.py")
-        else:
-            mutant.write_text(src.replace(MUTANT[0], MUTANT[1]))
+    src = BOOT.read_text()
+    for name, (site, change) in MUTANTS.items():
+        if site not in src:
+            hits.append(f"mutation site {site!r} not found in boot.py")
+            continue
+        with tempfile.TemporaryDirectory() as d:
+            mutant = pathlib.Path(d) / "boot.py"
+            mutant.write_text(src.replace(site, change))
             ok, n, got = validate(java, jar, mutant, scripted)
-            valid = not got.startswith("outside")
-            print(f"  {'ok ' if valid and not ok else 'BAD'} mutant boot.py (refresh a "
-                  f"lease whatever its age): {n} steps "
-                  f"{'rejected' if valid and not ok else got if not valid else 'ACCEPTED'}")
-            if ok or not valid:
-                hits.append("trace validation did not reject the mutant inside the "
-                            "assumptions -- it has not shown it can fail")
+        valid = not got.startswith("outside")
+        print(f"  {'ok ' if valid and not ok else 'BAD'} boot.py {name} ({change!r}): "
+              f"{n} steps {'rejected' if valid and not ok else got if not valid else 'ACCEPTED'}")
+        if ok or not valid:
+            hits.append(f"trace validation did not reject {name} inside the "
+                        "assumptions -- it has not shown it can fail")
     return hits
 
 
@@ -293,7 +307,7 @@ def main(argv):
     ap.add_argument("--models", action="store_true")
     ap.add_argument("--trace", action="store_true")
     ap.add_argument("--holds", metavar="SPEC:CFG")
-    ap.add_argument("--accepts", choices=("real", "mutant"))
+    ap.add_argument("--accepts", choices=("real", *MUTANTS))
     a = ap.parse_args(argv)
     jar = jar_path(a.jar)
     if a.holds:
@@ -304,9 +318,9 @@ def main(argv):
     if a.accepts:
         with tempfile.TemporaryDirectory() as d:
             script = BOOT
-            if a.accepts == "mutant":
+            if a.accepts != "real":
                 script = pathlib.Path(d) / "boot.py"
-                script.write_text(BOOT.read_text().replace(*MUTANT))
+                script.write_text(BOOT.read_text().replace(*MUTANTS[a.accepts]))
             ok, n, got = validate(a.java, jar, script, scripted)
         print(f"boot.py ({a.accepts}) scripted trace, {n} steps: "
               f"{'accepted' if ok else got if got.startswith('outside') else 'rejected'}")

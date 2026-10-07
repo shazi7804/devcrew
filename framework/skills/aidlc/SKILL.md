@@ -556,7 +556,7 @@ DO     qa       — is the SIGNED INTENT met? Check every Rn/Nn acceptance
                   weight, against the budget in standards.md.
 GATE   ① CI green + check_live.py --rerun --record --env <pre-production>
          --live-host <its hosts> --deployed <its version probe> green
-         + check_formal.py --rerun + check_tasks.py green (sensors)
+         + check_formal.py --rerun + check_tasks.py --rerun green (sensors)
        ② every Rn met · zero security blockers · zero audit blocker|high
        ③ —
 OUT    qa report + coverage table · security report · efficiency audit
@@ -765,8 +765,9 @@ one exists). Enforce:
 - the fix-loop attempt bound above;
 - a fan-out cap — serialize role agents on a memory-tight host; a wide parallel
   wave only when headroom is ample;
-- a token/time budget — a run that blows its stated budget STOPS and reports to
-  the CEO rather than pressing on;
+- a token/time budget — a run that blows its stated budget raises the
+  `loop-bound` interrupt (a bound is reached) rather than pressing on — it is
+  not a seventh kind of stop;
 - cost awareness — if the host runs on metered compute, pause a long-idle run
   rather than let it bill while it waits.
 
@@ -809,8 +810,8 @@ The interrupts are exactly six, each raised by a mechanism, not by a mood:
 | Interrupt | Raised by |
 |---|---|
 | `drift` | `check_tasks.py` — a `Signed:` hash no longer matches its file |
-| `cross-design` | the architecture-delta check → `architect` — a change crosses the signed design |
-| `loop-bound` | `check_tasks.py` — an item at `5/5` or `stalled 3/3` |
+| `cross-design` | `check_tasks.py` — a file signed in the design batch (`design.md`, an ADR) changed; plus the architect's architecture-delta check, a judgment, for code that departs from the design without editing it |
+| `loop-bound` | `check_tasks.py` — an item at `5/5` or `stalled 3/3`; or the run's token/time budget is spent (§ Budgets) |
 | `missing-service` | `check_live.py` / an implementer's BLOCKED — a real service, credential or signing material does not exist |
 | `unauthorized` | the pre-authorized list — an irreversible action that is not on it |
 | `model-fail` | the protocol model check (`framework/formal/`, run in CI) fails |
@@ -837,7 +838,8 @@ queue-based host, leave the pending decision in the queue); the CEO's reply is
 the signal to proceed. `hosts/<host>.md` names the primitive. While it is open,
 TASKS.md carries `Gate: 🔴 <batch> — awaiting CEO`; on the reply, write the
 `Signed:` line (`check_tasks.py --sign <files>`) and clear the Gate before
-advancing. "The CEO signed" is only true when a CEO message says so. An
+advancing. Before presenting the **ship** batch, run `check_tasks.py --rerun`:
+stored evidence is its writer's claim, a re-run is the proof the CEO signs on. "The CEO signed" is only true when a CEO message says so. An
 interrupt is the same hard stop, with the interrupt named in the SITREP.
 
 ### Intent hash + standards hash — the version locks, as code
@@ -1048,12 +1050,15 @@ is the full spec):
                   proved  = a machine-checked proof, unbounded
      Conformance: none │ trace │ refinement — how the code is tied to it
      └─ <dir of requirements.md>/formal/<Rn>.json: property (the SIGNED
-        text) · level · conformance · command · sources · bounds · sha
+        text) · level · conformance · command (names a source) · sources
+        · bounds · expect + observed · sha
         · vacuity: one run that MUST fail (a seeded mutant, the negated
-          property) — and did
+          property) — and did, printing its own expect
         ✘ edited property · ✘ below the signed level · ✘ checked, no bounds
         ✘ no vacuity run · ✘ escape hatch (sorry · admit · axiom · assume)
         ✘ stale sha · ✘ conformance claimed with no passing check
+        ✘ a no-op or a command naming no source · ✘ a bare `false` vacuity
+        stored evidence is a claim; `--rerun` re-runs all three — QA's job
 ```
 
 - **The CEO signs properties; the machine checks conformance.** That is what

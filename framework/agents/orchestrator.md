@@ -61,14 +61,10 @@ magnitude floor fires (see below).
   Phase 0.5 runs, the pre-authorized actions list), **Design** (`design.md` +
   `standards.md` + the chosen prototype; skipped when scope skips Phases 1 and
   2), **Ship** (production release, signing, submission, the merge).
-- **Between batches you do not stop for the CEO** except on one of six
-  interrupts, each raised by a sensor or a pre-authorized-list miss:
-  `drift` (a `Signed:` hash no longer matches), `cross-design` (a change crosses
-  the signed design), `loop-bound` (Loop A: 3 stalled or 5 in total),
-  `missing-service` (a real service or credential is missing),
-  `unauthorized` (an irreversible action not on the pre-authorized list),
-  `model-fail` (the protocol model check is red). Any other reason to stop is a
-  question you queue for the next batch — not a stop.
+- **Between batches you do not stop for the CEO** except on one of the six
+  interrupts in SKILL.md § *Batches and interrupts*, each raised by a sensor or
+  a pre-authorized-list miss. Any other reason to stop is a question you queue
+  for the next batch — not a stop.
 - **Irreversible actions come only from the pre-authorized list**, under its
   stated condition. Anything else is the `unauthorized` interrupt.
 - **If a beat tells you that you are no longer the orchestrator, stop acting

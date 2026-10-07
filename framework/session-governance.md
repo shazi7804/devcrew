@@ -290,8 +290,12 @@ an install that cannot meet one must say so:
 
 **Not modelled:**
 
-- **The pin.** It only ever makes sessions workers (it removes orchestrators,
-  never adds one) and warns a holder; it is outside the model on purpose.
+- **The pin.** While it exists no session TAKES the role: a start elects
+  nobody and a beat takes no free claim. But a session that already holds the
+  claim keeps it -- its beats still refresh or renew it -- and is told, at
+  every beat, that the human pinned the role elsewhere. Stopping is then A3,
+  not the mechanism. The pin never adds an orchestrator; it is outside the
+  model on purpose, because it is the human's override of the model.
 - **The scan is not one atomic read.** `boot.py` lists the directory, then
   reads and stats the top claim. The model treats that as one step. The real
   scan can only see a claim fresher, or a release later, than at the listing —
@@ -330,7 +334,8 @@ For a host adapter claiming to implement this file:
       clone has the directory. Without it the `link` fails for the wrong reason
       and the rule looks obeyed while doing nothing.
 - [ ] The claim artifacts are **git-ignored**: `<state>/claims/*.claim`,
-      `<state>/claims/*.released`, `<state>/claims/.new.*`.
+      `<state>/claims/*.released`, `<state>/claims/.new.*`,
+      `<state>/claims/ORCHESTRATOR.top` (a lookup hint, never trusted).
 - [ ] The injected text tells the orchestrator its **read discipline**. The role
       is a context-scarce one: it reads the board, `TASKS.md` and the contracts,
       and delegates reading code. An orchestrator that reads source is an

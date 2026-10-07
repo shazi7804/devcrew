@@ -308,6 +308,7 @@ Five details in that JSON are load-bearing:
 .aidlc/claims/*.claim
 .aidlc/claims/*.released
 .aidlc/claims/.new.*
+.aidlc/claims/ORCHESTRATOR.top
 ```
 
 Keep `.aidlc/claims/README.md` committed so the directory exists in a fresh

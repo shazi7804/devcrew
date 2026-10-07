@@ -16,7 +16,8 @@
 EXTENDS Naturals
 
 CONSTANTS Items, MaxAttempts, MaxStalled,
-          SkipDesignGate   \* TRUE only in AidlcBroken.cfg: the seeded broken variant
+          SkipDesignGate,  \* TRUE only in AidlcBroken.cfg: a seeded broken safety variant
+          NoRaise          \* TRUE only in AidlcLiveBroken.cfg: a seeded broken liveness variant
 
 Stages     == <<"intent", "market", "arch", "design", "build", "verify", "deploy", "release">>
 Batches    == {"intent", "design", "ship"}
@@ -24,11 +25,13 @@ Interrupts == {"drift", "cross-design", "loop-bound", "missing-service",
                "unauthorized", "model-fail"}
 Optional   == {"market", "arch", "design", "deploy", "release"}   \* scope routing may skip these
 
-\* the batch that must be signed before a stage starts
-Before(s) == CASE s \in {"arch", "design"}                    -> "intent"
-               [] s \in {"build", "verify", "deploy"}          -> "design"
-               [] s \in {"release", "done"}                    -> "ship"
-               [] OTHER                                        -> "none"
+\* every batch that must be signed before a stage starts -- cumulative: a scope
+\* that skips a batch's phases skips that batch, never the ones before it
+Order == <<"intent", "design", "ship">>
+Required(s) == CASE s \in {"arch", "design"}                  -> {"intent"}
+                 [] s \in {"build", "verify", "deploy"}        -> {"intent", "design"}
+                 [] s \in {"release", "done"}                  -> {"intent", "design", "ship"}
+                 [] OTHER                                      -> {}
 
 VARIABLES stage, run, waiting, signed, trouble, skip, preauth,
           item, live, formal, attempts, stalled
@@ -38,9 +41,12 @@ vars == <<stage, run, waiting, signed, trouble, skip, preauth,
 Idx(s) == CHOOSE k \in 1..8 : Stages[k] = s
 DesignSkipped == {"arch", "design"} \subseteq skip
 Needed(b) == ~(b = "design" /\ DesignSkipped)
-Signed(b) == b = "none" \/ signed[b] \/ ~Needed(b)
+Signed(b) == signed[b] \/ ~Needed(b)
 \* what Advance checks; the broken variant opens it for the design batch
 Gate(b) == Signed(b) \/ (b = "design" /\ SkipDesignGate)
+\* the first batch, in order, that stage s still waits on ("none" if none)
+Missing(s) == LET m == {k \in 1..3 : Order[k] \in Required(s) /\ ~Gate(Order[k])}
+              IN IF m = {} THEN "none" ELSE Order[CHOOSE k \in m : \A j \in m : k <= j]
 
 \* the next stage after s that the scope does not skip
 Next(s) == LET later == {k \in Idx(s)+1..8 : Stages[k] \notin skip}
@@ -75,11 +81,11 @@ Advance ==
   /\ stage \in {"build", "verify"} => \A i \in Items : item[i] = "done"
   /\ stage = "deploy" => preauth
   /\ LET n == Next(stage) IN
-       IF Gate(Before(n))
+       IF Missing(n) = "none"
        THEN /\ stage' = n
             /\ run' = IF n = "done" THEN "finished" ELSE "running"
             /\ UNCHANGED <<waiting, signed>>
-       ELSE /\ run' = "batch" /\ waiting' = Before(n)
+       ELSE /\ run' = "batch" /\ waiting' = Missing(n)
             /\ UNCHANGED <<stage, signed>>
   /\ UNCHANGED <<trouble, skip, preauth>> /\ UNCHANGED Work
 
@@ -94,10 +100,11 @@ Fail(i)  == /\ Calm /\ item[i] = "doing"
             /\ attempts' = attempts + 1
             /\ stalled' \in {0, stalled + 1}        \* did the failure count drop?
             /\ UNCHANGED <<item, live, formal, stage, run, waiting, signed, trouble, skip, preauth>>
-Prove(i) == /\ Calm /\ item[i] = "doing"
+Under(i) == attempts < MaxAttempts /\ stalled < MaxStalled
+Prove(i) == /\ Calm /\ item[i] = "doing" /\ Under(i)
             /\ live' = [live EXCEPT ![i] = TRUE] /\ formal' = [formal EXCEPT ![i] = TRUE]
             /\ UNCHANGED <<item, attempts, stalled, stage, run, waiting, signed, trouble, skip, preauth>>
-Close(i) == /\ Calm /\ item[i] = "doing" /\ live[i] /\ formal[i]       \* check_tasks R3
+Close(i) == /\ Calm /\ item[i] = "doing" /\ Under(i) /\ live[i] /\ formal[i]  \* check_tasks R3
             /\ item' = [item EXCEPT ![i] = "done"]
             /\ UNCHANGED <<live, formal, attempts, stalled, stage, run, waiting, signed, trouble, skip, preauth>>
 
@@ -110,7 +117,7 @@ Unauthorized == /\ Calm /\ stage = "deploy" /\ ~preauth
                 /\ trouble' = "unauthorized"
                 /\ UNCHANGED <<stage, run, waiting, signed, skip, preauth>> /\ UNCHANGED Work
 \* A sensor saw trouble: the run stops and the CEO is told which.
-Raise == /\ run = "running" /\ trouble # "none"
+Raise == /\ ~NoRaise /\ run = "running" /\ trouble # "none"
          /\ run' = "interrupted" /\ waiting' = trouble
          /\ UNCHANGED <<stage, signed, trouble, skip, preauth>> /\ UNCHANGED Work
 
@@ -142,14 +149,17 @@ NextStep == Agent \/ Trouble \/ Sign \/ Resolve \/ Done
 Spec == Init /\ [][NextStep]_vars /\ WF_vars(Agent)
 
 \* ---- the properties --------------------------------------------------------
-\* (a) no stage starts past an unsigned batch
-NoPhasePastUnsignedBatch == Signed(Before(stage))
+\* (a) no stage starts past an unsigned batch -- any of the batches before it
+NoPhasePastUnsignedBatch == \A b \in Required(stage) : Signed(b)
 
 \* (c) an item is done only with live and formal evidence
 DoneHasEvidence == \A i \in Items : item[i] = "done" => live[i] /\ formal[i]
 
-\* (e, bound) Loop A never exceeds its bounds
-LoopBounded == attempts <= MaxAttempts /\ stalled <= MaxStalled
+\* (e, bound) at Loop A's bound nothing more is proved or closed: the only way
+\* on is the interrupt, then a CEO decision
+AtBoundNoProgress ==
+  [][(attempts = MaxAttempts \/ stalled = MaxStalled) =>
+       (item' = item /\ live' = live /\ formal' = formal)]_vars
 
 \* the CEO is only ever asked for a batch or an interrupt, and an interrupt is
 \* only ever one of R7's six
@@ -170,6 +180,9 @@ NeverStuck == (run = "running") ~> (run \in {"batch", "interrupted", "finished"}
 
 \* (e) Loop A terminates: an item in progress is closed or stops the run
 LoopTerminates == \A i \in Items : (item[i] = "doing") ~> (item[i] = "done" \/ run = "interrupted")
+
+\* reaching the bound stops the run
+BoundInterrupts == (attempts = MaxAttempts \/ stalled = MaxStalled) ~> (run = "interrupted")
 
 \* every trouble a sensor sees reaches the CEO
 TroubleReachesCEO == (trouble # "none") ~> (run = "interrupted")

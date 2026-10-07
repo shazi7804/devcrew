@@ -24,22 +24,35 @@ THE REQUIREMENT SIDE (requirements.md, per Rn/Nn)
 
 THE EVIDENCE SIDE (<dir>/formal/<ID>.json, written after the code is committed)
     {"id": "R3", "property": "<exactly the signed text>", "level": "checked",
-     "conformance": "trace", "tool": "TLC 2.19", "command": "<runs the check>",
-     "sources": ["spec/Cart.tla"], "bounds": "3 users, 4 items",
-     "observed": "<excerpt>", "result": "pass", "sha": "<40-hex>", "at": "<ISO>",
-     "vacuity": {"command": "<a run that must fail>", "observed": "...", "result": "fail"},
-     "conformance_check": {"command": "...", "observed": "...", "result": "pass"}}
+     "conformance": "trace", "tool": "TLC 2.19",
+     "command": "<runs the check; names one of the sources>",
+     "sources": ["spec/Cart.tla", "tools/check_cart.sh"], "bounds": "3 users, 4 items",
+     "expect": "No error has been found", "observed": "<excerpt>", "result": "pass",
+     "sha": "<40-hex>", "at": "<ISO>",
+     "vacuity": {"command": "<a run that must fail>", "expect": "is violated",
+                 "observed": "...", "result": "fail"},
+     "conformance_check": {"command": "...", "expect": "...", "observed": "...",
+                           "result": "pass"}}
     Red when: no evidence; incomplete or not JSON; another id; the property is
     not the signed text (an edited property proves something else); level or
     conformance below the signed one; `checked` with no bounds; result not
     pass; no vacuity run, or one that passed (a check that cannot fail proves
-    nothing); conformance claimed with no passing conformance_check; a source
-    missing, or holding an escape hatch -- a proof that is not a proof
+    nothing); conformance claimed with no passing conformance_check; a check
+    whose command names none of its sources, or is a no-op (`true`, `:`,
+    `echo`, `exit 0`), or a vacuity run that is a bare `false` / `exit 1` or
+    the check itself; an `expect` missing, matching anything, or not matched by
+    its observed output; a source missing, or holding an escape hatch -- a proof that is not a proof
     (`sorry`, `admit`, `Admitted`, `axiom`, `assume`, `{:axiom}`, `OMITTED`,
     `assume(false)` ...); the sha not a full commit in HEAD's history, or the
     shipped tree changed since it (stale, same rule as check_live).
     With --rerun the check and the conformance check must exit 0 and the
-    vacuity run must exit non-zero, now.
+    vacuity run must exit non-zero, now, each printing what its `expect` says.
+
+WHAT THIS CANNOT DO
+    Stored evidence is its writer's claim: an agent that can write the file
+    can write a plausible one. The rules above make a lazy fake fail; only a
+    re-run is proof. So QA runs `--rerun`, and so does `check_tasks.py --rerun`
+    before the Ship batch -- never sign on stored evidence alone.
 
 Formal evidence adds to live evidence; it never replaces it (check_tasks.py
 requires both before an item is Done).
@@ -58,7 +71,9 @@ import check_live  # noqa: E402
 LEVELS = ("tested", "checked", "proved")
 CONFORMANCE = ("none", "trace", "refinement")
 FIELDS = ("id", "property", "level", "conformance", "tool", "command", "sources",
-          "observed", "result", "sha", "at", "vacuity")
+          "expect", "observed", "result", "sha", "at", "vacuity")
+NOOP = re.compile(r"\s*(true|:|exit\s+0|echo\b.*|printf\b.*)\s*$")
+FALSE = re.compile(r"\s*(false|exit\s+[1-9]\d*|!\s*true)\s*$")
 
 # Escape hatches, by file type: a proof that is not a proof. Comments count:
 # "-- sorry, fix later" is exactly the confession this looks for.
@@ -105,11 +120,27 @@ def hatches(path):
 
 
 def run_cmd(cmd, root):
+    """(exit code or None on timeout, output)"""
     try:
-        r = subprocess.run(cmd, shell=True, cwd=root, capture_output=True, timeout=1800)
-        return r.returncode
+        r = subprocess.run(cmd, shell=True, cwd=root, capture_output=True, timeout=3600)
+        return r.returncode, (r.stdout + r.stderr).decode("utf-8", "replace")
     except subprocess.TimeoutExpired:
+        return None, ""
+
+
+def pattern(tag, what, block, hits):
+    """The compiled `expect` of a check, or None (and a hit) if it proves nothing."""
+    try:
+        rx = re.compile(str(block.get("expect", "")))
+    except re.error as err:
+        hits.append(f"{tag}: {what} expect is not a regex ({err})")
         return None
+    if not block.get("expect") or rx.search(""):
+        hits.append(f"{tag}: {what} has no expect, or one that matches anything")
+        return None
+    if not rx.search(str(block.get("observed", ""))):
+        hits.append(f"{tag}: {what} observed output does not match its expect")
+    return rx
 
 
 def check(root, reqfile, evidence=None, only=None, rerun=False):
@@ -178,7 +209,20 @@ def check(root, reqfile, evidence=None, only=None, rerun=False):
                                        and c.get("result") == "pass"):
             hits.append(f"{tag}: conformance {got_conf!r} claimed with no passing "
                         "conformance_check")
-        for src in e["sources"] if isinstance(e["sources"], list) else [e["sources"]]:
+        sources = e["sources"] if isinstance(e["sources"], list) else [e["sources"]]
+        cmd = check_live.code(str(e["command"]))
+        if NOOP.match(cmd) or not any(str(x) in cmd for x in sources):
+            hits.append(f"{tag}: the check command names none of its sources, or does "
+                        "nothing -- it cannot have checked them")
+        vcmd = check_live.code(str(v.get("command", "")))
+        if v.get("command") and (FALSE.match(vcmd) or vcmd.strip() == cmd.strip()):
+            hits.append(f"{tag}: the vacuity run is a bare failure or the check itself "
+                        "-- it shows nothing about the check")
+        ex = pattern(tag, "the check", e, hits)
+        vx = pattern(tag, "the vacuity run", v, hits) if v.get("command") else None
+        cx = pattern(tag, "the conformance check", c, hits) if isinstance(c, dict) and \
+            c.get("command") else None
+        for src in sources:
             p = root / src
             if not p.is_file():
                 hits.append(f"{tag}: source {src} does not exist")
@@ -193,14 +237,37 @@ def check(root, reqfile, evidence=None, only=None, rerun=False):
                 "orphan": "is not in HEAD's history",
                 "stale": "is stale -- the code changed since; re-run the check"}[why])
         if rerun:
-            rc = run_cmd(e["command"], root)
+            rc, text = run_cmd(e["command"], root)
             if rc != 0:
                 hits.append(f"{tag}: re-run of the check exited {rc}")
-            if v.get("command") and run_cmd(v["command"], root) in (0, None):
-                hits.append(f"{tag}: re-run of the vacuity run did not fail")
-            if isinstance(c, dict) and c.get("command") and run_cmd(c["command"], root) != 0:
-                hits.append(f"{tag}: re-run of the conformance check failed")
+            elif ex and not ex.search(text):
+                hits.append(f"{tag}: re-run of the check does not print its expect")
+            if v.get("command"):
+                rc, text = run_cmd(v["command"], root)
+                if rc in (0, None):
+                    hits.append(f"{tag}: re-run of the vacuity run did not fail")
+                elif vx and not vx.search(text):
+                    hits.append(f"{tag}: re-run of the vacuity run failed for another "
+                                "reason than its expect")
+            if cx:
+                rc, text = run_cmd(c["command"], root)
+                if rc != 0 or not cx.search(text):
+                    hits.append(f"{tag}: re-run of the conformance check failed")
     return hits
+
+
+# The self-test's stand-in model checker: a real program, so a re-run means it.
+CHECKER = """import sys
+a = sys.argv[1:]
+if "--broken" in a or "--fail" in a:
+    print("Invariant is violated")
+    sys.exit(1)
+if "--crash" in a:
+    print("Traceback: boom")
+    sys.exit(2)
+print("trace accepted" if "--trace" in a else "done" if "--quiet" in a
+      else "No error has been found")
+"""
 
 
 def self_test():
@@ -213,7 +280,7 @@ def self_test():
 
     def tree(d, extra=None, req_text=req):
         files = {"req/requirements.md": req_text, "spec/M.tla": "---- MODULE M ----\n====\n",
-                 "src/app.py": "print(1)\n", **(extra or {})}
+                 "spec/check.py": CHECKER, "src/app.py": "print(1)\n", **(extra or {})}
         for rel, text in files.items():
             p = pathlib.Path(d, rel)
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -225,11 +292,15 @@ def self_test():
 
     def ev(d, head, **kw):
         e = {"id": "R1", "property": prop, "level": "checked", "conformance": "trace",
-             "tool": "TLC", "command": "true", "sources": ["spec/M.tla"],
-             "bounds": "3 nodes", "observed": "No error has been found", "result": "pass",
-             "sha": head, "at": "2026-10-08T00:00:00Z",
-             "vacuity": {"command": "false", "observed": "violated", "result": "fail"},
-             "conformance_check": {"command": "true", "observed": "accepted", "result": "pass"}}
+             "tool": "TLC", "command": "python3 spec/check.py spec/M.tla",
+             "sources": ["spec/M.tla", "spec/check.py"], "bounds": "3 nodes",
+             "expect": "No error has been found", "observed": "No error has been found",
+             "result": "pass", "sha": head, "at": "2026-10-08T00:00:00Z",
+             "vacuity": {"command": "python3 spec/check.py spec/M.tla --broken",
+                         "expect": "is violated", "observed": "Invariant is violated",
+                         "result": "fail"},
+             "conformance_check": {"command": "python3 spec/check.py --trace", "expect": "accepted",
+                                   "observed": "trace accepted", "result": "pass"}}
         e.update(kw)
         e = {k: v for k, v in e.items() if v is not None}
         p = pathlib.Path(d, "req/formal/R1.json")
@@ -245,14 +316,36 @@ def self_test():
         ("checked without bounds", {"bounds": None}, {}, "without bounds", False),
         ("a failed check", {"result": "fail"}, {}, "check result is 'fail'", False),
         ("no vacuity run", {"vacuity": None}, {}, "lacks vacuity", False),
-        ("a vacuity run that passed", {"vacuity": {"command": "true", "result": "pass"}}, {},
+        ("a vacuity run that passed", {"vacuity": {"command": "python3 spec/check.py x",
+                                                    "expect": "violated", "observed": "violated",
+                                                    "result": "pass"}}, {},
          "no vacuity run that failed", False),
+        ("a no-op check", {"command": "true"}, {}, "names none of its sources", False),
+        ("a check naming no source", {"command": "python3 elsewhere.py"}, {},
+         "names none of its sources", False),
+        ("a bare-false vacuity run", {"vacuity": {"command": "false", "expect": "x",
+                                                  "observed": "x", "result": "fail"}}, {},
+         "bare failure or the check itself", False),
+        ("a vacuity run that is the check", {"vacuity": {
+            "command": "python3 spec/check.py spec/M.tla", "expect": "error",
+            "observed": "error", "result": "fail"}}, {}, "bare failure or the check itself", False),
+        ("no expect", {"expect": None}, {}, "lacks expect", False),
+        ("an expect that matches anything", {"expect": ".*"}, {}, "matches anything", False),
+        ("observed not matching expect", {"observed": "something else"}, {},
+         "does not match its expect", False),
+        ("a re-run that prints something else", {"command": "python3 spec/check.py spec/M.tla --quiet"},
+         {}, "does not print its expect", True),
+        ("a vacuity re-run failing for another reason", {"vacuity": {
+            "command": "python3 spec/check.py spec/M.tla --crash", "expect": "is violated",
+            "observed": "is violated", "result": "fail"}}, {}, "another reason", True),
         ("conformance with no check", {"conformance_check": None}, {}, "no passing conformance_check", False),
         ("a missing source", {"sources": ["spec/Nope.tla"]}, {}, "does not exist", False),
         ("a short sha", {"sha": "abc123"}, {}, "not a full commit id", False),
-        ("a re-run that fails", {"command": "false"}, {}, "re-run of the check exited 1", True),
-        ("a vacuity re-run that passes", {"vacuity": {"command": "true", "result": "fail"}}, {},
-         "vacuity run did not fail", True),
+        ("a re-run that fails", {"command": "python3 spec/check.py spec/M.tla --fail"}, {},
+         "re-run of the check exited 1", True),
+        ("a vacuity re-run that passes", {"vacuity": {
+            "command": "python3 spec/check.py spec/M.tla --pass", "expect": "is violated",
+            "observed": "is violated", "result": "fail"}}, {}, "vacuity run did not fail", True),
         ("a clean re-run", {}, {}, None, True),
     ]
     for ext, line in [(".lean", "theorem t : p := by sorry"), (".lean", "axiom magic : False"),

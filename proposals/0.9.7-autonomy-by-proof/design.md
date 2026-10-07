@@ -91,3 +91,38 @@ each real step means what the model says it means.
 `check_tasks.py` (TASKS.md) and `check_formal.py` (formal evidence) are stdlib
 Python beside `check_live.py`, which they import — its requirement-field
 parser and its freshness rule (`drifted`) are shared, not copied.
+
+## 6. What the independent reviews found, and what changed
+
+The cross-vendor reviewer (`gpt-5.6-sol`, no team memory, read-only) returned
+**REJECT** on the first implementation; the auditor returned PASS-WITH-DEBT.
+The reviewer's findings, and what was done:
+
+| # | Finding | Done |
+|---|---|---|
+| 1 | `Aidlc.tla` let build start with the intent batch unsigned when a scope skipped arch and design — the property checked only the design batch | `Required(s)` is cumulative; the property checks every batch before a stage |
+| 2 | Loop A at exactly `5/5` / `stalled 3/3` passed; in the model, prove/close stayed enabled at the bound, so fairness did not force the interrupt | `check_tasks.py` requires `blocked on loop-bound` at the bound; the model disables prove/close there; new `AtBoundNoProgress`, `BoundInterrupts` |
+| 3 | `check_formal.py` accepted `command: true`, a dummy source, `vacuity: false` | the command must name a source and not be a no-op; every check carries an `expect` its output must match, on record and on re-run; a bare `false` vacuity run is refused; `check_tasks.py --rerun`; the limit (stored evidence is a claim) is written into the sensor |
+| 4 | a TASKS.md whose first `Signed:` file was not the requirements emptied every check; the Gate parser was loose | both refused |
+| 5 | this proposal's Property lines were added after the ruling; `design.md` was never signed in a design batch | **open — the CEO's** (see TASKS.md) |
+| 6 | `Property: none` examples lacked Formal / Conformance lines | added |
+| 7 | traces omitted the generation number and the outcome of touch / release; failed file operations were swallowed | logged; ghost variables in `ElectionTrace.tla` tie generation numbers; a failed `utime` now gives up the role (modelled as `TouchFail`); a second mutant (skipping a generation) must be rejected |
+| 8 | the pin was said to "only make workers" | corrected: a holder keeps its claim and is warned at every beat |
+| 9 | no seeded broken liveness variant | `ElectionLiveBroken.cfg` (0.9.6's start-only takeover → `ElectedAfterGone` fails), `AidlcLiveBroken.cfg` (no raise → `TroubleReachesCEO` fails) |
+| 10 | a budget overrun was a seventh stop; `cross-design` had no executable sensor | the budget stop is `loop-bound`; `check_tasks.py` raises `cross-design` when a design-batch file changes — the rest of cross-design stays the architect's judgment, and says so |
+| 11 | CI not run, QA not run, a second reviewer required (this edits `reviewer.md`) | QA and a second reviewer run on the fixed tree; CI needs the branch pushed — **the CEO's** |
+| 12 | the verdict schema listed invariants 1–10 | 1–11 |
+
+From the auditor: a beat listed the claims directory twice and the directory
+grows by one entry per election — `verify` is now one stat and `top_gen`
+probes upward from a hint (generations are contiguous); `orchestrator.md`'s
+copy of the interrupt list became a pointer; the models job has its own
+workflow with a path filter and a cached checker. Kept as debt: the 945-byte
+gate map stays in SKILL.md because R6 requires it there; `ElectionV096.tla`
+keeps its own copy of the lifecycle layer, since it is a frozen record of the
+old code.
+
+Also found while fixing: the 3-session safety check grew past a 15-minute
+timeout once the failure branches were modelled; sessions are symmetric, so it
+now runs under `SYMMETRY Permutations(Sessions)` (safety only — symmetry is
+unsound for liveness, which runs at 2 sessions without it).

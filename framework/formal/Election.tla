@@ -24,9 +24,11 @@
          runs longer than that
      A3  a session told it is a worker stops acting as orchestrator
      A4  the claim directory is on a local file system (O_EXCL is atomic) *)
-EXTENDS Naturals, FiniteSets
+EXTENDS Naturals, FiniteSets, TLC
 
-CONSTANTS Sessions, None
+CONSTANTS Sessions, None,
+          TakeOnBeat   \* FALSE only in ElectionLiveBroken.cfg: 0.9.6's "only a start
+                       \* may take a claim" -- the seeded broken liveness variant
 
 Ages  == {"fresh", "margin", "stale"}
 NoTop == [sid |-> None, age |-> "stale", rel |-> TRUE]
@@ -103,17 +105,22 @@ Scan(s) ==
        IF Mine(top, s) THEN Go(s, "release") ELSE Finish(s, role[s])
      ELSE IF Mine(top, s) THEN
        Go(s, IF top.age = "fresh" THEN "touch" ELSE "create")
-     ELSE IF Absent(top) \/ top.age = "stale" THEN
+     ELSE IF (Absent(top) \/ top.age = "stale") /\ (hook[s] = "start" \/ TakeOnBeat) THEN
        Go(s, "create")             \* any beat may take a claim nobody holds
      ELSE Finish(s, "worker")
   /\ UNCHANGED <<top, life>>
 
-\* os.utime(ORCHESTRATOR.<n>.claim) -- the file that was read, by its name
+\* os.utime(ORCHESTRATOR.<n>.claim) -- the file that was read, by its name.
+\* If it fails the lease was not refreshed, so the session gives the role up.
 Touch(s) ==
   /\ pc[s] = "touch"
   /\ top' = IF valid[s] THEN [top EXCEPT !.age = "fresh"] ELSE top
   /\ Go(s, "verify")
   /\ UNCHANGED <<snap, valid, life>>
+TouchFail(s) ==
+  /\ pc[s] = "touch"
+  /\ Finish(s, "worker")
+  /\ UNCHANGED <<top, snap, valid, life>>
 
 \* os.open(ORCHESTRATOR.<n+1>.claim, O_CREAT | O_EXCL)
 Create(s) ==
@@ -138,6 +145,11 @@ Release(s) ==
   /\ top' = IF valid[s] THEN [top EXCEPT !.rel = TRUE] ELSE top
   /\ Finish(s, "worker")
   /\ UNCHANGED <<snap, valid, life>>
+\* the marker could not be written: nothing is released, the lease just ages
+ReleaseFail(s) ==
+  /\ pc[s] = "release"
+  /\ Finish(s, "worker")
+  /\ UNCHANGED <<top, snap, valid, life>>
 
 \* ---- time passes: the top claim ages ----------------------------------------
 Age ==
@@ -149,7 +161,8 @@ Age ==
   /\ top' = [top EXCEPT !.age = IF @ = "fresh" THEN "margin" ELSE "stale"]
   /\ UNCHANGED <<snap, valid, pc, hook, role, acting, life>>
 
-Step(s) == Scan(s) \/ Touch(s) \/ Create(s) \/ Verify(s) \/ Release(s)
+Step(s) == Scan(s) \/ Touch(s) \/ TouchFail(s) \/ Create(s) \/ Verify(s)
+           \/ Release(s) \/ ReleaseFail(s)
 Host(s) == Open(s) \/ Turn(s) \/ Mid(s) \/ Stop(s) \/ Close(s) \/ Crash(s)
 
 Next == Age \/ \E s \in Sessions : Step(s) \/ Host(s)
@@ -160,6 +173,10 @@ Fairness ==
   /\ WF_vars(Age)
   /\ \A s \in Sessions : WF_vars(Step(s)) /\ WF_vars(Turn(s)) /\ WF_vars(Stop(s))
 Spec == Init /\ [][Next]_vars /\ Fairness
+
+\* Sessions are interchangeable: safety may be checked up to their permutation
+\* (Election.cfg). Not used for liveness, where symmetry is unsound.
+Perms == Permutations(Sessions)
 
 \* ---- the properties ----------------------------------------------------------
 \* (d) safety: never two sessions acting as orchestrator at once

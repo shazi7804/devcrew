@@ -1,0 +1,53 @@
+# The framework's own protocols, model-checked (R12), and boot.py checked
+# against its model by trace validation (R13). The seeded broken variants and
+# the mutants must fail. Runs when a model, the election, the harness or the
+# protocol text changes; tools/check_repo.py (checks.yml) keeps SKILL.md's sets
+# equal to the model's on every change.
+name: models
+
+on:
+  pull_request:
+    paths:
+      - "framework/formal/**"
+      - "framework/tools/boot.py"
+      - "framework/skills/aidlc/SKILL.md"
+      - "tools/check_models.py"
+      - ".github/workflows/models.yml"
+  push:
+    branches: [main]
+    paths:
+      - "framework/formal/**"
+      - "framework/tools/boot.py"
+      - "framework/skills/aidlc/SKILL.md"
+      - "tools/check_models.py"
+      - ".github/workflows/models.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TLA2TOOLS_JAR: ${{ runner.temp }}/tla2tools-1.7.4/tla2tools.jar
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/tla2tools-1.7.4
+          key: tla2tools-1.7.4
+      - name: TLC, pinned (tla2tools 1.7.4, sha256 checked by check_models.py)
+        run: |
+          mkdir -p "$(dirname "$TLA2TOOLS_JAR")"
+          [ -f "$TLA2TOOLS_JAR" ] || curl -fsSL -o "$TLA2TOOLS_JAR" \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+      - name: Models hold, broken variants fail, boot.py traces match the model
+        run: time python3 tools/check_models.py

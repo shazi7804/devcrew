@@ -61,11 +61,15 @@ aidlc skill § *Formal verification*; `check_formal.py` is the sensor):
   - *Acceptance*:
   - *Verify*: local — <why it touches no service or remote data>
   - *Property*: none — <why nothing here can be stated formally>
+  - *Formal*: — (Property: none)
+  - *Conformance*: none
 
 ## Non-functional requirements
 - **N1** — Performance: <e.g. p95 < 200ms at 50 concurrent users>
   - *Acceptance*:
   - *Property*: none — <a measurement, proven live, not a formal property>
+  - *Formal*: — (Property: none)
+  - *Conformance*: none
 - **N2** — Security / privacy:
   - *Acceptance*:
   - *Property*: <e.g. no request without a session reads another user's row>
@@ -74,6 +78,8 @@ aidlc skill § *Formal verification*; `check_formal.py` is the sensor):
 - **N3** — Accessibility: <e.g. WCAG 2.1 AA>
   - *Acceptance*:
   - *Property*: none — <audited live, not stated formally>
+  - *Formal*: — (Property: none)
+  - *Conformance*: none
 - **N4** — Availability / reliability:
   - *Acceptance*:
   - *Property*: <e.g. a retry never sends a payment twice>

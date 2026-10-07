@@ -23,7 +23,13 @@ so the bounds became code first.
   - a bad status;
   - an attempt count past Loop A's bound;
   - a signed file whose hash moved. This is the drift halt, finally as code.
-  22 self-test cases. Every host uses it; a host primitive may mirror it.
+  - a requirement at Loop A's bound (`5/5`, `stalled 3/3`) that isn't
+    `blocked on loop-bound`;
+  - a design-batch file (`design.md`, an ADR) that moved: `cross-design`.
+
+  `--rerun` re-runs every Done item's live probes and formal checks: stored
+  evidence is its writer's claim, a re-run is the proof. 28 self-test cases.
+  Every host uses it; a host primitive may mirror it.
 - **Three batch sign-offs: intent, design, ship** (R6–R8). Every item the CEO
   signed before is still signed, now grouped, and SKILL.md maps each former
   🔴 gate to its batch. Between batches the run stops only on six interrupts,
@@ -42,19 +48,23 @@ so the bounds became code first.
   - is `checked` with no bounds;
   - has no vacuity run (a run that must fail and did);
   - has a proof containing an escape hatch (`sorry`, `admit`, `Admitted`,
-    `axiom`, `assume`, `{:axiom}`, `OMITTED` …).
+    `axiom`, `assume`, `{:axiom}`, `OMITTED` …);
+  - has a command that names none of its sources or does nothing;
+  - has no `expect`, or output (stored or re-run) that doesn't match it.
 
-  28 self-test cases. Formal adds to live and never replaces it.
+  37 self-test cases. Formal adds to live and never replaces it.
 - **The framework's own protocols, model-checked** (R12–R13, TLA+ / TLC 1.7.4
   in CI):
   - `framework/formal/Election.tla` checks the orchestrator election: safety
     at 3 sessions (10.2M states), liveness at 2.
   - `framework/formal/Aidlc.tla` checks batches, interrupts, Loop A and
     Done-needs-evidence, for safety and liveness under stated fairness.
-  - Each model has a seeded broken variant that must fail.
-  - `boot.py` is trace-validated: real concurrent runs log every step, TLC
-    must accept each trace as a behaviour of the model, and a mutant must be
-    rejected.
+  - Each model has a seeded broken variant that must fail, for safety and
+    for liveness.
+  - `boot.py` is trace-validated: real concurrent runs log every step with
+    its generation number and outcome, and TLC must accept each trace as a
+    behaviour of the model. Two mutants must be rejected. A run that broke
+    an assumption is re-run and never counted as a pass.
   - `tools/check_repo.py` keeps SKILL.md's stages, batches and interrupts
     equal to the model's.
 - **The model found a real bug in 0.9.6's election, and it is fixed** (R15).
@@ -74,6 +84,12 @@ so the bounds became code first.
   (A1–A4) are written in `framework/session-governance.md` § 8.
 - **Invariant 11** in AGENTS.md (R14): between batches the run proceeds only on
   bounds a machine checks.
+- **Reviewed across vendors.** The reviewer ran on `gpt-5.6-sol` with no team
+  memory and returned REJECT. It found 12 problems, among them a model that
+  let build start before the intent batch, a Loop-A bound that passed at
+  equality, and formal evidence that `command: true` satisfied. Every
+  finding except the two that are the CEO's is fixed
+  (`proposals/0.9.7-autonomy-by-proof/design.md` § 6).
 
 ## 0.9.6 — 2026-10-06
 

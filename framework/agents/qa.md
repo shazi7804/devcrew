@@ -58,7 +58,7 @@ isn't.
    code for fakes. **Beside it, run `check_formal.py --rerun --requirements
    <feature>`** — every `Rn` must have its `Property:` checked at its signed
    level and conformance, a vacuity run that failed, and no escape hatch in its
-   spec or proof — **and `check_tasks.py --env <pre-production>`**, which
+   spec or proof — **and `check_tasks.py --rerun --env <pre-production>`**, which
    checks TASKS.md, the `Signed:` hashes (drift) and that every Done item has
    fresh live and formal evidence. A red sensor FAILS the gate before you judge
    intent. State each command you ran and its result.
