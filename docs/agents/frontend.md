@@ -13,7 +13,7 @@
 | **Phase** | 3, in parallel with `backend` |
 | **Reads** | `design.md` · `design-system.md` · the signed prototype · `standards.md` 🔒 |
 | **Produces** | UI code, component tests, and a PR with `Closes Rn` plus visual evidence |
-| **Gate** | Its own tests are green, the PR is open, and the built UI matches the prototype side by side, and the live sensor is green |
+| **Gate** | Its own tests are green, the PR is open, and the built UI matches the prototype side by side, and the live and formal sensors are green |
 | **Tools** | read · write · edit · shell · search · web |
 | **Skills** | aidlc · frontend-design-workflow · web-preview · web-verify · mobile-build |
 | **Memory** | Shared team memory |
@@ -32,6 +32,10 @@
 5. **Reuses before it writes**: it uses the existing component instead of
    building a near-copy, adds no forward-only wrappers, and watches for
    re-render storms and bundle size.
+6. **Proves each requirement it closes formally**: the check at its signed
+   level, a vacuity run that failed as it should, and the evidence file in
+   `formal/`, alongside the live evidence. It never edits a signed property and
+   ships no escape hatch (`sorry`, `admit`, `assume`).
 
 ## Mobile
 

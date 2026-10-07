@@ -21,7 +21,7 @@
 
 ## What it checks
 
-The ten design invariants in [AGENTS.md](../../AGENTS.md#design-invariants-do-not-silently-violate-when-installing-or-evolving):
+The eleven design invariants in [AGENTS.md](../../AGENTS.md#design-invariants-do-not-silently-violate-when-installing-or-evolving):
 
 - The intent contract stays supreme.
 - Roles stay independent agents that share one memory.
@@ -33,13 +33,21 @@ The ten design invariants in [AGENTS.md](../../AGENTS.md#design-invariants-do-no
 - No safety control, approval gate or permission boundary is weakened.
 - The framework stays host- and machine-neutral.
 - No fake data in delivered work.
+- Autonomy is earned by proof: between the CEO's batches, the run proceeds only
+  on bounds a machine checks.
 
 It also checks the change against its own signed
 `proposals/<slug>/requirements.md`. A framework change without one is rejected.
 
-Invariants 7, 9 and 10 are **measured, not judged**. For invariant 9, it runs
-`tools/check_neutral.py`, and a non-zero exit is a REJECT. For invariant 10,
-it runs `framework/tools/check_live.py --self-test`; a non-zero exit is a REJECT. For invariant 7, if
+Invariants 7, 9, 10 and 11 are **measured, not judged**. The reviewer holds no
+shell, so it reads CI's run of each check rather than running it; a check CI
+did not run is a REQUEST-CHANGES. For invariant 9, a non-zero exit of
+`tools/check_neutral.py` is a REJECT. For invariant 10, a non-zero exit of
+`framework/tools/check_live.py --self-test` is a REJECT. For invariant 11, a
+non-zero exit of `tools/check_models.py` or of the `check_tasks.py` /
+`check_formal.py` self-tests is a REJECT, and so is a removed stop with no
+sensor replacing it, a former 🔴 gate missing from SKILL.md's old-gate → batch
+map, or a bound loosened without a recorded CEO decision. For invariant 7, if
 a diff raises a magnitude-floor threshold or removes a trigger, the same diff
 must record the CEO's decision and the reason. If it doesn't, the verdict is
 REJECT.

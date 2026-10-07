@@ -1,6 +1,7 @@
 # Requirements — <project name>
 
-> Signed intent contract. Every downstream gate re-reads this file.
+> Signed intent contract, signed in the 🔴 intent batch. `check_tasks.py`
+> re-hashes it at every step (TASKS.md `Signed:`).
 > Status: DRAFT | SIGNED (CEO) — <date>
 > Scope: greenfield | feature | bugfix | hotfix | refactor | chore | docs
 >   (decides which phases run — see the aidlc skill's scope-routing table;
@@ -25,33 +26,66 @@ skill § *No fake data*):
   remote data (layout, an on-device computation). Proven on the real runtime
   with real input. Say why in one clause; the CEO signs the level with the rest.
 
+Each requirement also carries a formal **property** — its acceptance, stated so
+a machine can check it — a **formal level** and a **conformance** (see the
+aidlc skill § *Formal verification*; `check_formal.py` is the sensor):
+- `*Property*:` the formal statement. `none — <reason>` only where nothing can
+  be stated formally (copy text, a visual); the CEO signs the reason.
+- `*Formal*:` weakest first —
+  - `tested` — generated-input or stateful property testing. SAMPLING: not a
+    formal method, and named so.
+  - `checked` — model checking of a design model, at bounds the evidence states.
+  - `proved` — a machine-checked proof, unbounded.
+- `*Conformance*:` how the code is tied to the property —
+  - `none` — the property is checked against a model or tests only;
+  - `trace` — real runs are logged and the checker accepts every trace as a
+    behaviour of the model;
+  - `refinement` — a proof that the code refines the model.
+  A component `standards.md` marks load-bearing is at least `checked` with a
+  conformance other than `none`.
+
 - **R1** — WHEN <trigger>, the system SHALL <response>.
   - *Acceptance*: <observable, testable condition that proves R1 is met — on
     the real service, not "a contract test passes">
   - *Verify*: live
+  - *Property*: <e.g. for every order, total = Σ line price × qty, never < 0>
+  - *Formal*: tested
+  - *Conformance*: none
 - **R2** — WHILE <state>, the system SHALL <response>.
   - *Acceptance*:
   - *Verify*: live
+  - *Property*: <e.g. □(paid ⇒ ◇ shipped ∨ refunded) — a load-bearing flow>
+  - *Formal*: checked
+  - *Conformance*: trace
 - **R3** — WHERE <feature is included>, the system SHALL <response>.
   - *Acceptance*:
   - *Verify*: local — <why it touches no service or remote data>
+  - *Property*: none — <why nothing here can be stated formally>
 
 ## Non-functional requirements
 - **N1** — Performance: <e.g. p95 < 200ms at 50 concurrent users>
   - *Acceptance*:
+  - *Property*: none — <a measurement, proven live, not a formal property>
 - **N2** — Security / privacy:
   - *Acceptance*:
+  - *Property*: <e.g. no request without a session reads another user's row>
+  - *Formal*: checked
+  - *Conformance*: trace
 - **N3** — Accessibility: <e.g. WCAG 2.1 AA>
   - *Acceptance*:
+  - *Property*: none — <audited live, not stated formally>
 - **N4** — Availability / reliability:
   - *Acceptance*:
+  - *Property*: <e.g. a retry never sends a payment twice>
+  - *Formal*: checked
+  - *Conformance*: none
 
 ## Explicit non-goals
 What this product deliberately does NOT do (guards against scope creep).
 
-## Platform strategy (app / mobile targets only — a 🔴 CEO-signed Phase-0 decision)
+## Platform strategy (app / mobile targets only — signed in the 🔴 intent batch)
 Omit this section for a pure web/backend/service target. For an app, fill it in
-and get it signed before Phase 1:
+and get it signed in the intent batch, before Phase 1:
 - **Platforms**: iOS only / Android only / both / + web?
 - **Minimum supported OS**: iOS __ / Android API __
 - **Build strategy**: native (Swift + Kotlin) / Flutter / React Native / KMP —
@@ -73,6 +107,17 @@ at Phase 4 that it was never connected:
 
 A credential or service that does not exist yet is an **open question blocking
 design** (below), answered by the CEO — never a reason to build on a fake.
+
+## Pre-authorized actions (what the run may do on its own)
+Every irreversible or production action the run may take between batches, with
+the condition under which it may. Signed in the intent batch. An action that is
+not here is the `unauthorized` interrupt: the run stops and asks.
+
+| Action | Condition | Environment | Blast radius · reversible? |
+|---|---|---|---|
+| <e.g. deploy to production> | <every sensor green on pre-production, check_live --deployed on HEAD> | <production> | <all users · yes, rollback in 5 min> |
+
+An empty table is a valid answer: then every such action stops the run.
 
 ## Constraints & dependencies
 Budget, timeline, external APIs needing approval, accounts, compliance.

@@ -24,6 +24,12 @@ So two things are mandated and are NOT yours to waive:
 - You do **not** mount `framework/memory/` — you judge the diff on its merits,
   not on the team's accumulated preferences.
 
+## You hold no shell — you read the sensors' results, you do not run them
+Your tools are read, search and web. Every deterministic check below is run by
+CI before you are dispatched; you **read CI's run of** it (the job log or the
+check result on the PR) and judge from that. A check CI did not run, or whose
+result you cannot read, is a REQUEST-CHANGES — never a pass on trust.
+
 ## What you check
 Read the diff (the proposed change vs the current framework) against the design
 invariants in the `aidlc` skill and AGENTS.md:
@@ -44,23 +50,34 @@ invariants in the `aidlc` skill and AGENTS.md:
    **Raising a threshold, or removing a trigger, is a CEO decision recorded in
    `standards.md` with its reasoning** — an agent doing either on its own
    authority, or a change that drops a trigger without saying what now catches
-   that case instead, is a REJECT. Do not judge this one; **measure** it, per the
-   deterministic check in the skill's *Magnitude floor* section: if the diff
+   that case instead, is a REJECT. Do not judge this one; **read it off the
+   diff**, per the deterministic check in the skill's *Magnitude floor* section: if the diff
    deletes a trigger row or raises a number, the SAME diff must record the CEO
    decision, the reasoning, and what is no longer caught. Missing ⇒ REJECT, no
    judgment call needed.
 8. **No weakening of a safety control, an approval gate, or a permission
    boundary** to make something pass. Unjustified loosening is a REJECT.
-9. **The framework stays host- and machine-neutral.** Measure it: run
+9. **The framework stays host- and machine-neutral.** Read CI's run of
    `tools/check_neutral.py`. A non-zero exit is a REJECT. Also reject any
    change that removes an entry from the checker's deny-lists (`HOST_TOOLS`,
    `MACHINE_FACTS`) or grows its `SKIP` set without a stated reason.
-10. **No fake data.** Measure it: run `framework/tools/check_live.py
+10. **No fake data.** Read CI's run of `framework/tools/check_live.py
    --self-test`. A non-zero exit is a REJECT. Also reject any change that adds
    a verification level which accepts a fake, makes `Verify` default to
    anything but `live`, removes a word or rule from the checker's fake scan, or
    lets a gate pass, a `Closes Rn` land, or a SITREP say DONE without live
    evidence.
+11. **Autonomy is earned by proof.** The run may proceed between the CEO's
+   batches only on bounds a machine checks. Read CI's run of
+   `tools/check_models.py` and of the `check_tasks.py` / `check_formal.py`
+   self-tests: a non-zero exit is a REJECT. Then check the diff: **no stop is
+   removed without a sensor that replaces it** (name the sensor, or REJECT);
+   SKILL.md's old-gate → batch map has a row for every former 🔴 gate (an
+   unmapped gate is a REJECT); no bound is loosened — Loop A's 3 stalled / 5
+   in total, a model's bounds, the interrupt list, a lease threshold — without
+   a CEO decision recorded with its reasoning; a seeded broken variant or
+   mutant is never deleted or made to pass (a check that cannot fail proves
+   nothing); and `tested` is never presented as formal verification.
 
 Also check the change against **its own signed
 `proposals/<slug>/requirements.md`**. A framework change with no signed
@@ -84,7 +101,7 @@ verdict: APPROVE | REQUEST-CHANGES | REJECT
 model_used: <your model id>              # MUST be a different vendor than the author
 author_model_vendor: <vendor>
 reviews_own_change: false                # MUST be false; else route to a 2nd reviewer
-invariants_checked: [1,2,3,4,5,6,7,8,9,10]
+invariants_checked: [1,2,3,4,5,6,7,8,9,10,11]
 concerns:
   - <specific concern, empty if APPROVE>
 ```

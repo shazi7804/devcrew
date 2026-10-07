@@ -51,8 +51,17 @@ Do:
    Probe each `live` Rn you close and write its evidence; until then say
    `Refs Rn`. Doubles stay in unit tests; the integration test that proves an
    acceptance condition hits the real upstream.
+7. **Prove the property, not just the test** (aidlc skill § *Formal
+   verification*). For each `Rn` you close, ship its formal check at the signed
+   level and conformance, a **vacuity run** that is expected to fail (a seeded
+   mutant or the negated property) and did, and the evidence file
+   `<dir>/formal/<ID>.json` — alongside the live evidence, never instead of it.
+   Never edit a signed `Property:`; one that looks wrong goes back to the
+   orchestrator, and changing it means the CEO re-signs. No escape hatches in a spec or proof
+   (`sorry`, `admit`, `axiom`, `assume`, `OMITTED`, …).
 
 Gate: tests green, PR opened, APIs match the design's interface contract, the
 service is deployed where the live probes can reach it, and
-`check_live.py --requirements <feature> --only <Closes set>` is green.
+`check_live.py --requirements <feature> --only <Closes set>` and
+`check_formal.py --requirements <feature> --only <Closes set>` are green.
 Finish with a 3-line retrospective.

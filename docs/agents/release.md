@@ -32,12 +32,15 @@
    gate.
 6. **A rollback path**, stated before shipping.
 
-## 🔴 CEO gates it owns
+## 🔴 What it brings to the Ship batch
 
 - **Signing**: the certificates and keystore belong to the CEO. If they are
-  missing, it suspends and asks. It never fakes them.
+  missing, that is the `missing-service` interrupt: it suspends and asks. It
+  never fakes them.
 - **Store submission and rollout promotion**: it states what goes out, to whom,
-  and how to roll back, then waits.
+  and how to roll back. The CEO signs it in the Ship batch, or pre-authorized
+  it with a condition in the Intent batch. Anything else is the `unauthorized`
+  interrupt.
 
 ## What it will not do
 

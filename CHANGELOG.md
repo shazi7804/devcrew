@@ -1,5 +1,80 @@
 # Changelog
 
+## 0.9.7 — 2026-10-08
+
+**Autonomy earned by proof: the CEO signs three times, machines check the rest.**
+Signed intent: `proposals/0.9.7-autonomy-by-proof/requirements.md` (R1–R15,
+N1–N4). The CEO's ruling 「好。加進去後直接做」 is the signature. Design and
+tool choice: `proposals/0.9.7-autonomy-by-proof/design.md`.
+
+Why: the CEO wanted the team to run longer without stopping, and stops were
+carrying the trust. Comparing devcrew 0.9.6 with awslabs/aidlc-workflows 2.10
+showed that several bounds were described as mechanical but had no code: the
+intent hash, the drift halt, the loop bound, and the ledger (on one host it
+was "not defined"). Autonomy on top of prompt-only bounds is autonomy on trust,
+so the bounds became code first.
+
+- **TASKS.md is the only ledger** (R1–R5). It holds Done (one line, no record),
+  In progress (status · owner · attempts · next) and Todo, plus a `Signed:` line
+  of hashes and the open gate. History lives in git.
+  `framework/tools/check_tasks.py` fails on any of these:
+  - a missing, duplicated or unknown requirement ID;
+  - a Done item without fresh live **and** formal evidence;
+  - a bad status;
+  - an attempt count past Loop A's bound;
+  - a signed file whose hash moved. This is the drift halt, finally as code.
+  22 self-test cases. Every host uses it; a host primitive may mirror it.
+- **Three batch sign-offs: intent, design, ship** (R6–R8). Every item the CEO
+  signed before is still signed, now grouped, and SKILL.md maps each former
+  🔴 gate to its batch. Between batches the run stops only on six interrupts,
+  each raised by a sensor: drift, cross-design, loop-bound, missing-service,
+  unauthorized, model-fail. Irreversible actions come from a pre-authorized
+  list signed in the intent batch.
+- **Formal methods, honestly levelled** (R9–R11). Every requirement carries a
+  `Property:`, a level and a conformance:
+  - levels are `tested` (property testing, named as *not* formal), `checked`
+    (model checking at stated bounds) and `proved`;
+  - conformance is `none`, `trace` or `refinement`.
+
+  `framework/tools/check_formal.py` fails evidence that:
+  - is stale, or comes from a property edited after signing;
+  - is below the signed level or conformance;
+  - is `checked` with no bounds;
+  - has no vacuity run (a run that must fail and did);
+  - has a proof containing an escape hatch (`sorry`, `admit`, `Admitted`,
+    `axiom`, `assume`, `{:axiom}`, `OMITTED` …).
+
+  28 self-test cases. Formal adds to live and never replaces it.
+- **The framework's own protocols, model-checked** (R12–R13, TLA+ / TLC 1.7.4
+  in CI):
+  - `framework/formal/Election.tla` checks the orchestrator election: safety
+    at 3 sessions (10.2M states), liveness at 2.
+  - `framework/formal/Aidlc.tla` checks batches, interrupts, Loop A and
+    Done-needs-evidence, for safety and liveness under stated fairness.
+  - Each model has a seeded broken variant that must fail.
+  - `boot.py` is trace-validated: real concurrent runs log every step, TLC
+    must accept each trace as a behaviour of the model, and a mutant must be
+    rejected.
+  - `tools/check_repo.py` keeps SKILL.md's stages, batches and interrupts
+    equal to the model's.
+- **The model found a real bug in 0.9.6's election, and it is fixed** (R15).
+  TLC found two acting orchestrators in 14 steps. A holder resuming a stale
+  lease refreshed it with `utime`, while a newcomer that had read it as stale
+  renamed it away. `rename` and `utime` act on the path, not on the file that
+  was read. The race test had passed all along.
+
+  `boot.py` now claims by generation: `ORCHESTRATOR.<n>.claim`, written in
+  full and published with `os.link`, is a compare-and-swap, and names are
+  never reused. The holder re-wins its own lease once it is older than
+  STALE−MARGIN. Any beat may take a free claim, so a crashed orchestrator is
+  replaced without a new window.
+
+  A beat now runs after every tool call. Without it, a long autonomous turn
+  outlives its lease (assumption A2). The assumptions the fix still needs
+  (A1–A4) are written in `framework/session-governance.md` § 8.
+- **Invariant 11** in AGENTS.md (R14): between batches the run proceeds only on
+  bounds a machine checks.
+
 ## 0.9.6 — 2026-10-06
 
 **No fake data: nothing is done until it runs on the real service.**

@@ -15,6 +15,11 @@ memory; `name` must match the file name; `tools` must use the neutral
 vocabulary the adapters map; `memory` must be `shared` or `none`. Two
 capabilities are withheld by design and checked here, not assumed: `reviewer`
 mounts no memory (invariant 4) and `auditor` holds no write tool (invariant 7).
+
+PROTOCOL SETS — the stages, batches and interrupts that SKILL.md names must be
+the ones framework/formal/Aidlc.tla model-checks. The orchestrator is a model,
+not a program, so this is the conformance there is: a phase, batch or interrupt
+added to the prose and not to the model is one nobody proved anything about.
 """
 import pathlib
 import re
@@ -113,8 +118,32 @@ def check_roles():
     return problems
 
 
+def tla_set(text, name):
+    m = re.search(rf"^{name}\s*==\s*(?:<<|\{{)(.*?)(?:>>|\}})", text, re.M | re.S)
+    return set(re.findall(r'"([^"]+)"', m.group(1))) if m else None
+
+
+def check_protocol_sets():
+    model = (ROOT / "framework/formal/Aidlc.tla").read_text(encoding="utf-8")
+    skill = (ROOT / "framework/skills/aidlc/SKILL.md").read_text(encoding="utf-8")
+    problems = []
+    for name in ("stages", "batches", "interrupts"):
+        m = re.search(rf"^{name}:\s*(.+)$", skill, re.M)
+        prose = set(m.group(1).split()) if m else None
+        tla = tla_set(model, name.capitalize())
+        if prose is None:
+            problems.append(f"SKILL.md: no `{name}:` line in the protocol-sets block")
+        elif tla is None:
+            problems.append(f"Aidlc.tla: no `{name.capitalize()} ==` definition")
+        elif prose != tla:
+            problems.append(f"{name}: SKILL.md and Aidlc.tla differ -- only in SKILL.md: "
+                            f"{sorted(prose - tla) or '-'}; only in the model: "
+                            f"{sorted(tla - prose) or '-'}")
+    return problems
+
+
 def main():
-    problems = check_links() + check_roles()
+    problems = check_links() + check_roles() + check_protocol_sets()
     for p in problems:
         print(p)
     if problems:

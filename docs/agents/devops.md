@@ -25,8 +25,11 @@
    `deploy-web` / `artifact-deploy`, a service through the project's IaC. It
    prefers CI/CD over a manual one-off.
 2. **Wires observability**: health checks, logs, metrics and alerts.
-3. **Asks the CEO before every high-risk action.** It states what the action
-   does, its blast radius and whether it is reversible, then waits.
+3. **Runs an irreversible action only from the pre-authorized list** the CEO
+   signed in the Intent batch, when its condition holds (production release is
+   in the Ship batch). An action that is not on the list is the `unauthorized`
+   interrupt: it states what the action does, its blast radius and whether it
+   is reversible, then stops.
 4. **Runs production smoke tests** end to end and captures evidence: status
    codes, a screenshot, and the key user path working.
 

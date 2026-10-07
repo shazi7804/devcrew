@@ -54,15 +54,14 @@ written down instead (⚠):
                              → dispatcher → runner         the live session
                              (board mode: the session)
    ─────────────────         ─────────────────────         ─────────────────
-   🔴 CEO GATE               🔴 CEO GATE                   🔴 CEO GATE
+   🔴 CEO BATCH              🔴 CEO BATCH                  🔴 CEO BATCH
    a suspended TURN          a PENDING ROW in              the turn ending —
-   (no queue — the           decisions.json; nothing       the CEO is already
-   ledger records it)        dispatches past it            in the conversation
+   (no queue — TASKS.md      decisions.json; nothing       the CEO is already
+   records it)               dispatches past it            in the conversation
    ─────────────────         ─────────────────────         ─────────────────
    DURABLE LEDGER            DURABLE LEDGER                DURABLE LEDGER
-   session_ledger (MCP)      missions.json                 ⚠ no primitive —
-                             .taskHistory                  keep it as a file
-                                                           under .aidlc/
+   TASKS.md, mirrored to     TASKS.md, mirrored to         TASKS.md — no
+   session_ledger (MCP)      missions.json .taskHistory    mirror needed
    ─────────────────         ─────────────────────         ─────────────────
    SCHEDULER (meta-loop)     SCHEDULER                     SCHEDULER
    cron_add (MCP)            the daemon loop               ⚠ none — the
@@ -85,18 +84,30 @@ source of truth, so on a new machine you re-run this file and the tree is rebuil
   Markdown body that is the agent's system prompt.
 - `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
   follows: phases, gates, contract hand-offs, adversarial decision points, gated
-  self-evolution. Its `contracts/` holds the requirements / design / standards /
-  verdicts templates. The `standards.md` produced from it is the per-project
+  self-evolution, the three CEO batches and the six interrupts. Its
+  `contracts/` holds the requirements / design / standards / verdicts / TASKS
+  templates. The `standards.md` produced from it is the per-project
   single source of truth for deploy target, API, DB schema, compliance, the code
   quality & efficiency budget (what the Phase-4 `auditor` judges against) and
   other cross-cutting rules — never hardcoded in a skill.
 - `framework/memory/` — the shared team memory (lessons, ADRs, retrospectives,
   style). Every role mounts it, so experience is shared across the team.
 - `framework/tools/check_live.py` — the no-fake-data sensor (invariant 10),
-  installed into every project the team works on.
+  installed into every project the team works on. Beside it, also installed:
+  `check_formal.py` (every requirement's formal property is machine-checked,
+  with a run that must fail and no proof escape hatch) and `check_tasks.py`
+  (TASKS.md — the run's only ledger — is well-formed, its signed hashes have
+  not drifted, no loop is past its bound, and Done means live + formal
+  evidence). Both import `check_live.py`, so the three travel together.
+- `framework/formal/` + `tools/check_models.py` — TLA+ models of the AIDLC run
+  and of the orchestrator election, checked by TLC in CI, each with a seeded
+  broken variant that must fail, and `boot.py` trace-validated against its
+  model. This is CI for devcrew itself; nothing here is installed into a
+  project.
 - `framework/session-governance.md` + `framework/tools/boot.py` — how the
   orchestrator role is held when the host can run **several sessions at once**
-  (an `O_EXCL` lock, an mtime lease, a human escape hatch). Read this whenever
+  (numbered claim generations taken by an atomic create, an mtime lease, a
+  human escape hatch). Read this whenever
   your host lets the user open a second window on the same repo; it is the one
   part of the framework that must be wired to lifecycle events instead of
   written into a prompt.
@@ -155,7 +166,9 @@ not a mechanism.
 
 The user is the **CEO**. They switch to the `orchestrator` agent and drop an idea.
 devcrew runs Phase 0 (intent alignment → a signed `requirements.md`), then walks
-the AIDLC pipeline, stopping at 🔴 gates for the CEO's sign-off. The full
+the AIDLC pipeline, stopping for the CEO three times — the intent, design and
+ship batches — or on one of six interrupts a sensor raises. `TASKS.md` at the
+project root always says what is done, in progress and left. The full
 protocol is in `framework/skills/aidlc/SKILL.md`.
 
 ## Updating on a new machine
@@ -222,3 +235,15 @@ the single source of truth; the host files are generated artifacts.
    tests logic; it never proves a requirement. A missing service or credential
    is a question for the CEO, never a reason to build on a fake, and work
    without live evidence is never reported as done.
+11. **Autonomy is earned by proof** — the CEO signs in three batches (intent,
+   design, ship), not at every stop, and between them the run proceeds on its
+   own only on bounds a machine checks: `check_tasks.py` (TASKS.md, the signed
+   hashes, Loop A's bound), `check_live.py`, `check_formal.py` (every
+   requirement's formal property, with a run that must fail) and the protocol
+   models in `framework/formal/`, which `tools/check_models.py` checks in CI.
+   The run stops between batches only on one of six interrupts a sensor
+   raises (drift, cross-design, loop-bound, missing-service, unauthorized,
+   model-fail); any other reason to ask waits for the next batch. Formal
+   evidence adds to live evidence, never replaces it. Loosening a bound, or
+   adding a way to proceed that no machine checks, is a gate weakened
+   (invariant 8).

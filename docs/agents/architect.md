@@ -13,7 +13,7 @@
 | **Phase** | 1, plus two standing duties (below) |
 | **Reads** | `requirements.md` |
 | **Produces** | `design.md` (ADRs, requirement→design map, data model, interfaces, threat model) and `standards.md`, written with the CEO |
-| **Gate** | Every Rn/Nn maps to a design element and every big choice has an ADR. 🔴 The CEO signs `standards.md`, which is then hash-locked |
+| **Gate** | Every Rn/Nn maps to a design element and every big choice has an ADR. 🔴 The CEO signs `design.md` + `standards.md` in the Design batch; both are then hash-locked in `TASKS.md` |
 | **Tools** | read · write · edit · shell · search · web |
 | **Skills** | aidlc · llm-council |
 | **Memory** | Shared team memory |
@@ -30,6 +30,13 @@
 4. **Writes `standards.md` with the CEO**: deploy environments, API style, DB
    schema source, compliance, observability and security baselines, and the
    code-efficiency budget. The CEO makes the business calls, such as which cloud.
+5. **Picks the formal tool for each level**, after a current web search, and
+   writes `standards.md` § *Formal verification*: the load-bearing components
+   (each at least model-checked and tied to the code by trace validation or a
+   refinement proof), the bounds, and the conformance approach. Property
+   testing is named for what it is: sampling, not a formal method.
+6. **Drafts the `Property:` of every requirement with the PM**, so the CEO signs
+   the properties in the Intent batch.
 
 ## Standing duties
 

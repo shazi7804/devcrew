@@ -6,8 +6,8 @@
 > shape below, as a fenced ```yaml block at the end of the report. The
 > orchestrator parses it; a missing or malformed block fails that gate (like any
 > incomplete contract). FACT gates (Phase 3 tests+markers, Phase 5 smoke tests,
-> Phase 6 signing/package sensors, Phase 2 CEO prototype sign-off) are enforced
-> by deterministic sensors or a 🔴 CEO gate instead — see the aidlc skill — and
+> Phase 6 signing/package sensors, Phase 2 prototype choice) are enforced
+> by deterministic sensors or a 🔴 batch instead — see the aidlc skill — and
 > do NOT use these blocks. Prose explanation still goes above the block, and the
 > report opens with a SITREP (`sitrep.template.md`).
 
@@ -21,10 +21,13 @@ sensors:                      # deterministic checks run FIRST
   test: pass | fail | n/a
   build: pass | fail | n/a
   live: pass | fail           # check_live.py --rerun --deployed; never n/a (no fake data)
+  formal: pass | fail         # check_formal.py --rerun; never n/a (`none` items pass on their signed reason)
+  tasks: pass | fail          # check_tasks.py; never n/a
 requirements:                 # one row per Rn/Nn in requirements.md
   - id: R1
     verdict: PASS | FAIL
     verify: live | local      # the level requirements.md signed (none = live)
+    formal: tested | checked | proved | none   # the signed Formal level
     evidence: <evidence/R1.json beside requirements.md + test / screenshot / device+OS>
                               # empty = FAIL. A test double, a fake DOM, a
                               # stubbed upstream or seed data proves nothing
@@ -73,7 +76,7 @@ findings:                     # empty list = clean
     fix: <the concrete deletion, reuse target, or rewrite>
     saving: <LOC / ms / KB / $-per-month — estimate, or n/a>
     blocks_gate: true | false   # blocker/high => true
-debt_logged:                  # medium/low findings carried to the ledger, not blocking
+debt_logged:                  # medium/low findings carried to TASKS.md Todo as Dn, not blocking
   - <one line each>
 escalate_to_architect:        # empty unless a finding is really a design problem
   - <one line; the orchestrator decides whether to pull Phase 1 back in>

@@ -13,7 +13,7 @@
 | **Phase** | 4, in parallel with `security` and, on a large diff, `auditor` |
 | **Reads** | `requirements.md` 🔒 · `standards.md` 🔒 · the implementation PRs |
 | **Produces** | A requirement → evidence → verdict table, and the QA verdict YAML |
-| **Gate** | CI and the live sensor are green, every Rn/Nn is met on the real service, and no QA blocker is open |
+| **Gate** | CI and the live, formal and TASKS sensors are green, every Rn/Nn is met on the real service and its property is checked, and no QA blocker is open |
 | **Tools** | read · write · edit · shell · search · web |
 | **Skills** | aidlc · web-verify · mobile-verify |
 | **Memory** | Shared team memory |
@@ -22,15 +22,20 @@
 
 1. **Sensors first**: lint, typecheck, test and build, using the project's
    real commands, plus `check_live.py --rerun`, which re-runs every probe
-   against the real service and scans production code for fakes. A red sensor
-   fails the gate before intent is judged.
+   against the real service and scans production code for fakes. Beside it,
+   `check_formal.py --rerun` re-runs every formal check and its vacuity run and
+   scans specs and proofs for escape hatches, and `check_tasks.py` checks
+   TASKS.md, the signed hashes and the evidence behind every Done item. A red
+   sensor fails the gate before intent is judged.
 2. **Traceability**: every `Rn` must trace to a PR (`Closes Rn`) and to a test.
    Every `Nn` must trace to its proof: a benchmark, an audit or a scan. A
    requirement with no evidence fails, and so does one proven only on a fake
    (a stubbed upstream, a fake DOM, seed data), and so does a PR that claims no
-   requirement.
-3. **Standards conformance**: it re-computes the `standards.md` hash, then
-   checks the delivered work against the file.
+   requirement. Each row also records the formal level; property testing is
+   recorded as `tested`, never as formal verification.
+3. **Standards conformance**: `check_tasks.py` has compared the signed
+   `standards.md` hash with the file; QA then checks the delivered work against
+   it.
 4. **Exercises the flows like a real user**, including edge cases, empty states
    and error paths.
 5. **Returns a verdict block** that the orchestrator parses. A missing or

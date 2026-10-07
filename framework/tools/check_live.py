@@ -158,24 +158,55 @@ def out(proc):
     return proc.stdout.decode("utf-8", "replace")
 
 
-def requirements(path):
-    """{id: level} for every Rn/Nn item (bullet, bold line, heading or table
-    row); no Verify line => live."""
-    found, cur = {}, None
+def fields(path):
+    """{id: {field: text}} for every Rn/Nn item (bullet, bold line, heading or
+    table row) and its `- *Field*: text` lines; a field's text runs on over
+    the indented lines below it."""
+    found, cur, key = {}, None, None
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         m = re.match(r"\s*(?:[-*+]\s+|#{2,6}\s+)?\*\*([RN]\d+)\b", line) or \
             re.match(r"#{2,6}\s+([RN]\d+)\b", line) or \
             re.match(r"\s*\|\s*\**([RN]\d+)\**\s*\|", line)
+        f = re.match(r"(\s*)- \*(\w+)\*:\s*(.*)$", line)
         if m:
-            cur = m.group(1)
-            found[cur] = "live"
+            cur, key = m.group(1), None
+            found[cur] = {}
         elif line.startswith("#"):
-            cur = None
+            cur, key = None, None
+        elif f and cur:
+            key = f.group(2).lower()
+            found[cur][key] = (f.group(3).strip(), len(f.group(1)))
+        elif key and cur and line.strip() and \
+                len(line) - len(line.lstrip()) > found[cur][key][1] and \
+                not re.match(r"\s*[-*+]\s", line):
+            text, indent = found[cur][key]
+            found[cur][key] = (f"{text} {line.strip()}", indent)
         else:
-            v = re.match(r"\s*- \*Verify\*:\s*`?([\w-]+)", line)
-            if v and cur:
-                found[cur] = v.group(1).lower()
-    return found
+            key = None
+    return {i: {k: v[0] for k, v in f.items()} for i, f in found.items()}
+
+
+def requirements(path):
+    """{id: level} for every Rn/Nn item; no Verify line => live."""
+    return {i: (re.match(r"`?([\w-]+)", f["verify"]).group(1).lower()
+                if re.match(r"`?[\w-]+", f.get("verify", "")) else "live")
+            for i, f in fields(path).items()}
+
+
+def drifted(root, sha, *evidence):
+    """Why evidence recorded at `sha` does not prove what ships now, or None:
+    'bad' (not a full commit id), 'orphan' (not in HEAD's history), 'stale'
+    (the tree changed outside the evidence dirs, the state and docs since)."""
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        return "bad"
+    if git(root, "merge-base", "--is-ancestor", sha, "HEAD").returncode:
+        return "orphan"
+    if git(root, "diff", "--quiet", sha, "--", ".",
+           *(f":!{os.path.relpath(e, root)}" for e in evidence), f":!{STATE}",
+           ":!*.md").returncode or \
+            git(root, "diff", "--quiet", sha, "--", f"{STATE}/tools").returncode:
+        return "stale"
+    return None
 
 
 def hostname(target):
@@ -331,17 +362,11 @@ def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pro
             hits.append(f"{tag}: target {e['target']!r} names a mock")
         if h and h not in cmd.lower():
             hits.append(f"{tag}: the probe command never names {h}")
-        sha, stale, orphan = e["sha"].lower(), False, False
-        if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        sha = e["sha"].lower()
+        why = drifted(root, sha, evidence, reqfile.parent / "formal")
+        if why == "bad":
             hits.append(f"{tag}: sha {sha!r} is not a full commit id")
-        elif git(root, "merge-base", "--is-ancestor", sha, "HEAD").returncode:
-            orphan = True
-        else:
-            stale = bool(git(root, "diff", "--quiet", sha, "--", ".",
-                             f":!{os.path.relpath(evidence, root)}", f":!{STATE}",
-                             ":!*.md").returncode or
-                         git(root, "diff", "--quiet", sha, "--",
-                             f"{STATE}/tools").returncode)
+        stale, orphan = why == "stale", why == "orphan"
         fresh, excerpt = False, None
         if rerun and expect:
             hosts = [h] + [hostname(t) for t in URL.findall(cmd)] if live else []

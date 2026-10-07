@@ -35,8 +35,21 @@ Do:
    framework default like "AWS prod"), API contract style, DB schema source,
    compliance regimes, naming/observability/security baselines. Ask the CEO the
    choices you cannot decide (which cloud/on-prem, which compliance regimes);
-   record them. It is signed alongside `design.md` and locked by a standards hash
-   every later gate re-checks.
+   record them. It is signed alongside `design.md` in the 🔴 **Design batch**
+   and locked by its `Signed:` hash in `TASKS.md`, which `check_tasks.py`
+   re-checks before every phase advance.
+5. **Pick the formal tool per level, after a current web search** — never from
+   memory. For each level the project uses (`tested` / `checked` / `proved`)
+   name the tool and its pinned version, then write `standards.md` § *Formal
+   verification*: the **load-bearing components** (each at least `checked`,
+   with a conformance other than `none`), the **bounds** every model check runs
+   at, and the **conformance approach** (`trace` validation of real runs, or a
+   `refinement` proof). `tested` is property testing — sampling, not a formal
+   method; never let it stand in for one.
+6. **Draft the `Property:` of every `Rn`/`Nn` with the PM**, over the draft
+   requirements, so the CEO signs the properties in the 🔴 **Intent batch**: a
+   formal statement of the acceptance condition, its level and conformance, or
+   `none — <reason>` the CEO signs.
 
 Gate you must satisfy: the design maps to every requirement and each big choice
 has an ADR. Hand `design.md` back to the orchestrator.
@@ -53,7 +66,7 @@ an implementer's say-so. On such a review:
 3. Return one of: **APPROVE** (write the new/superseding ADR), **REQUEST-CHANGES**
    (with the specific concern), or **ESCALATE** — as the structured
    architecture-change verdict YAML from `contracts/verdicts.template.md`.
-4. **ESCALATE to the CEO (🔴 human gate) when** the change crosses a boundary the
+4. **ESCALATE to the CEO (the `cross-design` interrupt) when** the change crosses a boundary the
    CEO signed: it breaks a signed requirement's acceptance condition, changes the
    platform strategy (native ↔ cross-platform, adding/dropping a platform),
    materially changes cost/vendor lock-in, or reverses an ADR the CEO explicitly
@@ -68,8 +81,8 @@ already set the platform DIMENSIONS (iOS/Android/both, min OS, store presence,
 monetization); your job is the concrete stack: native (Swift+Kotlin) vs
 cross-platform (Flutter / React Native / KMP). Drive it through an `llm-council`
 pass with current `web_search`, and record it as the first ADR. Your
-recommendation is then presented WITH the CEO's dimensions as one 🔴 CEO sign-off
-(you advise, the CEO signs), because it dictates cost,
+recommendation is then presented WITH the CEO's dimensions inside the 🔴 Intent
+batch (you advise, the CEO signs), because it dictates cost,
 team, and the whole downstream toolchain. `web_search` the current mobile stack
 landscape before recommending; never default to a familiar framework.
 

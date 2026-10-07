@@ -36,7 +36,7 @@ and the weakest durability — both visible below.
 │                                                                       │
 │ (B) harness ──▶ host primitive                                        │
 │   dispatch       ▶ the Task tool — the main session delegates         │
-│   who dispatches ▶ hooks + an O_EXCL lock. NOT a prompt rule: two     │
+│   who dispatches ▶ hooks + a link(2) CAS claim. NOT a prompt rule: two│
 │                    windows both believing they are the orchestrator   │
 │                    is the default here (§ Multi-session governance)   │
 │   🔴 CEO gate    ▶ ask, then END THE TURN. The CEO is already in the  │
@@ -46,7 +46,9 @@ and the weakest durability — both visible below.
 │   shared memory  ▶ ⚠ no mount exists. Realised as a CLAUDE.md RULE:   │
 │                    every devcrew agent reads/appends framework/memory/│
 │                    ✘ EXCEPT reviewer — excluded explicitly (inv. 4)   │
-│   durable ledger ▶ ⚠ NOT DEFINED by this adapter — see below          │
+│   ledger         ▶ TASKS.md at the project root — current state only, │
+│                    written by the orchestrator, checked by            │
+│                    .aidlc/tools/check_tasks.py                        │
 │   scheduler      ▶ ⚠ none. The Phase-∞ meta-review runs on request.   │
 │   question       ▶ AskUserQuestion (structured options)               │
 │   resource check ▶ ⚠ none. Serialize heavy steps on a small machine.  │
@@ -79,12 +81,14 @@ mid-run:
   prose in `CLAUDE.md`; a subagent that ignores it loses team experience silently.
   Verify the rule is present, and if a role keeps missing it, restate the rule in
   that role's own body.
-- **No durable ledger primitive.** Nothing survives a `/clear` on its own, so
-  Loop A's attempt bound, the intent/standards hashes and the requirement→PR→test
-  map all reset unless they are written to a file. The Mission Control adapter
-  already establishes the convention for a product repo — `.aidlc/` holding
-  contracts · ledger · memory — so use that same layout here and keep the ledger
-  as a file the orchestrator appends to.
+- **The ledger is a file, because nothing else survives a `/clear`.** On every
+  host the ledger is `TASKS.md` at the project root (aidlc skill § *TASKS.md*):
+  Done · In progress · Todo, the `Signed:` hashes and the open batch, nothing
+  more — git keeps the history. Only the orchestrator writes it, and
+  `.aidlc/tools/check_tasks.py` checks it (format, IDs, Loop A's `n/5` and
+  `stalled k/3`, the drift halt on the `Signed:` hashes, and live + formal
+  evidence for every Done item). That is what makes the bounds survive a
+  compaction here.
 - **No scheduler.** The Phase-∞ meta-review has no `cron` equivalent; it runs when
   the CEO asks for it. Say so rather than implying a periodic review happens.
 - **Nothing stops a second session from also being the orchestrator.** The CEO can
@@ -150,7 +154,7 @@ model: <current best alias>
    and copy its `.claude/skills/impeccable/` instead. Its edit hook goes into
    `.claude/settings.local.json`, not the governance `settings.json`. That hook
    runs third-party code on every edit, so show the user the hook entry and get
-   a yes before you keep it. Afterwards check that all four governance hooks are
+   a yes before you keep it. Afterwards check that all five governance hooks are
    still present. Verify the install by running
    `npx impeccable@4.1.0 detect <file>`: exit 0 means clean, 2 means findings,
    and 1 means the scan failed. If it cannot be installed, say so; the designer
@@ -169,17 +173,25 @@ model: <current best alias>
    do NOT fall back to omitting `tools` for it. Verify after install that the
    generated `.claude/agents/auditor.md` grants no `Write`/`Edit`.
 7. **Install the multi-session governance layer** — `framework/tools/boot.py` →
-   `.aidlc/tools/boot.py` and its adapter `.aidlc/tools/boot_host.py`, plus the four hooks in `.claude/settings.json`. Full
+   `.aidlc/tools/boot.py` and its adapter `.aidlc/tools/boot_host.py`, plus the
+   five hooks in `.claude/settings.json`. Full
    instructions in § *Multi-session governance* below; the concept it implements
    is `framework/session-governance.md`. Do not treat this as optional on this
    host: without it, "the orchestrator" is whatever each open window believes.
    If you skip it deliberately (single-window user, no `python3`), say so to the
    user in those words rather than leaving them to assume they are covered.
-8. **Install the live sensor** — `framework/tools/check_live.py` →
-   `.aidlc/tools/check_live.py`. `qa` runs it at Phase 4 and `devops` at Phase 5
-   (aidlc skill § *No fake data*). It is the only deterministic check that the
-   delivered work runs on real services rather than on fakes; skipping it is a
-   thing to say out loud.
+8. **Install the sensors** — `framework/tools/check_live.py`,
+   `check_formal.py` and `check_tasks.py` → `.aidlc/tools/`, side by side (the
+   last two import `check_live.py` from their own directory). `check_live` is
+   the only deterministic check that the delivered work runs on real services
+   rather than on fakes (aidlc skill § *No fake data*); `check_formal` that each
+   requirement's signed `Property:` was machine-checked, at its level, without
+   an escape hatch and with a vacuity run; `check_tasks` that `TASKS.md` is true.
+   Implementers run them at Phase 3, `qa` at Phase 4, `devops` at Phase 5, the
+   orchestrator at every step. Skipping any of them is a thing to say out loud.
+   `tools/check_models.py` (TLC on the framework's own protocol models, and
+   trace validation of `boot.py`) is CI for devcrew itself — it is **not**
+   installed into projects.
 
 ## Multi-session governance
 
@@ -215,15 +227,16 @@ run, but Claude Code ignores the output, so the role is never injected.
              the human opens a window, or types, or closes it
                                   │
 ┌─ .claude/settings.json ─────────▼───────────────────────────────────┐
-│  SessionStart     ─▶ boot.py start   elect, then inject the role    │
-│  UserPromptSubmit ─▶ boot.py beat    refresh the lease…             │
-│  Stop  (async)    ─▶ boot.py beat    …at both ends of every turn    │
-│  SessionEnd       ─▶ boot.py end     release it, if this session    │
-│                                      is the holder                  │
+│  SessionStart       ─▶ boot.py start  elect, then inject the role   │
+│  UserPromptSubmit   ─▶ boot.py beat   refresh the lease…            │
+│  PostToolUse (async)─▶ boot.py beat   …after every tool call (A2)…  │
+│  Stop  (async)      ─▶ boot.py beat   …and at both ends of a turn   │
+│  SessionEnd         ─▶ boot.py end    release it, if this session   │
+│                                       is the holder                 │
 └───────────────────────┬─────────────────────────────────────────────┘
                         │ stdin: {"session_id": …, "cwd": …}
                         ▼         ← the only identity key that works
-              .aidlc/claims/ORCHESTRATOR.claim   (O_EXCL + mtime lease)
+              .aidlc/claims/ORCHESTRATOR.<n>.claim   (link CAS + mtime)
                         │
                         ▼ stdout: hookSpecificOutput.additionalContext
               "you are the orchestrator" + board, or "you are a worker"
@@ -243,6 +256,12 @@ run, but Claude Code ignores the output, so the role is never injected.
           "command": "python3 \"${CLAUDE_PROJECT_DIR}/.aidlc/tools/boot.py\" beat",
           "timeout": 10 } ] }
     ],
+    "PostToolUse": [
+      { "matcher": "*",
+        "hooks": [ { "type": "command",
+          "command": "python3 \"${CLAUDE_PROJECT_DIR}/.aidlc/tools/boot.py\" beat",
+          "timeout": 10, "async": true } ] }
+    ],
     "Stop": [
       { "hooks": [ { "type": "command",
           "command": "python3 \"${CLAUDE_PROJECT_DIR}/.aidlc/tools/boot.py\" beat",
@@ -257,7 +276,7 @@ run, but Claude Code ignores the output, so the role is never injected.
 }
 ```
 
-Four details in that JSON are load-bearing:
+Five details in that JSON are load-bearing:
 
 - **`session_id` from hook stdin is the identity.** It is stable for the
   session's whole life and differs between concurrent sessions. Do not
@@ -266,9 +285,18 @@ Four details in that JSON are load-bearing:
   on `5819.sock`), and a pid identifies a process, not a session.
 - **Both `UserPromptSubmit` and `Stop` beat.** Together they bracket the turn, so
   the lease tracks "this session is in use" rather than "the human typed
-  recently". Either alone works; both is one line cheaper than reasoning about
-  which one you lose.
-- **`Stop` is `async`.** A heartbeat must not add latency to finishing a turn.
+  recently".
+- **`PostToolUse` beats too — this one is assumption A2, not a nicety.** The
+  election is proved (`framework/formal/Election.tla`) only while an acting
+  orchestrator beats more often than `STALE − MARGIN` (40 min by default).
+  Without a beat inside the turn, one autonomous turn longer than that lets the
+  lease expire while the holder is still acting, and a second window takes
+  over: two orchestrators, which is exactly what more autonomy produces. With
+  it, the bound is one *tool call* longer than 40 min. The same beat is how a
+  demoted session hears "stop acting as orchestrator" mid-turn. Omitting it is
+  a thing to say out loud.
+- **`Stop` and `PostToolUse` are `async`.** A heartbeat must not add latency
+  to finishing a turn or to the next tool call.
 - **`SessionStart` also fires on resume, `/clear` and after compaction.** That is
   a feature: the election is idempotent for the same `session_id`, so the role
   text gets re-injected into a context that just lost it. Compaction is how an
@@ -278,11 +306,13 @@ Four details in that JSON are load-bearing:
 
 ```
 .aidlc/claims/*.claim
+.aidlc/claims/*.released
+.aidlc/claims/.new.*
 ```
 
 Keep `.aidlc/claims/README.md` committed so the directory exists in a fresh
-clone. Without the directory, `O_EXCL` fails for the wrong reason and every
-claim rule looks obeyed while doing nothing.
+clone. Without the directory, the claim's `link` fails for the wrong reason and
+every claim rule looks obeyed while doing nothing.
 
 ### (4) Verify — by racing it, not by reading it
 
@@ -299,8 +329,8 @@ for i in $(seq 32); do
 done; wait
 grep -l 'only orchestrator' "$T"/o.* | wc -l     # must print 1
 
-# 20 sessions take over one expired lock at once → exactly 1 winner
-touch -t 202001010000 "$T/.aidlc/claims/ORCHESTRATOR.claim"
+# 20 sessions take over one expired claim at once → exactly 1 winner
+touch -t 202001010000 "$T/.aidlc/claims/ORCHESTRATOR.1.claim"
 for i in $(seq 20); do
   echo "{\"session_id\":\"t-$i\"}" | python3 "$B" start > "$T/t.$i" &
 done; wait
@@ -308,6 +338,10 @@ grep -l 'Took over' "$T"/t.* | wc -l             # must print 1
 
 echo '' | python3 "$B" start >/dev/null; echo "empty stdin exit=$?"   # must be 0
 ```
+
+The race shows the compare-and-swap works; it cannot show that no interleaving
+breaks it — that is what the model check and the trace validation in devcrew's
+own CI are for (`framework/session-governance.md` § 8).
 
 Then confirm it is live in the real session: open a second window and check that
 it announces itself as a worker naming the first window's id. If the settings
@@ -323,7 +357,8 @@ two roles are *allowed* to do, which no hook can enforce:
 ### Orchestrator or worker
 Your role is elected by a hook at session start and injected into your context —
 do not re-derive it, do not negotiate it with another session, and never
-hand-edit .aidlc/claims/ORCHESTRATOR.claim. A worker may not do exactly two
+hand-edit anything in .aidlc/claims/. If a hook tells you that you are no longer
+the orchestrator, stop acting as one at once. A worker may not do exactly two
 things: claim or open a card slug, and write or sign requirements.md. Everything
 else is open: a worker may do work, it may not define what the work is. A worker
 never commits. Liveness comes from the host's session list only — a socket or pid
@@ -361,6 +396,14 @@ ships no mock/stub/seed data, and nothing is Closes'd, passed or reported done
 while `python3 .aidlc/tools/check_live.py --rerun` is red. A missing service or
 credential is a question for the CEO, never a reason to build on a fake. If the
 project has a runtime, Phase 5 runs; no note in this file can skip it.
+Every requirement carries a signed `Property:`, machine-checked at its formal
+level (`.aidlc/tools/check_formal.py`). The ledger is TASKS.md (Done · In
+progress · Todo, current state only), written by the orchestrator and checked by
+`.aidlc/tools/check_tasks.py`; an item is Done only with live AND formal
+evidence. The CEO signs in three batches — intent, design, ship — and between
+them the run does not stop except on one of the six interrupts a sensor raises
+(drift, crossing the signed design, Loop A's bound, a missing service or
+credential, an action not pre-authorized, a failed model check).
 Every report — to the CEO or to the orchestrator — opens with the SITREP block
 (SITUATION / ACTION / STATUS / NEXT) from
 .claude/skills/aidlc/contracts/sitrep.template.md; NEXT always has a `CEO：` line.
@@ -370,7 +413,10 @@ Every report — to the CEO or to the orchestrator — opens with the SITREP blo
 
 Confirm each `.claude/agents/*.md` frontmatter is valid, the skill copied,
 `CLAUDE.md` has the devcrew section, and
-`python3 .aidlc/tools/check_live.py --self-test` prints `self-test ok` (and
-`shasum -a 256` of the installed copy equals that of
-`framework/tools/check_live.py`, all 64 hex). Tell the user they can now ask the main
+`python3 .aidlc/tools/check_live.py --self-test`,
+`python3 .aidlc/tools/check_formal.py --self-test` and
+`python3 .aidlc/tools/check_tasks.py --self-test` each print `self-test ok` (and
+`shasum -a 256` of each installed copy equals that of its `framework/tools/`
+source, all 64 hex), and `.claude/settings.json` carries all five governance
+hooks. Tell the user they can now ask the main
 agent to "act as devcrew" or delegate to a specific role.

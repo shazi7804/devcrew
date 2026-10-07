@@ -40,7 +40,8 @@ so a parser (and the eye) can find them.
 - **Unknown is a status, not a guess.** Write `未查` / `查不到定論`; never
   "should be fine".
 - **Detail goes in a file; the message carries its path.** No narration of how
-  you got there, no process notes, no lessons — those go to the ledger.
+  you got there, no process notes, no lessons — state goes to TASKS.md,
+  lessons to memory.
 - **A correction is one line**, in SITUATION or ACTION, never a paragraph.
 - **Below the block, only what the CEO asked for.** If they asked a question,
   answer it in ≤3 lines under the block. Otherwise stop.

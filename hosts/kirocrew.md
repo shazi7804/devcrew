@@ -39,12 +39,15 @@ arrow crossing a gap is either an install artifact or a host primitive.
 │                                                                        │
 │ (B) harness ──▶ host primitive                                         │
 │   dispatch      ▶ spawn_run(agents=[…]) · spawn_sub_agents             │
-│   durable ledger▶ session_ledger_record          @kirocrew-core        │
+│   ledger        ▶ TASKS.md (project root); session_ledger_record MAY   │
+│                   mirror it — TASKS.md wins          @kirocrew-core    │
 │   lessons       ▶ learn_add                      @kirocrew-core        │
 │   meta-loop     ▶ cron_add · cron_trigger        @kirocrew-cron        │
 │   council       ▶ the llm-council skill                                │
-│   🔴 CEO gate   ▶ ask_question, then END THE TURN — the turn itself IS │
-│                   the suspension; this host has no decision QUEUE      │
+│   🔴 CEO batch  ▶ ask_question, then END THE TURN — the turn itself IS │
+│                   the suspension; this host has no decision QUEUE.     │
+│                   Three batches (intent · design · ship) + the six     │
+│                   sensor-raised interrupts are the only stops          │
 │   budgets       ▶ resource_status before each heavy step               │
 │   question      ▶ ask_question card · an [OPTIONS:] line               │
 │   preview       ▶ the dashboard Browser panel (web-preview)            │
@@ -71,11 +74,12 @@ arrow crossing a gap is either an install artifact or a host primitive.
 State these to the user at install time rather than letting them be discovered
 mid-run. This is the strongest of the three hosts — the list is short.
 
-- **A 🔴 gate is a suspended *turn*, not a durable row.** Mission Control has
-  `decisions.json`; here the turn ending *is* the suspension, so nothing outside
-  the ledger records that a gate is open. `session_ledger_record` the pending gate
-  **before** ending the turn, or a restart cannot tell "waiting on the CEO" from
-  "never ran" — and the second guess is the dangerous one.
+- **A 🔴 batch is a suspended *turn*, not a durable row.** Mission Control has
+  `decisions.json`; here the turn ending *is* the suspension, so only TASKS.md
+  records that a batch or an interrupt is open. Write its `Gate:` line (and,
+  if you mirror, `session_ledger_record` it) **before** ending the turn, or a
+  restart cannot tell "waiting on the CEO" from "never ran" — and the second
+  guess is the dangerous one.
 - **A gateway on metered compute bills while it waits.** If this user's
   gateway runs on a billed host, an idle suspended run costs money, so a long 🔴
   gate should pause the gateway rather than hold it. Ask; do not assume.
@@ -170,17 +174,27 @@ For each `framework/agents/<name>.md`:
 - Find the kirocrew binary from the running host (it is the command backing the
   core MCP server); do not hardcode a version-specific path from memory.
 
-## The live sensor
+## The sensors and the ledger
 
-Copy `framework/tools/check_live.py` into each project the team works on as
-`.aidlc/tools/check_live.py` (stdlib only), so `qa` runs it as a Phase-4 sensor
-(aidlc skill § *No fake data*). Without it there is no deterministic check that
-delivered work runs on real services — say so to the user if you skip it.
+Copy `framework/tools/check_live.py`, `check_formal.py` and `check_tasks.py`
+into each project the team works on, side by side, as `.aidlc/tools/` (stdlib
+only; the last two import `check_live.py` from their own directory). `check_live`
+proves delivered work runs on real services (aidlc skill § *No fake data*),
+`check_formal` that each signed `Property:` was machine-checked, `check_tasks`
+that the ledger is true. Without them there is no deterministic check of any of
+it — say so to the user if you skip one.
+
+The ledger on this host, as on every host, is `TASKS.md` at the project root
+(aidlc skill § *TASKS.md*): Done · In progress · Todo, current state only,
+written by the orchestrator. `session_ledger` MAY mirror it; when they
+disagree, TASKS.md wins. Loop A's bound is the `n/5` (`stalled k/3`) on its
+in-progress lines, which `check_tasks.py` enforces.
 
 ## Verify
 
-Run `python3 .aidlc/tools/check_live.py --self-test` (expects `self-test ok`), and
-confirm `shasum -a 256` of the installed copy equals that of `framework/tools/check_live.py` (all 64 hex).
+Run `--self-test` on `.aidlc/tools/check_live.py`, `check_formal.py` and
+`check_tasks.py` (each expects `self-test ok`), and confirm `shasum -a 256` of
+each installed copy equals that of its `framework/tools/` source (all 64 hex).
 Parse every generated JSON, confirm each `prompt`, `skill://`, and `file://`
 memory path resolves, and confirm `orchestrator` is listed by the host's agent
 listing. Then tell the user to pick **orchestrator** in the dashboard agent switcher.

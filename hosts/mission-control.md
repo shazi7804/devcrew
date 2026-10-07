@@ -102,14 +102,16 @@ convention that mc's own functions then enforce for free.
 │ (B) run-time convention — the harness encoded as JSON fields                 │
 │   phase order   ▶ tasks.json .blockedBy        enforced by isTaskUnblocked() │
 │   dispatch      ▶ tasks.json .assignedTo       → the registry id             │
-│   🔴 CEO gate   ▶ decisions.json {status:pending, taskId}                    │
+│   🔴 CEO batch  ▶ decisions.json {status:pending, taskId} — an open batch    │
+│                   (intent·design·ship) or one of the six interrupts          │
 │                                              enforced by hasPendingDecision()│
 │   gate answer   ▶ decisions.json {status:answered, answer} → the next prompt,│
 │                                              via buildRetryContext()         │
 │   definition-of-done ▶ tasks.json .acceptanceCriteria[]  ← each Rn           │
 │   intent/std hash ▶ tasks.json .notes   (sha256 of the signed contract)      │
-│   ledger       ▶ missions.json .taskHistory  replayed buildRestartContext()  │
-│   loop bound   ▶ missions.json .loopDetection.taskAttempts = MAX_LOOP_ATTEMPT│
+│   ledger       ▶ TASKS.md in the run repo; missions.json .taskHistory MAY    │
+│                  mirror it (buildRestartContext) — TASKS.md wins             │
+│   loop bound   ▶ TASKS.md n/5 (stalled k/3), enforced by check_tasks.py      │
 │   budgets       ▶ daemon-config.json .execution / .concurrency               │
 │   outward act   ▶ field-ops/tasks.json {approvalRequired:true}               │
 │   contracts    ▶ real files in the run repo (.aidlc/…); the path is in .notes│
@@ -168,7 +170,7 @@ gate:
 ```text
    L3 devcrew flow ── installed into ──▶ the PRODUCT repo
                                          .claude/agents/ · .claude/skills/aidlc/
-                                         .aidlc/ (contracts · ledger · memory)
+                                         .aidlc/ (contracts · memory) · TASKS.md
                                               │
         the interactive session in that repo dispatches the roles
         (Claude Code `Task` / KiroCrew `spawn_run`)
@@ -182,8 +184,8 @@ gate:
 ```
 
 Same bus, same JSON conventions, same 🔴 gate rows — only the *dispatcher* moves
-from the daemon to the interactive session, and the durable authority moves from
-`missions.json` to the product repo's own append-only ledger (mc mirrors it).
+from the daemon to the interactive session. The durable authority is the same
+in both modes: the product repo's `TASKS.md` (mc mirrors it).
 
 ## Known degradation on this host
 
@@ -308,8 +310,10 @@ For each `framework/agents/<name>.md`:
    (`devcrew-memory/` if the repo has no memory dir yet).
 7. **`CLAUDE.md`** of that repo — the devcrew section (roles, AIDLC flow, memory
    rule, the reviewer exception, the no-fake-data rule).
-8. **The live sensor** — `framework/tools/check_live.py` → `.aidlc/tools/check_live.py`
-   in that repo, so qa can run it at Phase 4 (aidlc skill § *No fake data*).
+8. **The sensors** — `framework/tools/check_live.py`, `check_formal.py` and
+   `check_tasks.py` → `.aidlc/tools/` in that repo, side by side (the last two
+   import `check_live.py` from their own directory): no fake data, formal
+   evidence per signed `Property:`, and a true `TASKS.md` (aidlc skill).
 
 ## The AIDLC dispatch contract on Mission Control
 
@@ -321,12 +325,12 @@ carries it, and the skill entry states it.
 | Phase ordering | one task per phase in `tasks.json`; later phases carry `blockedBy: [<earlier task ids>]`. `isTaskUnblocked()` enforces the spine. |
 | Dispatch | `assignedTo: "<role id>"` (daemon mode: the daemon picks it up in Eisenhower order; board mode: the interactive orchestrator reads the board and dispatches). |
 | Parallel phases (P3 FE ∥ BE, P4 QA ∥ Security ∥ Auditor) | sibling tasks with the same `blockedBy`; `concurrency.maxParallelAgents` is the fan-out cap. |
-| 🔴 CEO gate | a `decisions.json` row `{ requestedBy, taskId: <the task the gate blocks>, question, options, context, status: "pending" }`. `hasPendingDecision()` refuses to dispatch that task until the CEO answers in the Decisions page, and `buildRetryContext()` feeds the answer back into the next prompt. **A role writes the pending row and ENDS ITS TURN — it never assumes a gate passed.** In a non-interactive daemon run this is the only suspension mechanism available. |
+| 🔴 CEO batch or interrupt | the CEO signs in three batches — intent, design, ship — and is otherwise stopped only by one of the six interrupts a sensor raises. Either is a `decisions.json` row `{ requestedBy, taskId: <the task the gate blocks>, question, options, context, status: "pending" }`. `hasPendingDecision()` refuses to dispatch that task until the CEO answers in the Decisions page, and `buildRetryContext()` feeds the answer back into the next prompt. **A role writes the pending row and ENDS ITS TURN — it never assumes a gate passed.** In a non-interactive daemon run this is the only suspension mechanism available. |
 | Contracts | `requirements.md` / `design.md` / `standards.md` / verdict blocks as files in the product repo (e.g. `.aidlc/` or `projects/<slug>/aidlc/`); the task's `notes` names the path. Templates from the installed `aidlc/contracts/`. |
-| Intent hash / standards hash | `sha256` of the signed file, recorded in the phase task's `notes` and in the ledger; every later gate re-computes and compares. Drift without a fresh sign-off → halt and raise a pending decision. |
+| Intent hash / standards hash | the `Signed:` line of `TASKS.md` (12 hex of `sha256` per signed file; also mirrored into the phase task's `notes`); `check_tasks.py` re-computes and compares at every step. Drift without a fresh sign-off → halt and raise a pending decision (interrupt `drift`). |
 | Acceptance criteria | mirror each `Rn` into the task's `acceptanceCriteria[]`, so the prompt builder hands the gate its own definition of done. |
-| Ledger (durable state) | `missions.json` (`taskHistory`, `loopDetection.taskAttempts`) + `activity-log.json` + `inbox.json`; `buildRestartContext()` replays it into the next prompt. In board mode keep the product repo's own append-only ledger as the authority and treat mc as the mirror. |
-| Loop A bound | mc already stops a task at `MAX_LOOP_ATTEMPTS = 3` (`run-task.ts`) and opens a decision point — the same rule as devcrew's 3-per-gate / 5-total. Use its counter so the bound survives a restart. |
+| Ledger (durable state) | `TASKS.md` in the run repo — Done · In progress · Todo, current state only, written by the orchestrator, checked by `check_tasks.py`. `missions.json` (`taskHistory`, `loopDetection.taskAttempts`) + `activity-log.json` + `inbox.json` MAY mirror it, and `buildRestartContext()` replays the mirror into the next prompt; when they disagree, TASKS.md wins. |
+| Loop A bound | devcrew's bound is 3 stalled / 5 in total, written as `n/5` (`stalled k/3`) on the item's TASKS.md line — that is the bound `check_tasks.py` enforces. mc's own `MAX_LOOP_ATTEMPTS = 3` (`run-task.ts`) is a different, stricter per-task counter: it may stop a task first and open a decision point; it does not replace the TASKS.md count. |
 | Budgets | `daemon-config.json`: `execution.maxTurns`, `timeoutMinutes`, `retries`, `maxTaskContinuations`, `concurrency.maxParallelAgents`. State them when a run starts instead of inventing ceilings. |
 | Reporting | the agent's final stdout IS the inbox report. Do not write `inbox.json` / `activity-log.json` / task status — the daemon does, and double-writing corrupts the feed. |
 | P5/P6 outward actions | Field Ops tasks (`field-ops/tasks.json`) with `approvalRequired: true`; the mission `autonomyLevel` + spend limits are the CEO's throttle. Posting, paying, publishing never go through raw `Bash`. |
@@ -345,8 +349,9 @@ carries it, and the skill entry states it.
 5. The reviewer artifact mounts no shared memory (grep it for the memory path),
    and the `auditor` artifact grants no write/edit tool (grep `.claude/agents/auditor.md`
    for `Write`/`Edit`).
-6. `python3 .aidlc/tools/check_live.py --self-test` prints `self-test ok` in the
-   repo the roles run in, and `shasum -a 256` of the installed copy equals the framework's (all 64 hex).
+6. `--self-test` of `.aidlc/tools/check_live.py`, `check_formal.py` and
+   `check_tasks.py` each prints `self-test ok` in the repo the roles run in, and
+   `shasum -a 256` of each installed copy equals the framework's (all 64 hex).
 7. Regenerate the context snapshot (`pnpm gen:context`) so the dashboard and every
    prompt see the new roster.
 8. Tell the CEO which mode is installed, that 🔴 gates appear in the **Decisions**

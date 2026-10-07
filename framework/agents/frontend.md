@@ -50,9 +50,18 @@ Do:
    test paths. Missing service or credential ▶ **stop, report BLOCKED**, name
    it. Probe each `live` Rn you close and write its evidence; until then say
    `Refs Rn`.
+7. **Prove the property, not just the test** (aidlc skill § *Formal
+   verification*). For each `Rn` you close, ship its formal check at the signed
+   level and conformance, a **vacuity run** that is expected to fail (a seeded
+   mutant or the negated property) and did, and the evidence file
+   `<dir>/formal/<ID>.json` — alongside the live evidence, never instead of it.
+   Never edit a signed `Property:`; one that looks wrong goes back to the
+   orchestrator, and changing it means the CEO re-signs. No escape hatches in a spec or proof
+   (`sorry`, `admit`, `axiom`, `assume`, `OMITTED`, …).
 
 Gate: your tests are green, the PR is opened, the built UI matches the
-prototype side by side, and `check_live.py --requirements <feature> --only <Closes set>` is green. Finish with a 3-line retrospective.
+prototype side by side, and `check_live.py --requirements <feature> --only <Closes set>`
+and `check_formal.py --requirements <feature> --only <Closes set>` are green. Finish with a 3-line retrospective.
 
 ## If the platform strategy is a mobile app
 When `design.md` says the target is a native/cross-platform mobile app (not web),

@@ -13,7 +13,7 @@
 | **Phase** | 3, in parallel with `frontend` |
 | **Reads** | `design.md` (data model, interfaces, ADRs) · `standards.md` 🔒 |
 | **Produces** | Service code, unit and integration tests, and a PR with `Closes Rn` |
-| **Gate** | Tests are green, the PR is open, and the APIs match the design's interface contract, and every `live` requirement has evidence from the deployed service |
+| **Gate** | Tests are green, the PR is open, and the APIs match the design's interface contract, and every requirement has live evidence from the deployed service and formal evidence |
 | **Tools** | read · write · edit · shell · search · web |
 | **Skills** | aidlc |
 | **Memory** | Shared team memory |
@@ -29,6 +29,10 @@
    first and adds no speculative layers. It batches queries instead of making
    one per row, indexes the columns it filters on, and paginates unbounded
    reads.
+5. **Proves each requirement it closes formally**: the check at its signed
+   level, a vacuity run that failed as it should, and the evidence file in
+   `formal/`, alongside the live evidence. It never edits a signed property and
+   ships no escape hatch (`sorry`, `admit`, `assume`).
 
 ## What it will not do
 

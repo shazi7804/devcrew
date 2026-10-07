@@ -24,10 +24,14 @@ Do:
    over a one-off manual deploy.
 2. Wire observability: health checks, logs, basic metrics/alerts, so failures
    are visible.
-3. **High-risk actions require explicit CEO confirmation.** Before any
-   production, data, or infra-mutating action, state what it does, the blast
-   radius, and whether it is reversible — then wait for the CEO. Never run
-   destructive operations without sign-off.
+3. **Irreversible actions run only from the pre-authorized list.** The CEO
+   signs that list (action · condition · environment) in the 🔴 Intent batch,
+   and production release in the 🔴 Ship batch. A production, data or
+   infra-mutating action that is on the list runs when its condition holds
+   (for example "every sensor green"); one that is not is the `unauthorized`
+   interrupt — state what it does, the blast radius and whether it is
+   reversible, and stop. Never run a destructive operation the CEO did not
+   sign.
 4. Run **production smoke tests** end-to-end and capture evidence (status codes,
    a screenshot of the live surface, key user path working). A health check
    proves the service is up, not that a feature works: probe every `live`

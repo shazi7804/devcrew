@@ -29,21 +29,34 @@ IT ALWAYS EXITS 0
     and get out of the way".
 
 WHAT MAKES THE MUTUAL EXCLUSION REAL
-    os.open(..., O_CREAT | O_EXCL)  -- the same guarantee as `set -C` in shell.
-    The kernel refuses the second creator. Nothing here relies on everyone
-    remembering to look first.
+    The claim is a generation: `claims/ORCHESTRATOR.<n>.claim`, highest n wins.
+    A session takes the role by creating generation n+1 with os.link -- the
+    kernel refuses a name that exists, and a name is never reused, so it is a
+    compare-and-swap: it succeeds only if nobody made n+1 since we read n. The
+    file is written in full first and linked into place, so no reader ever sees
+    a half-written claim.
 
-    Takeover uses os.rename, never unlink+create. Two processes can both
-    succeed at unlinking; exactly one can succeed at renaming the same source.
-    That difference is the difference between one orchestrator and two.
+    0.9.6 used ONE path, renamed on takeover. A model checker found two
+    orchestrators in 14 steps (framework/formal/ElectionV096.tla): rename and
+    utime act on whatever file is at the path NOW, not on the file that was
+    read. A holder resuming a stale lease refreshed it while a newcomer, who
+    had read it as stale, renamed it away -- both acted. This version is the
+    one framework/formal/Election.tla proves, and DEVCREW_TRACE checks the
+    real script against it (tools/check_models.py).
+
+    The holder trusts its own lease only while it is younger than
+    STALE_S - MARGIN_S; past that it must win n+1 like anyone else. That
+    margin is what a paused process may not exceed (assumption A1 in
+    framework/session-governance.md section 8).
 
 PORTABILITY
-    O_EXCL and rename are atomic on a local filesystem. On NFS/SMB or inside a
-    sync folder (Dropbox, iCloud, OneDrive) they degrade to advisory and this
-    layer degrades with them. Do not rely on it there -- see
+    os.link is atomic on a local filesystem. On NFS/SMB or inside a
+    sync folder (Dropbox, iCloud, OneDrive) it degrades to advisory and this
+    layer degrades with it. Do not rely on it there -- see
     framework/session-governance.md section 8.
 """
 
+import contextlib
 import json
 import os
 import re
@@ -60,14 +73,19 @@ STATE_DIR = os.environ.get("DEVCREW_STATE_DIR", ".aidlc")
 ROOT = Path(os.environ.get("DEVCREW_PROJECT_DIR") or Path(__file__).resolve().parents[2])
 STATE = ROOT / STATE_DIR
 CLAIMS = STATE / "claims"
-LOCK = CLAIMS / "ORCHESTRATOR.claim"
 PIN = STATE / "ORCHESTRATOR.pin"          # the escape hatch; normally absent
-RELEASED = CLAIMS / "ORCHESTRATOR.released.claim"
+GEN = re.compile(r"^ORCHESTRATOR\.(\d+)\.claim$")
 
 # How long the lock may go without a heartbeat before another session may take
 # it. The cost is asymmetric: too short and you overwrite a live session's work,
 # too long and the repo has no orchestrator. Err long.
 STALE_S = int(os.environ.get("DEVCREW_STALE_SECONDS", 45 * 60))
+# The holder's own lease is trusted only while younger than STALE_S - MARGIN_S.
+MARGIN_S = int(os.environ.get("DEVCREW_MARGIN_SECONDS", 5 * 60))
+
+# With a path set, every step that touches a claim is logged (and serialised)
+# so the run can be checked against the model. Off in normal use.
+TRACE = os.environ.get("DEVCREW_TRACE")
 
 # Optional one-page board. Discovered, not required: no board is a smaller loss
 # than a hardcoded path to a card store this project does not have.
@@ -76,7 +94,7 @@ BOARD_TIMEOUT_S = 12
 
 # Per-session note of "what I was last time", kept OUTSIDE the repo so it never
 # shows up in a diff. Only powers the demotion warning; the real exclusion is
-# the lock.
+# the claim.
 HINT_DIR = Path(os.environ.get("TMPDIR", "/tmp"))
 
 
@@ -113,25 +131,74 @@ def session_identity(payload):
 
 
 # ---------------------------------------------------------------------------
-# The lock
+# The claim -- one function per atomic step of framework/formal/Election.tla
 # ---------------------------------------------------------------------------
 
-def read_lock():
-    """Return a dict (with `_age` in seconds) or None. Must survive garbage:
-    a half-written lock still has to yield its session_id, because that is what
-    decides whether we are allowed to touch it."""
-    try:
-        text = LOCK.read_text(errors="replace")
-        age = time.time() - LOCK.stat().st_mtime
-    except OSError:
-        return None
-    d = {k: v.strip() for k, v in re.findall(r"^(\w+):\s*(.*)$", text, re.M)}
-    d["_age"] = age
-    return d
+def claim(n):
+    return CLAIMS / f"ORCHESTRATOR.{n}.claim"
 
 
-def create_lock(sid, cwd):
-    """O_EXCL: fails if the file exists. The kernel is the arbiter."""
+def released(n):
+    return CLAIMS / f"ORCHESTRATOR.{n}.released"
+
+
+def top_gen():
+    gens = (GEN.match(p.name) for p in CLAIMS.glob("ORCHESTRATOR.*.claim"))
+    return max((int(m.group(1)) for m in gens if m), default=0)
+
+
+def fired(sid, mode):
+    """Traced, mark where a hook run begins: the model's start of a run."""
+    if TRACE:
+        with step(sid, "fire") as seen:
+            seen["mode"] = mode
+
+
+@contextlib.contextmanager
+def step(sid, op):
+    """One atomic step. Traced, it holds an exclusive lock on the trace file so
+    the log's order is the order the steps happened in."""
+    if not TRACE:
+        yield {}
+        return
+    import fcntl                                                  # noqa: PLC0415
+    with open(TRACE, "a", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        seen = {}
+        yield seen
+        f.write(json.dumps({"s": sid, "op": op, **seen}) + "\n")
+
+
+def scan(sid):
+    """The highest generation: {n, sid, age, rel, age_s}. n == 0: there is none.
+    age is fresh / margin / stale against STALE_S - MARGIN_S and STALE_S."""
+    with step(sid, "scan") as seen:
+        top = {"n": top_gen(), "sid": None, "age": "stale", "rel": True, "age_s": 0}
+        if top["n"]:
+            try:
+                f = claim(top["n"])
+                m = re.search(r"^session_id:\s*(.*)$", f.read_text(errors="replace"), re.M)
+                age = time.time() - f.stat().st_mtime
+                top.update(sid=m.group(1).strip() if m else None, age_s=age,
+                           rel=released(top["n"]).exists(),
+                           age="fresh" if age <= STALE_S - MARGIN_S else
+                               "margin" if age <= STALE_S else "stale")
+            except OSError:
+                pass
+        seen["top"] = {k: top[k] for k in ("sid", "age", "rel")}
+    return top
+
+
+def touch(sid, n):
+    with step(sid, "touch"):
+        try:
+            os.utime(claim(n), None)
+        except OSError:
+            pass
+
+
+def create(sid, n, cwd):
+    """Generation n, in full, in one step: os.link refuses a name that exists."""
     body = (
         "role: orchestrator\n"
         f"session_id: {sid}\n"
@@ -139,19 +206,40 @@ def create_lock(sid, cwd):
         f"cwd: {cwd}\n"
         "note: this file's mtime IS the heartbeat, refreshed by `boot.py beat`.\n"
         "      Do not hand-edit it. To change orchestrator, close that session\n"
-        "      (its end hook releases the lock) or use the escape hatch.\n"
+        "      (its end hook releases the claim) or use the escape hatch.\n"
     )
+    tmp = CLAIMS / f".new.{os.getpid()}.{re.sub(r'[^A-Za-z0-9]', '', sid)[:16]}"
     try:
         CLAIMS.mkdir(parents=True, exist_ok=True)
-        fd = os.open(LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-    except (FileExistsError, OSError):
-        return False
-    try:
-        with os.fdopen(fd, "w") as f:
-            f.write(body)
+        tmp.write_text(body)
     except OSError:
         return False
-    return True
+    with step(sid, "create") as seen:
+        try:
+            os.link(tmp, claim(n))
+            seen["ok"] = True
+        except OSError:
+            seen["ok"] = False
+    try:
+        tmp.unlink()
+    except OSError:
+        pass
+    return seen["ok"]
+
+
+def verify(sid, n):
+    """Is the generation I touched or made still the highest?"""
+    with step(sid, "verify") as seen:
+        seen["ok"] = top_gen() == n
+    return seen["ok"]
+
+
+def release(sid, n):
+    with step(sid, "release"):
+        try:
+            released(n).touch()
+        except OSError:
+            pass
 
 
 def pinned():
@@ -162,7 +250,7 @@ def pinned():
     needs freezing for a moment -- without editing code and without unwiring the
     host. Semantics are deliberately one-directional: a human decision overrides
     the machine, never the reverse. Creating this file should come with a line in
-    the ledger saying who opened it and why; an unexplained pin is
+    TASKS.md saying who opened it and why; an unexplained pin is
     indistinguishable from a bug.
     """
     try:
@@ -179,72 +267,48 @@ def pinned():
 # Election -- the decision tree in session-governance.md section 4
 # ---------------------------------------------------------------------------
 
-def elect(sid, cwd):
-    """Return (role, note). role is 'orchestrator' or 'worker'. Never asks."""
-    pin = pinned()
-    if pin:
-        who = pin.split()[0]
-        return "worker", (
-            f"The role is **pinned by a human** to `{who}` "
-            f"(`{STATE_DIR}/ORCHESTRATOR.pin` exists, which suspends the "
-            "automatic election). You are a worker. If you ARE that session, "
-            "ignore this. To return to automatic election, delete that file and "
-            "record who opened it, who closed it, and why, in the ledger."
-        )
+def elect(sid, cwd, may_take=True):
+    """Return (role, how, top). role is 'orchestrator' or 'worker'; how is one
+    of first, kept, renewed, took, raced, held, lost. Never asks.
 
-    cur = read_lock()
+    The same tree runs at start and at every beat: a worker whose beat finds
+    nobody holding a live claim takes it, so a crashed orchestrator is replaced
+    without anyone opening a window."""
+    top = scan(sid)
+    n, mine = top["n"], top["sid"] == sid and not top["rel"]
+    if mine and top["age"] == "fresh":
+        touch(sid, n)
+        return ("orchestrator", "kept", top) if verify(sid, n) else ("worker", "lost", top)
+    free = top["rel"] or top["sid"] is None or top["age"] == "stale"
+    if mine or (free and may_take):
+        if create(sid, n + 1, cwd) and verify(sid, n + 1):
+            how = "renewed" if mine else "took" if n and not top["rel"] else "first"
+            return "orchestrator", how, top
+        return "worker", "raced", top
+    return "worker", "lost" if mine else "held", top
 
-    if cur is None:
-        if create_lock(sid, cwd):
-            return "orchestrator", (
-                "Took the role automatically (first come, `O_EXCL`). "
-                "Nobody had to appoint you."
-            )
-        cur = read_lock()          # somebody won it in the microseconds between
-        if cur and cur.get("session_id") == sid:
-            return "orchestrator", "Took the role automatically."
-        return "worker", (
-            "Another session took the role in the instant between the check and "
-            "the create. This is the exclusion working, not a fault."
-        )
 
-    if cur.get("session_id") == sid:
-        try:
-            os.utime(LOCK, None)
-        except OSError:
-            pass
-        return "orchestrator", (
-            "You already held the role (same session resumed, or the context "
-            "was compacted and this injection is being replayed)."
-        )
-
-    if cur["_age"] > STALE_S:
-        # Rename first, create second. Only one process can rename one source.
-        evidence = CLAIMS / f"ORCHESTRATOR.stale.{re.sub(r'[^A-Za-z0-9]', '', sid)[:8]}.claim"
-        try:
-            os.rename(LOCK, evidence)
-            won = True
-        except OSError:
-            won = False
-        if won and create_lock(sid, cwd):
-            return "orchestrator", (
-                f"**Took over**: the previous holder "
-                f"{cur.get('session_id', '?')[:8]} stopped heartbeating "
-                f"{int(cur['_age'] // 60)} min ago (threshold "
-                f"{STALE_S // 60} min). Evidence kept as {evidence.name}; it is "
-                "never deleted. Record in the ledger who took over what. Note "
-                "that the predecessor's in-process subagents did NOT transfer: "
-                "re-dispatch those cards, do not 'continue' them."
-            )
-        return "worker", (
-            "The role was expired, but another session took it over first."
-        )
-
-    return "worker", (
-        f"The orchestrator is {cur.get('session_id', '?')[:8]} "
-        f"(heartbeat {int(cur['_age'] // 60)} min ago, so it is alive). "
-        "Do not take over and do not open cards."
-    )
+def elect_note(how, top):
+    who, mins = (top["sid"] or "?")[:8], int(top["age_s"] // 60)
+    return {
+        "first": "Took the role automatically (first come, an atomic `link`). "
+                 "Nobody had to appoint you.",
+        "kept": "You already held the role (same session resumed, or the context "
+                "was compacted and this injection is being replayed).",
+        "renewed": f"You held the role, but its heartbeat was {mins} min old -- "
+                   "too old to trust -- so you re-won it as the next generation.",
+        "took": f"**Took over**: the previous holder {who} stopped heartbeating "
+                f"{mins} min ago (threshold {STALE_S // 60} min). Its generation "
+                f"({top['n']}) stays in `{STATE_DIR}/claims/` as evidence; it is "
+                "never deleted. Record in TASKS.md who took over what. Note that "
+                "the predecessor's in-process subagents did NOT transfer: "
+                "re-dispatch those cards, do not 'continue' them.",
+        "raced": "Another session took the role in the instant between the check "
+                 "and the create. This is the exclusion working, not a fault.",
+        "held": f"The orchestrator is {who} (heartbeat {mins} min ago, so it is "
+                "alive). Do not take over and do not open cards.",
+        "lost": "The claim you held was superseded while you checked it.",
+    }[how]
 
 
 # ---------------------------------------------------------------------------
@@ -254,7 +318,7 @@ def elect(sid, cwd):
 def board_text():
     if not BOARD.exists():
         return ("(no board tool installed at "
-                f"`{STATE_DIR}/tools/board.py` -- read the ledger tail instead)")
+                f"`{STATE_DIR}/tools/board.py` -- read TASKS.md instead)")
     try:
         r = subprocess.run(
             [sys.executable, str(BOARD)],
@@ -286,14 +350,16 @@ ORCHESTRATOR_TXT = """\
 **You are the only orchestrator in this repo right now.**
 {note}
 
-The role is decided mechanically, not by announcing it: the lock is
-`{state}/claims/ORCHESTRATOR.claim` (`O_EXCL`), its mtime is your heartbeat, it
-is refreshed every turn and released when this session ends. Do not hand-edit
-it, and do not negotiate the role with another session.
+The role is decided mechanically, not by announcing it: the claim is the
+highest `{state}/claims/ORCHESTRATOR.<n>.claim` (made by an atomic `link`), its
+mtime is your heartbeat, it is refreshed at both ends of every turn and after
+every tool call, and released when this session ends. Do not hand-edit it, and
+do not negotiate the role with another session. If a beat ever tells you that
+you are no longer the orchestrator, stop acting as one at once.
 
 Your context discipline -- **the orchestrator reads thin, workers read thick**:
-read the board and the `{state}/features/<slug>/` contracts. Do NOT read source
-trees, build output, or the whole ledger (tail it). To have code read, dispatch a
+read the board, `TASKS.md` and the `{state}/features/<slug>/` contracts. Do NOT
+read source trees, build output, or git history. To have code read, dispatch a
 worker or a subagent and hand it the **contract path**, never your summary. An
 orchestrator that reads code is an orchestrator that compacts, and compaction is
 how it forgets it was mid-gate.
@@ -341,6 +407,13 @@ block (`contracts/sitrep.template.md` in the aidlc skill).
 # Modes
 # ---------------------------------------------------------------------------
 
+PINNED = (
+    "The role is **pinned by a human** to `{who}` (`{state}/ORCHESTRATOR.pin` "
+    "exists, which suspends the automatic election). You are a worker. If you "
+    "ARE that session, ignore this. To return to automatic election, delete "
+    "that file and record who opened it, who closed it, and why, in TASKS.md."
+)
+
 NO_IDENTITY = (
     "[multi-session governance] ⚠️ **This layer is not running.** The host gave "
     "this session no stable identity, so `boot.py` elected nobody: a lock keyed "
@@ -355,14 +428,22 @@ def do_start(payload):
     if sid is None:
         return render(payload, "⚠️ session governance inactive", NO_IDENTITY)
 
-    cwd = payload.get("cwd") or str(ROOT)
-    role, note = elect(sid, cwd)
+    pin = pinned()
+    if pin:
+        role, note = "worker", PINNED.format(who=pin.split()[0], state=STATE_DIR)
+    else:
+        fired(sid, "start")
+        role, how, top = elect(sid, payload.get("cwd") or str(ROOT))
+        note = elect_note(how, top)
 
     try:
         hint_path(sid).write_text(role)
     except OSError:
         pass
+    return inject(payload, role, note)
 
+
+def inject(payload, role, note):
     if role == "orchestrator":
         txt = ORCHESTRATOR_TXT.format(note=note, board=board_text(), state=STATE_DIR)
         msg = "🧭 this session is the orchestrator (elected, not appointed)"
@@ -373,52 +454,48 @@ def do_start(payload):
 
 
 def do_beat(payload):
-    """Refresh the lease, and catch the two ways a holder can be wrong about
-    still being in charge."""
+    """Refresh the lease -- at both ends of a turn and after every tool call
+    (assumption A2) -- and catch every way the role can change hands."""
     sid = session_identity(payload)
     if sid is None:
         return QUIET
 
-    cur = read_lock()
-    mine = bool(cur) and cur.get("session_id") == sid
+    pin = pinned()
     hint = hint_path(sid)
     was = hint.read_text().strip() if hint.exists() else ""
+    fired(sid, "beat")
+    role, how, top = elect(sid, payload.get("cwd") or str(ROOT), may_take=not pin)
+    try:
+        hint.write_text(role)
+    except OSError:
+        pass
 
-    if mine:
-        try:
-            os.utime(LOCK, None)
-        except OSError:
-            pass
-        pin = pinned()
-        if pin:
-            # The hatch opened *after* this session took the lock. Unsaid, this
-            # session keeps acting as orchestrator while every new session is
-            # told the role belongs to someone else -- which is precisely the
-            # two-orchestrators failure the layer exists to prevent.
-            return render(
-                payload, "⚠️ the role was pinned out from under you",
-                "⚠️ **You hold `ORCHESTRATOR.claim`, but "
-                f"`{STATE_DIR}/ORCHESTRATOR.pin` now exists** (a human pinned "
-                f"the role to `{pin.split()[0]}`). **The human's pin wins** -- "
-                "new sessions have already been told the role is not yours. "
-                "Claim and open nothing until this is settled, and confirm the "
-                "pin was intended (its creation should have a ledger line).",
-            )
-        return QUIET
-
-    if was == "orchestrator":
-        try:
-            hint.write_text("worker")
-        except OSError:
-            pass
-        who = (cur or {}).get("session_id", "(nobody)")[:8]
+    if role == "orchestrator" and pin:
+        # The hatch opened *after* this session took the claim. Unsaid, this
+        # session keeps acting as orchestrator while every new session is
+        # told the role belongs to someone else -- which is precisely the
+        # two-orchestrators failure the layer exists to prevent.
+        return render(
+            payload, "⚠️ the role was pinned out from under you",
+            "⚠️ **You hold the orchestrator claim, but "
+            f"`{STATE_DIR}/ORCHESTRATOR.pin` now exists** (a human pinned "
+            f"the role to `{pin.split()[0]}`). **The human's pin wins** -- "
+            "new sessions have already been told the role is not yours. "
+            "Claim and open nothing until this is settled, and confirm the "
+            "pin was intended (its creation should have a TASKS.md line).",
+        )
+    if role == "orchestrator" and was != "orchestrator":
+        return inject(payload, role, elect_note(how, top))
+    if role == "worker" and was == "orchestrator":
+        who = (top["sid"] or "(nobody)")[:8] if how == "held" else "another session"
         return render(
             payload, "⚠️ this session is no longer the orchestrator",
-            "⚠️ **You are no longer the orchestrator** -- "
-            f"`{STATE_DIR}/claims/ORCHESTRATOR.claim` now belongs to `{who}`. "
-            "From here you are a worker: do not claim or open card slugs, do not "
-            "write or sign `requirements.md`. Finish the concrete work in your "
-            "hands and report it to the current orchestrator.",
+            "⚠️ **You are no longer the orchestrator** -- the claim in "
+            f"`{STATE_DIR}/claims/` now belongs to {who}. **Stop acting as "
+            "orchestrator now, mid-turn included**: from here you are a worker. "
+            "Do not claim or open card slugs, do not write or sign "
+            "`requirements.md`. Finish the concrete work in your hands and "
+            "report it to the current orchestrator.",
         )
     return QUIET
 
@@ -428,16 +505,10 @@ def do_end(payload):
     sid = session_identity(payload)
     if sid is None:
         return QUIET
-    cur = read_lock()
-    if cur and cur.get("session_id") == sid:
-        # Fixed filename: each release overwrites the last, so this leaves
-        # exactly one "who held it previously" file rather than accumulating
-        # litter. (Takeover evidence keeps a unique name -- that uniqueness is
-        # what makes the rename exclusive, so it must not be collapsed.)
-        try:
-            os.rename(LOCK, RELEASED)
-        except OSError:
-            pass
+    fired(sid, "end")
+    top = scan(sid)
+    if top["sid"] == sid and not top["rel"]:
+        release(sid, top["n"])
     return QUIET
 
 

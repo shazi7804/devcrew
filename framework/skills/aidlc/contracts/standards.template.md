@@ -10,7 +10,8 @@
 > product's, filled in here per project. Leave a section `N/A` (with a one-line
 > why) rather than deleting it, so a reviewer sees it was considered.
 >
-> Status: DRAFT | SIGNED (CEO) — <date>   ·   Standards hash: <recorded at sign-off>
+> Status: DRAFT | SIGNED (CEO, design batch) — <date>   ·   its hash goes on
+> TASKS.md's `Signed:` line, re-checked by `check_tasks.py`
 
 ## Deploy / environments
 The deploy topology is a PROJECT decision, never a framework default. Define each
@@ -80,6 +81,30 @@ section only says WHERE, for this product:
   dev-dependency line such as `pytest-mock` in a manifest, a product feature
   named "demo". It is part of this signed file: changing it is changing the
   standards.
+
+## Formal verification
+What `check_formal.py` (Phases 3–4) and each requirement's `Formal:` level are
+judged against. The framework fixes the rule — every `Rn` has a `Property:`,
+its evidence has a vacuity run, no escape hatch, formal never replaces live.
+This section says HOW, for this product:
+- **Load-bearing components** — the parts whose requirements must be at least
+  `checked` with conformance `trace` or `refinement` (e.g. payment state
+  machine, permission checks, sync/replication, scheduling). Everything else
+  may be `tested`.
+- **Tool per level** — chosen by the architect at Phase 1 after a current web
+  search (never from memory): the property-testing library (`tested`), the
+  model checker (`checked`), the prover (`proved`), each with a pinned version.
+- **Bounds** — the instance sizes each model is checked at (users, items,
+  concurrent sessions) and why they are enough; a `checked` result holds at
+  these bounds only.
+- **Where specs and proofs live** — the paths (e.g. `spec/`, `proofs/`); these
+  are the `sources` each evidence file names, and the escape-hatch scan covers.
+- **Conformance** — for `trace`: how the code logs the steps the model names
+  (an env-gated trace file, one record per atomic step, in real order) and the
+  command that checks a trace against the model; for `refinement`: the proof
+  and its tool.
+- **Vacuity** — the seeded mutant or negated property each check is shown to
+  fail on.
 
 ## Code quality & efficiency budget
 What the `auditor` role (Phase 4) judges against. The framework only requires

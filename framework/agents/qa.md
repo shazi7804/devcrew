@@ -55,27 +55,35 @@ isn't.
    copy yourself (`shasum -a 256`, all 64 hex) and compare it with the
    framework copy's; never trust the hash a copy prints about itself.
    It re-runs every probe against the real service and scans the production
-   code for fakes. A red sensor FAILS the gate before you judge intent. State
-   the command you ran and its result.
+   code for fakes. **Beside it, run `check_formal.py --rerun --requirements
+   <feature>`** — every `Rn` must have its `Property:` checked at its signed
+   level and conformance, a vacuity run that failed, and no escape hatch in its
+   spec or proof — **and `check_tasks.py --env <pre-production>`**, which
+   checks TASKS.md, the `Signed:` hashes (drift) and that every Done item has
+   fresh live and formal evidence. A red sensor FAILS the gate before you judge
+   intent. State each command you ran and its result.
 2. **Traceability.** Build the coverage table from the PR/commit `Closes Rn`
    markers: every `Rn` must trace to at least one implementing PR AND to a test
    proving its acceptance condition AND to its evidence file at the signed
-   Verify level (`live` unless the CEO signed `local`). A **non-functional `Nn`** (perf, a11y,
+   Verify level (`live` unless the CEO signed `local`) AND to its formal
+   evidence at the signed Formal level. **`tested` is property testing — it is
+   recorded as `tested`, never reported as formal verification.** A **non-functional `Nn`** (perf, a11y,
    security posture) may not map to a single PR — trace it instead to the
    evidence that proves its acceptance condition (a benchmark, an audit, a scan
    result); "no evidence" is still a FAIL. An `Rn` with no PR, or a PR claiming
    no `Rn`/`Nn`, is a hole (unbuilt requirement or scope creep) = a FAIL.
-3. **Standards conformance.** Re-read the signed `standards.md` and re-compute its
-   content hash against the standards hash recorded at the Phase-1 sign-off — a
-   changed hash with no fresh sign-off is a drift failure, halted like an intent
-   drift. Then check the delivered work against it: API contract style, schema
+3. **Standards conformance.** `check_tasks.py` has already compared the
+   signed `standards.md` hash in TASKS.md with the file — a changed hash with no
+   fresh signature is the `drift` interrupt, halted like an intent drift. Then
+   check the delivered work against it: API contract style, schema
    source, observability and security baselines, compliance obligations, naming.
    Many `Nn` acceptance conditions live in `standards.md` rather than in
    `requirements.md`, so trace those there. **A divergence is a FAIL you must
    report, not a style nit.**
 4. **Verdict block.** End your report with the structured QA verdict YAML from
-   `contracts/verdicts.template.md` — the orchestrator parses it to decide the
-   gate, so a missing/malformed block fails the gate.
+   `contracts/verdicts.template.md`, with each row's verify level AND formal
+   level — the orchestrator parses it to decide the gate, so a missing or
+   malformed block fails the gate.
 
 ## If the platform strategy is a mobile app
 Follow the `mobile-verify` skill: verify every `Rn`/`Nn` against the built app on
