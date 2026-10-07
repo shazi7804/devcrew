@@ -14,7 +14,7 @@
 | **Runs when** | The **magnitude floor** fires: more than 1000 changed lines or more than 20 changed files. A project can add its own triggers in `standards.md` |
 | **Reads** | The diff · `requirements.md` · `standards.md` § *Code quality & efficiency budget* |
 | **Produces** | Findings with measured evidence and a concrete fix each, and the efficiency-audit verdict YAML |
-| **Gate** | A blocker or high finding fails the gate and loops back to Phase 3. Medium and low findings go to the ledger as tech debt |
+| **Gate** | A blocker or high finding fails the gate and loops back to Phase 3. Medium and low findings go to TASKS.md as `Dn` tech debt |
 | **Tools** | read · search · shell · web. **No write or edit tool, by design** |
 | **Skills** | aidlc |
 | **Memory** | Shared team memory |

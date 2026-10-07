@@ -70,7 +70,7 @@ orchestrator 只會問會改變設計的那幾個問題，把你的意思寫下�
                              │ talks only to
                              ▼
 ┌───────────────────────────────────────────────────────────────────────┐
-│ orchestrator (PM): dispatches roles, verifies gates, keeps the ledger │
+│ orchestrator (PM): dispatches roles, verifies gates, keeps TASKS.md   │
 └──┬────────────────────────────────────────────────────────────────────┘
    │ hands each role a FILE PATH (a contract), never a paraphrase
    ▼

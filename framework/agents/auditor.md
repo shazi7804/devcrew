@@ -116,7 +116,7 @@ does not:
 
 `blocker` and `high` set `blocks_gate: true` → the gate FAILS and the
 orchestrator loops back to Phase 3 with your findings. `medium`/`low` are
-**logged as tech debt in the ledger and do not block** — list them so they are
+**logged as tech debt in TASKS.md (a `Dn` line in Todo) and do not block** — list them so they are
 visible rather than silently dropped. Do not inflate a medium into a high to get
 it fixed, and do not deflate a measured blocker to keep the pipeline moving;
 either one makes this gate worthless.

@@ -76,7 +76,7 @@ line tells you whether anything is waiting on you.
                              │ talks only to
                              ▼
 ┌───────────────────────────────────────────────────────────────────────┐
-│ orchestrator (PM): dispatches roles, verifies gates, keeps the ledger │
+│ orchestrator (PM): dispatches roles, verifies gates, keeps TASKS.md   │
 └──┬────────────────────────────────────────────────────────────────────┘
    │ hands each role a FILE PATH (a contract), never a paraphrase
    ▼
