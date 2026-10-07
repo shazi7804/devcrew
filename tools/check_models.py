@@ -4,13 +4,14 @@
     check_models.py                    every model, then trace validation
     check_models.py --models           only the model checks
     check_models.py --trace            only trace validation of boot.py
-    check_models.py --holds SPEC:CFG   exit 0 iff that one model holds
+    check_models.py --holds SPEC:CFG   exit 0 iff that one model holds, 1 if a
+                                       property is violated, 2 no verdict
     check_models.py --accepts real|mutant|skip-gen
                                        exit 0 iff the scripted trace of boot.py
                                        (or of the mutant) matches the model
                                        -- single checks for formal evidence;
-                                       exit 0 accepted, 1 rejected, 2 the run
-                                       broke an assumption (no verdict)
+                                       exit 0 accepted, 1 rejected, 2 no verdict
+                                       (an assumption broke, or TLC errored)
     options: --jar PATH (or $TLA2TOOLS_JAR)  --java PATH (or $JAVA, else java)
 
 WHAT RUNS
@@ -84,6 +85,8 @@ def tlc(java, jar, spec, cfg, cwd, timeout=1800):
         return r.stdout + r.stderr
     except subprocess.TimeoutExpired:
         return f"TIMEOUT after {timeout}s -- no verdict"
+    except OSError as err:
+        return f"error: cannot run {java}: {err}"
     finally:
         shutil.rmtree(meta, ignore_errors=True)
 
@@ -225,9 +228,17 @@ def trace_module(events, path):
     path.write_text(f"---- MODULE TraceData ----\nTrace == <<\n  {body}\n>>\n====\n")
 
 
+def nothing(got):
+    """No verdict either way: the run broke an assumption, or TLC did not run
+    to an answer (no Java, a timeout, a parse error)."""
+    return got.startswith(("outside", "error", "TIMEOUT"))
+
+
 def validate(java, jar, script, scenario):
     """(matched, steps, outcome). A run that broke an assumption is re-run;
-    after RETRIES it is reported as outside the assumptions, never as a pass."""
+    after RETRIES it is reported as outside the assumptions, never as a pass.
+    A rejection is only TLC finishing with no behaviour that matches (`holds`
+    of the invariant Unmatched) -- an error is no verdict, never a rejection."""
     for _ in range(RETRIES):
         ok, n, got = attempt(java, jar, script, scenario)
         if not got.startswith("outside"):
@@ -270,8 +281,7 @@ def check_trace(java, jar):
               f"{'accepted by the model' if ok else 'REJECTED (' + got + ')'}")
         if not ok:
             hits.append(f"boot.py trace ({name}): " + (
-                f"could not be run inside the model's assumptions -- {got}"
-                if got.startswith("outside") else "not a behaviour of Election.tla"))
+                f"no verdict -- {got}" if nothing(got) else "not a behaviour of Election.tla"))
     src = BOOT.read_text()
     for name, (site, change) in MUTANTS.items():
         if site not in src:
@@ -281,7 +291,7 @@ def check_trace(java, jar):
             mutant = pathlib.Path(d) / "boot.py"
             mutant.write_text(src.replace(site, change))
             ok, n, got = validate(java, jar, mutant, scripted)
-        valid = not got.startswith("outside")
+        valid = got == "holds"          # TLC ran and nothing matched: rejected
         print(f"  {'ok ' if valid and not ok else 'BAD'} boot.py {name} ({change!r}): "
               f"{n} steps {'rejected' if valid and not ok else got if not valid else 'ACCEPTED'}")
         if ok or not valid:
@@ -293,12 +303,14 @@ def check_trace(java, jar):
 def jar_path(arg):
     jar = arg or os.environ.get("TLA2TOOLS_JAR")
     if not jar or not pathlib.Path(jar).is_file():
-        sys.exit(f"check_models: tla2tools.jar {TLA_VERSION} not found -- pass --jar "
-                 "or set TLA2TOOLS_JAR")
+        print(f"check_models: tla2tools.jar {TLA_VERSION} not found -- pass --jar "
+              "or set TLA2TOOLS_JAR -- no verdict")
+        sys.exit(2)
     digest = hashlib.sha256(pathlib.Path(jar).read_bytes()).hexdigest()
     if digest != TLA_SHA256:
-        sys.exit(f"check_models: {jar} is not tla2tools {TLA_VERSION} "
-                 f"(sha256 {digest[:12]}, pinned {TLA_SHA256[:12]})")
+        print(f"check_models: {jar} is not tla2tools {TLA_VERSION} "
+              f"(sha256 {digest[:12]}, pinned {TLA_SHA256[:12]}) -- no verdict")
+        sys.exit(2)
     return jar
 
 
@@ -312,11 +324,20 @@ def main(argv):
     ap.add_argument("--accepts", choices=("real", *MUTANTS))
     a = ap.parse_args(argv)
     jar = jar_path(a.jar)
+    try:
+        jv = subprocess.run([a.java, "-version"], capture_output=True, text=True, timeout=60)
+        ok = jv.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        ok = False
+    if not ok:
+        # exit 2 = no verdict: never 1, which a vacuity run reads as "rejected"
+        print(f"check_models: no Java runtime at {a.java!r} -- no verdict")
+        return 2
     if a.holds:
         spec, _, cfg = a.holds.partition(":")
         got = outcome(tlc(a.java, jar, spec, cfg or spec, FORMAL))
         print(f"{spec}/{cfg or spec}: {got}")
-        return 0 if got == "holds" else 1
+        return 0 if got == "holds" else 2 if nothing(got) else 1     # 1 = violated
     if a.accepts:
         with tempfile.TemporaryDirectory() as d:
             script = BOOT
@@ -325,8 +346,8 @@ def main(argv):
                 script.write_text(BOOT.read_text().replace(*MUTANTS[a.accepts]))
             ok, n, got = validate(a.java, jar, script, scripted)
         print(f"boot.py ({a.accepts}) scripted trace, {n} steps: "
-              f"{'accepted' if ok else got if got.startswith('outside') else 'rejected'}")
-        return 0 if ok else 2 if got.startswith("outside") else 1
+              f"{'accepted' if ok else 'rejected' if got == 'holds' else 'no verdict: ' + got}")
+        return 0 if ok else 1 if got == "holds" else 2
     both = not (a.models or a.trace)
     hits = []
     if a.models or both:
