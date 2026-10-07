@@ -6,6 +6,6 @@
   "expect": "(?s)interrupts: drift cross-design loop-bound missing-service unauthorized model-fail.*next batch",
   "observed": "831:interrupts: drift cross-design loop-bound missing-service unauthorized model-fail\n67:  for the next batch — not a stop.\n122:  next batch; decide the rest yourself.",
   "result": "pass",
-  "sha": "7f1cb951d126b5f229a47bcb2d163ef2350a9e89",
-  "at": "2026-10-07T21:26:07+00:00"
+  "sha": "73271d7e101eed6e5523382028386b5c986bf7a1",
+  "at": "2026-10-07T21:48:43+00:00"
 }

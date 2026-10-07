@@ -13,10 +13,10 @@
   ],
   "bounds": "Election: 3 sessions under symmetry (safety), 2 (liveness); Aidlc: 2 items, Loop A 5/3, every scope subset; broken variants: 1-2",
   "expect": "models: ok",
-  "observed": "models:\n  ok  Election/Election: holds (expected holds; 3573920 states, 141s)\n  ok  Election/ElectionLive: holds (expected holds; 65343 states, 118s)\n  ok  ElectionV096/ElectionV096: AtMostOneActing (expected AtMostOneActing; 66925 states, 5s)\n  ok  Election/ElectionLiveBroken: temporal (expected temporal; 13741 states, 6s)\n  ok  Aidlc/Aidlc: holds (expected holds; 131872 states, 6s)\n  ok  Aidlc/AidlcLive: holds (expected holds; 131872 states, 45s)\n  ok  Aidlc/AidlcBroken: NoPhasePastUnsignedBatch (expected NoPhasePastUnsignedBatch; 684 states, 2s)\n  ok  Aidlc/AidlcLiveBroken: temporal (expected temporal; 8763 states, 5s)\nmodels: ok",
+  "observed": "models:\n  ok  Election/Election: holds (expected holds; 3573920 states, 116s)\n  ok  Election/ElectionLive: holds (expected holds; 65343 states, 115s)\n  ok  ElectionV096/ElectionV096: AtMostOneActing (expected AtMostOneActing; 102078 states, 4s)\n  ok  Election/ElectionLiveBroken: temporal (expected temporal; 18023 states, 5s)\n  ok  Aidlc/Aidlc: holds (expected holds; 131872 states, 4s)\n  ok  Aidlc/AidlcLive: holds (expected holds; 131872 states, 40s)\n  ok  Aidlc/AidlcBroken: NoPhasePastUnsignedBatch (expected NoPhasePastUnsignedBatch; 649 states, 2s)\n  ok  Aidlc/AidlcLiveBroken: temporal (expected temporal; 22213 states, 5s)\nmodels: ok",
   "result": "pass",
-  "sha": "7f1cb951d126b5f229a47bcb2d163ef2350a9e89",
-  "at": "2026-10-07T21:37:30+00:00",
+  "sha": "73271d7e101eed6e5523382028386b5c986bf7a1",
+  "at": "2026-10-07T21:56:15+00:00",
   "vacuity": {
     "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds ElectionV096 || python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds Aidlc:AidlcBroken",
     "expect": "NoPhasePastUnsignedBatch",

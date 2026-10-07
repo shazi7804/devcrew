@@ -4,8 +4,8 @@
   "command": "python3 -c \"import ast,sys;fs=['framework/tools/check_tasks.py','framework/tools/check_formal.py'];m={(n.names[0].name if isinstance(n,ast.Import) else n.module).split('.')[0] for f in fs for n in ast.walk(ast.parse(open(f).read())) if isinstance(n,(ast.Import,ast.ImportFrom))};bad=m-set(sys.stdlib_module_names)-{'check_live','check_formal'};print('stdlib only' if not bad else bad)\" && python3 tools/check_neutral.py && grep -n 'TLA_VERSION = ' tools/check_models.py",
   "target": "python3 + git in the devcrew repo checkout",
   "expect": "(?s)stdlib only.*neutral: ok.*TLA_VERSION = \\\"1\\.7\\.4\\\"",
-  "observed": "stdlib only\nneutral: ok\n47:TLA_VERSION = \"1.7.4\"",
+  "observed": "stdlib only\nneutral: ok\n48:TLA_VERSION = \"1.7.4\"",
   "result": "pass",
-  "sha": "7f1cb951d126b5f229a47bcb2d163ef2350a9e89",
-  "at": "2026-10-07T21:31:52+00:00"
+  "sha": "73271d7e101eed6e5523382028386b5c986bf7a1",
+  "at": "2026-10-07T21:51:15+00:00"
 }

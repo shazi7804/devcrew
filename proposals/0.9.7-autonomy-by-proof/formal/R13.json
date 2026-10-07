@@ -13,10 +13,10 @@
   ],
   "bounds": "5 sampled real runs: scripted (every branch), stampede 2x8, 3 seeded crowds of 6; 3 mutants",
   "expect": "(?s)skip-gen.*rejected.*touch-old.*rejected.*models: ok",
-  "observed": "trace validation:\n  ok  boot.py scripted: 52 steps accepted by the model\n  ok  boot.py stampede: 38 steps accepted by the model\n  ok  boot.py concurrent seed 0: 131 steps accepted by the model\n  ok  boot.py concurrent seed 1: 152 steps accepted by the model\n  ok  boot.py concurrent seed 2: 150 steps accepted by the model\n  ok  boot.py mutant ('if mine:'): 52 steps rejected\n  ok  boot.py skip-gen ('if create(sid, n + 2, cwd) and verify(sid, n + 2):'): 52 steps rejected\n  ok  boot.py touch-old ('if touch(sid, n - 1) and verify(sid, n):'): 49 steps rejected\nmodels: ok",
+  "observed": "trace validation:\n  ok  boot.py scripted: 52 steps accepted by the model\n  ok  boot.py stampede: 38 steps accepted by the model\n  ok  boot.py concurrent seed 0: 140 steps accepted by the model\n  ok  boot.py concurrent seed 1: 151 steps accepted by the model\n  ok  boot.py concurrent seed 2: 136 steps accepted by the model\n  ok  boot.py mutant ('if mine:'): 52 steps rejected\n  ok  boot.py skip-gen ('if create(sid, n + 2, cwd) and verify(sid, n + 2):'): 52 steps rejected\n  ok  boot.py touch-old ('if touch(sid, n - 1) and verify(sid, n):'): 49 steps rejected\nmodels: ok",
   "result": "pass",
-  "sha": "7f1cb951d126b5f229a47bcb2d163ef2350a9e89",
-  "at": "2026-10-07T21:39:50+00:00",
+  "sha": "73271d7e101eed6e5523382028386b5c986bf7a1",
+  "at": "2026-10-07T21:58:23+00:00",
   "vacuity": {
     "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --accepts mutant; [ $? -ne 1 ]",
     "expect": "rejected",
