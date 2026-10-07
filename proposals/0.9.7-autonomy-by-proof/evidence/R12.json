@@ -1,11 +1,11 @@
 {
   "id": "R12",
   "verify": "local",
-  "command": "python3 tools/check_models.py --models",
+  "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds Aidlc:AidlcBroken ; [ $? -eq 1 ] && grep -cE 'LiveBroken|V096|AidlcBroken' tools/check_models.py",
   "target": "python3 + git in the devcrew repo checkout",
-  "expect": "models: ok",
-  "observed": "s)\n  ok  Election/ElectionLiveBroken: temporal (expected temporal; 15984 states, 6s)\n  ok  Aidlc/Aidlc: holds (expected holds; 131872 states, 7s)\n  ok  Aidlc/AidlcLive: holds (expected holds; 131872 states, 67s)\n  ok  Aidlc/AidlcBroken: NoPhasePastUnsignedBatch (expected NoPhasePastUnsignedBatch; 650 states, 6s)\n  ok  Aidlc/AidlcLiveBroken: temporal (expected temporal; 11772 states, 9s)\nmodels: ok",
+  "expect": "(?s)NoPhasePastUnsignedBatch.*\\n[4-9]\\s*$",
+  "observed": "Aidlc/AidlcBroken: NoPhasePastUnsignedBatch\n4",
   "result": "pass",
-  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
-  "at": "2026-10-07T19:49:22+00:00"
+  "sha": "2d297bcce88b443b419437679d9ef0a68e842241",
+  "at": "2026-10-07T21:00:05+00:00"
 }

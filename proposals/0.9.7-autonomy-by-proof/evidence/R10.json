@@ -4,8 +4,8 @@
   "command": "python3 framework/tools/check_formal.py --self-test",
   "target": "python3 + git in the devcrew repo checkout",
   "expect": "self-test ok \\(\\d+ cases\\)",
-  "observed": "self-test ok (37 cases)",
+  "observed": "self-test ok (43 cases)",
   "result": "pass",
-  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
-  "at": "2026-10-07T19:44:39+00:00"
+  "sha": "2d297bcce88b443b419437679d9ef0a68e842241",
+  "at": "2026-10-07T20:58:39+00:00"
 }

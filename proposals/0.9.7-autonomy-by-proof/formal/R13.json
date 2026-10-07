@@ -4,27 +4,27 @@
   "level": "checked",
   "conformance": "trace",
   "tool": "TLC 2.19 (tla2tools 1.7.4)",
-  "command": "python3 tools/check_models.py --trace",
+  "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --trace",
   "sources": [
     "tools/check_models.py",
     "framework/formal/Election.tla",
     "framework/formal/ElectionTrace.tla",
     "framework/tools/boot.py"
   ],
-  "bounds": "5 real runs: scripted (every branch), stampede 2x8, 3 seeded crowds of 6; 2 mutants",
-  "expect": "(?s)skip-gen.*rejected.*models: ok",
-  "observed": "trace validation:\n  ok  boot.py scripted: 52 steps accepted by the model\n  ok  boot.py stampede: 39 steps accepted by the model\n  ok  boot.py concurrent seed 0: 136 steps accepted by the model\n  ok  boot.py concurrent seed 1: 128 steps accepted by the model\n  ok  boot.py concurrent seed 2: 148 steps accepted by the model\n  ok  boot.py mutant ('if mine:'): 52 steps rejected\n  ok  boot.py skip-gen ('if create(sid, n + 2, cwd) and verify(sid, n + 2):'): 52 steps rejected\nmodels: ok",
+  "bounds": "5 sampled real runs: scripted (every branch), stampede 2x8, 3 seeded crowds of 6; 3 mutants",
+  "expect": "(?s)skip-gen.*rejected.*touch-old.*rejected.*models: ok",
+  "observed": "trace validation:\n  ok  boot.py scripted: 52 steps accepted by the model\n  ok  boot.py stampede: 36 steps accepted by the model\n  ok  boot.py concurrent seed 0: 138 steps accepted by the model\n  ok  boot.py concurrent seed 1: 133 steps accepted by the model\n  ok  boot.py concurrent seed 2: 137 steps accepted by the model\n  ok  boot.py mutant ('if mine:'): 52 steps rejected\n  ok  boot.py skip-gen ('if create(sid, n + 2, cwd) and verify(sid, n + 2):'): 52 steps rejected\n  ok  boot.py touch-old ('if touch(sid, n - 1) and verify(sid, n):'): 49 steps rejected\nmodels: ok",
   "result": "pass",
-  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
-  "at": "2026-10-07T20:03:22+00:00",
+  "sha": "2d297bcce88b443b419437679d9ef0a68e842241",
+  "at": "2026-10-07T21:08:54+00:00",
   "vacuity": {
-    "command": "python3 tools/check_models.py --accepts mutant; [ $? -ne 1 ]",
+    "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --accepts mutant; [ $? -ne 1 ]",
     "expect": "rejected",
     "observed": "boot.py (mutant) scripted trace, 52 steps: rejected",
     "result": "fail"
   },
   "conformance_check": {
-    "command": "python3 tools/check_models.py --accepts real",
+    "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --accepts real",
     "expect": "accepted",
     "observed": "boot.py (real) scripted trace, 52 steps: accepted",
     "result": "pass"

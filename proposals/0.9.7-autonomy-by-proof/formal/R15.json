@@ -4,7 +4,7 @@
   "level": "checked",
   "conformance": "trace",
   "tool": "TLC 2.19 (tla2tools 1.7.4)",
-  "command": "python3 tools/check_models.py --holds Election:Election",
+  "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds Election:Election",
   "sources": [
     "tools/check_models.py",
     "framework/formal/Election.tla",
@@ -14,16 +14,16 @@
   "expect": "Election/Election: holds",
   "observed": "Election/Election: holds",
   "result": "pass",
-  "sha": "9740fb4dc2b58c7e7ccceae1a950bcb316f5aefb",
-  "at": "2026-10-07T20:05:13+00:00",
+  "sha": "2d297bcce88b443b419437679d9ef0a68e842241",
+  "at": "2026-10-07T21:11:35+00:00",
   "vacuity": {
-    "command": "python3 tools/check_models.py --holds ElectionV096",
+    "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds ElectionV096",
     "expect": "AtMostOneActing",
     "observed": "ElectionV096/ElectionV096: AtMostOneActing",
     "result": "fail"
   },
   "conformance_check": {
-    "command": "python3 tools/check_models.py --accepts real",
+    "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --accepts real",
     "expect": "accepted",
     "observed": "boot.py (real) scripted trace, 52 steps: accepted",
     "result": "pass"

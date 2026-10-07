@@ -126,3 +126,26 @@ Also found while fixing: the 3-session safety check grew past a 15-minute
 timeout once the failure branches were modelled; sessions are symmetric, so it
 now runs under `SYMMETRY Permutations(Sessions)` (safety only — symmetry is
 unsound for liveness, which runs at 2 sessions without it).
+
+## 7. Round 2: the re-review, a second reviewer, and QA
+
+`gpt-5.6-sol` re-reviewed the fixes (REJECT; 5 of 12 resolved), `glm-5` —
+a third vendor, required because this change edits `reviewer.md` — reviewed
+independently (REQUEST-CHANGES), and QA re-ran every piece of evidence
+(FAIL). They converged; each finding was real:
+
+| Finding (who) | Done |
+|---|---|
+| R12's signed Property still named `LoopBounded`, which the model no longer defines (reviewer, QA) | Property corrected; `check_formal.py` now fails a Property that names a TLA+ definition no source defines. A signed-text change: TASKS.md is at `drift` until the CEO re-signs |
+| `fake-requirements.md` passed as the requirements (reviewer) | the name must be exactly `requirements.md` |
+| the stalled counter was optional; `stalled 2/1` passed (reviewer) | `n/5 stalled k/3`, always, each against its own bound |
+| the evidence's `tool` was bound to nothing (reviewer) | the command or a source must name it; that a command is a *faithful* checker is a reviewer's reading, and the sensor says so |
+| touch / verify / release carried no generation in the trace (reviewer) | logged and bound to what the session read or made; a third mutant (touch an old generation) must be rejected |
+| a failed create with a still-valid read was not in the model (QA) | `CreateFail`; liveness then needed **A5** — a file operation does not fail forever — which TLC demonstrated by electing nobody on a disk full forever |
+| a Done line's status after a plain hyphen passed (QA) | any status-shaped tail is refused |
+| `private axiom`, Coq `Parameter`/`Hypothesis`, Isabelle `axiomatization`; a Property starting "none of …" read as none (QA) | caught |
+| every Done item went stale when a non-`.md` verdict was committed; the R12/R13/R15 live probes lost the checker's environment; a `local` item could never re-run fresh (QA) | the verdict is `.md`; the probes name `$JAVA` / `$TLA2TOOLS_JAR`; a local probe re-run on a clean checkout of HEAD is HEAD's proof |
+| `check_repo` compared only the sets block (QA) | the batch and interrupt tables too |
+| `unauthorized`, part of `cross-design` and the budget part of `loop-bound` are role judgments, not machine checks (both reviewers) | named per interrupt in SKILL.md (machine · judgment), fail-closed, and in invariant 11; mechanising them needs the host and is debt D6–D8 — **whether that is acceptable for merge is the CEO's call** |
+| an interrupt looked like a dropped sign-off (glm-5) | SKILL.md: an interrupt is still a hard stop the CEO decides |
+| "trace-validated" over-claimed (glm-5) | "sampled real runs checked against the model"; exhaustiveness is the model's |
