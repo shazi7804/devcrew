@@ -154,8 +154,11 @@ def check(root, tasks, evidence=True, env=None, rerun=False):
                     hits.append(f"{tag}: tech debt lives in Todo")
                 continue
             parts = DASH.split(rest, maxsplit=1)
-            if sec == "Done" and (len(parts) > 1 or "·" in rest or re.search(
-                    r"\b(building|verifying|fixing|blocked on)\b|\d+/\d+|next:", rest)):
+            # a status, however it is joined: a dash then a status word, an
+            # attempt count, or `next:` -- not a title that has a `·` in it
+            if sec == "Done" and (len(parts) > 1 or re.search(
+                    r"\s[-—–]\s*(building|verifying|fixing|blocked on)\b|"
+                    r"\b\d+/\d+\s+stalled\b|\bnext:", rest)):
                 hits.append(f"{tag}: a Done line carries no status")
             if sec == "In progress":
                 hits += progress(tag, parts)
@@ -267,6 +270,8 @@ def self_test():
         ("a Done line with a status after a hyphen", lambda t: t.replace(
             "## Done\n", "## Done\n- [x] N1 c - verifying · qa · 1/5 stalled 0/3 · next: x\n").replace(
             "- [ ] N1 c\n", ""), "carries no status"),
+        ("a Done title with a middle dot", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 Property · Formal · Conformance\n"), "!carries no status"),
         ("Done without evidence", lambda t: t.replace(
             "## Done\n", "## Done\n- [x] N1 c\n").replace("- [ ] N1 c\n", ""), "Done but not live"),
     ]
@@ -288,7 +293,10 @@ def self_test():
         for label, edit, want in cases:
             tasks.write_text(edit(good.format(signed=signed)), encoding="utf-8")
             got = check(root, tasks)
-            if not ((not got) if want is None else any(want in h for h in got)):
+            ok = (not got) if want is None else \
+                not any(want[1:] in h for h in got) if want.startswith("!") else \
+                any(want in h for h in got)          # "!x": no hit says x
+            if not ok:
                 print(f"self-test FAILED: {label}: expected {want or 'clean'}, got {got or 'clean'}")
                 return 1
         drift = [("requirements.md drifted", "requirements.md", "DRIFT -- requirements.md"),
