@@ -1,0 +1,11 @@
+{
+  "id": "N2",
+  "verify": "local",
+  "command": "python3 tools/check_neutral.py; grep -hE '^(import|from) ' framework/tools/check_live.py | tr '\\n' ' '",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "neutral: ok\\n(import (argparse|datetime|fnmatch|hashlib|ipaddress|json|os|pathlib|re|socket|subprocess|sys|tempfile|urllib\\.parse) ?)+$",
+  "observed": "neutral: ok\nimport argparse import datetime import fnmatch import hashlib import ipaddress import json import os import pathlib import re import socket import subprocess import sys import tempfile import urllib.parse",
+  "result": "pass",
+  "sha": "6e0c443779852edf6e72b39689690d6b6c120907",
+  "at": "2026-10-05T18:33:40+00:00"
+}

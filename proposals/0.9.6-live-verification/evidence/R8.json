@@ -1,0 +1,11 @@
+{
+  "id": "R8",
+  "verify": "local",
+  "command": "grep -n 'No fake data in delivered work' AGENTS.md; grep -n 'check_live.py --self-test' .github/workflows/checks.yml; grep -n 'No fake data' framework/agents/reviewer.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)\\d+:10\\. \\*\\*No fake data in delivered work.*\\d+:\\s+run: python3 framework/tools/check_live\\.py --self-test.*\\d+:10\\. \\*\\*No fake data\\.\\*\\*",
+  "observed": "214:10. **No fake data in delivered work** — an AI implementer can make every\n26:        run: python3 framework/tools/check_live.py --self-test\n58:10. **No fake data.** Measure it: run `framework/tools/check_live.py",
+  "result": "pass",
+  "sha": "6e0c443779852edf6e72b39689690d6b6c120907",
+  "at": "2026-10-05T18:33:38+00:00"
+}

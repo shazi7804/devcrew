@@ -53,7 +53,7 @@ Any blocker/high stops the release gate. The loop-back is to Implementation,
 never to Phase 0.
 
 ## Resource discipline
-Booting devices is heavy. On a memory-tight host (`resource_status` first),
+Booting devices is heavy. On a memory-tight host (check host resources first),
 verify one device class at a time and tear it down; do not spin up the whole
 matrix at once.
 

@@ -3,6 +3,83 @@
 How to install the neutral `framework/` source into KiroCrew. Follow this when
 `AGENTS.md` Step 1 resolved to KiroCrew.
 
+## The three layers — where every wire lives
+
+Same reading as the Mission Control adapter: **L3 never names an L1 path.** Every
+arrow crossing a gap is either an install artifact or a host primitive.
+
+```
+┌─ L3 · devcrew — the AIDLC flow ─────────── source: <repo>/framework ───┐
+│  P0 ─🔴▶ P0.5 ─🔴▶ P1 ─▶ P2 ─🔴▶ ┌ frontend ┐▶┌ qa       ┐▶ P5 ─▶ P6   │
+│  intent  market     arch  design └ backend  ┘ ├ security ┤  deploy     │
+│                                               └ auditor* ┘  release 🔴 │
+│  12 roles   framework/agents/<role>.md        (*big diffs only)        │
+│  protocol   framework/skills/aidlc/SKILL.md   phases · gates · harness │
+│  memory     framework/memory/{lessons,adr,retro}.md                    │
+│  Host-neutral: knows nothing about ~/.kiro, JSON files, or MCP.        │
+└────────────────────────────────────────────────────────────────────────┘
+     │                                          ▲
+     │ (A) INSTALL-TIME TRANSFORM — once,       │ (C) Phase ∞ writes back:
+     │     by you, following THIS file          │     retro → signed proposal →
+     ▼                                          │     PR, never self-merged
+┌─ L2 · adapter ────────────── this is the layer this file defines ──────┐
+│                                                                        │
+│ (A) install transform — which file becomes which                       │
+│   framework/agents/<role>.md ──────▶ ~/.kiro/agents/<role>.json        │
+│     frontmatter.tools  ──map──▶ .tools · .allowedTools · .permissions  │
+│     the body           ──────▶ .prompt  (file:// repo or extracted)    │
+│     frontmatter.skills ──map──▶ .resources[]  skill://…/SKILL.md       │
+│     memory: shared     ──────▶ .resources[]  file://…/framework/       │
+│                                              memory/**/*.md            │
+│     model: best-available ───▶ "auto"                                  │
+│       EXCEPT reviewer ───────▶ a PINNED other-vendor id, resolved at   │
+│                                install time from the model catalog     │
+│       EXCEPT reviewer ───────▶ NO memory glob (memory: none)           │
+│       EXCEPT auditor  ───────▶ no write capability + an explicit DENY  │
+│                                                                        │
+│ (B) harness ──▶ host primitive                                         │
+│   dispatch      ▶ spawn_run(agents=[…]) · spawn_sub_agents             │
+│   durable ledger▶ session_ledger_record          @kirocrew-core        │
+│   lessons       ▶ learn_add                      @kirocrew-core        │
+│   meta-loop     ▶ cron_add · cron_trigger        @kirocrew-cron        │
+│   council       ▶ the llm-council skill                                │
+│   🔴 CEO gate   ▶ ask_question, then END THE TURN — the turn itself IS │
+│                   the suspension; this host has no decision QUEUE      │
+│   budgets       ▶ resource_status before each heavy step               │
+│   question      ▶ ask_question card · an [OPTIONS:] line               │
+│   preview       ▶ the dashboard Browser panel (web-preview)            │
+│   contracts     ▶ real files in the product repo                       │
+└────────────────────────────────────────────────────────────────────────┘
+     │ reads / writes                            ▲ CEO answers in the dashboard
+     ▼                                           │
+┌─ L1 · KiroCrew runtime ────────────────────────────────────────────────┐
+│                                                                        │
+│  the KiroCrew gateway — wherever this user runs it (a laptop, a        │
+│  workstation, or a remote host; read it off the machine, never assume) │
+│    ~/.kiro/agents/*.json  auto-loaded ──▶ dashboard agent switcher     │
+│    @kirocrew-core ── spawn_run ──▶ role agent processes (the fan-out)  │
+│    @kirocrew-cron ── schedules the meta-review digest                  │
+│    kiro-cli  = the model backend that actually runs a role's turns     │
+│        │                                                               │
+│        ▼  fan-out cap: resource_status FIRST; serialize when tight     │
+│    on metered compute ──▶ pause a long-idle run, do not spin           │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+## Known degradation on this host
+
+State these to the user at install time rather than letting them be discovered
+mid-run. This is the strongest of the three hosts — the list is short.
+
+- **A 🔴 gate is a suspended *turn*, not a durable row.** Mission Control has
+  `decisions.json`; here the turn ending *is* the suspension, so nothing outside
+  the ledger records that a gate is open. `session_ledger_record` the pending gate
+  **before** ending the turn, or a restart cannot tell "waiting on the CEO" from
+  "never ran" — and the second guess is the dangerous one.
+- **A gateway on metered compute bills while it waits.** If this user's
+  gateway runs on a billed host, an idle suspended run costs money, so a long 🔴
+  gate should pause the gateway rather than hold it. Ask; do not assume.
+
 ## What KiroCrew expects
 
 - Agents: one JSON per agent at `~/.kiro/agents/<name>.json` (auto-loaded, shows
@@ -69,17 +146,41 @@ For each `framework/agents/<name>.md`:
 - The orchestrator `orchestrator` gets the full tool set + cron (it schedules the
   monthly tech-refresh scan and dispatches roles). Role agents get the `build`
   set + `kirocrew-core`.
+- **`auditor` is read-only by design** (its frontmatter has no `write`/`edit`): give
+  it the read/search/shell/web set only, and add a deny rule for the write
+  capability rather than relying on `allowedTools` alone. Verify at install that
+  `auditor.json` grants nothing that can edit files — an auditor that can fix its
+  own findings is auditing itself. Where the catalog allows it, ALSO pin its
+  `model` to a different vendor than the implementers' (same mechanism as the
+  reviewer pin below); unlike the reviewer's, this is a strengthening, not a
+  requirement, so fall back to `auto` and say so.
 - Map each neutral skill name in frontmatter `skills` to a KiroCrew skill path:
   `aidlc` → this repo's `framework/skills/aidlc/SKILL.md`; the others
   (`frontend-design-workflow`, `llm-council`, `goal-conductor`, `web-preview`,
   `web-verify`, `deploy-web`, `artifact-deploy`) → the installed
   `~/.kiro/crew/skills/<name>/SKILL.md`. If one is absent, note it to the user
   rather than inventing a path.
+- `impeccable` (designer) is third-party: [pbakaus/impeccable](https://github.com/pbakaus/impeccable),
+  Apache-2.0. Install it at a pinned version with `npx impeccable@4.1.0 install`
+  (it detects the harness; pin the version you install and name it in the
+  report), then map it to wherever that put its `SKILL.md`. If the installer
+  does not support Kiro, tell the user: the designer then follows its *When
+  impeccable cannot be installed* path. Do not copy the repo's `.kiro/skills/` folder by
+  hand as if that were a documented route.
 - Find the kirocrew binary from the running host (it is the command backing the
   core MCP server); do not hardcode a version-specific path from memory.
 
+## The live sensor
+
+Copy `framework/tools/check_live.py` into each project the team works on as
+`.aidlc/tools/check_live.py` (stdlib only), so `qa` runs it as a Phase-4 sensor
+(aidlc skill § *No fake data*). Without it there is no deterministic check that
+delivered work runs on real services — say so to the user if you skip it.
+
 ## Verify
 
+Run `python3 .aidlc/tools/check_live.py --self-test` (expects `self-test ok`), and
+confirm `shasum -a 256` of the installed copy equals that of `framework/tools/check_live.py` (all 64 hex).
 Parse every generated JSON, confirm each `prompt`, `skill://`, and `file://`
 memory path resolves, and confirm `orchestrator` is listed by the host's agent
 listing. Then tell the user to pick **orchestrator** in the dashboard agent switcher.

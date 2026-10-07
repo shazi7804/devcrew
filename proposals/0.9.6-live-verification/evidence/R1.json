@@ -1,0 +1,11 @@
+{
+  "id": "R1",
+  "verify": "local",
+  "command": "grep -c 'Verify\\*' framework/skills/aidlc/contracts/requirements.template.md; grep -n 'Real services & data' framework/skills/aidlc/contracts/requirements.template.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)^[1-9]\\d*\\n.*Real services & data",
+  "observed": "3\n66:## Real services & data (every one this product talks to)",
+  "result": "pass",
+  "sha": "6e0c443779852edf6e72b39689690d6b6c120907",
+  "at": "2026-10-05T18:32:01+00:00"
+}

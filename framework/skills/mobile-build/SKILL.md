@@ -52,8 +52,8 @@ Capture a screenshot per device class and show them to the CEO/design gate as
 the mobile equivalent of the web hi-fi preview.
 
 ## Resource discipline
-Simulators and emulators are heavy (each can be >1GB RAM). On a memory-tight
-host (`resource_status` first): boot ONE device at a time, build one platform at
+Simulators and emulators are heavy (each can take a gigabyte of RAM or more). On a memory-tight
+host (check host resources first): boot ONE device at a time, build one platform at
 a time, and tear down the simulator/emulator when done. Never boot a wide matrix
 of devices in parallel on a constrained host.
 

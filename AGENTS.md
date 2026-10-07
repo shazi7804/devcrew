@@ -6,7 +6,7 @@
 
 devcrew is a full AI software team: an orchestrator that wears the PM hat and
 dispatches independent role agents (Architect, Design, Frontend, Backend, QA,
-Security, DevOps, Release) across an AI-Driven Development Life Cycle (AIDLC),
+Security, Auditor, DevOps, Release) across an AI-Driven Development Life Cycle (AIDLC),
 from a CEO's idea to production — aligning intent as a signed contract, verifying
 every gate against it, and improving itself through a gated self-evolution loop.
 
@@ -32,23 +32,74 @@ own tool surface tells you which). If nothing matches, read the adapter guides
 and generalize: the neutral source + the mapping table in each guide is enough
 to target any agent host that supports per-agent system prompts and skills.
 
+One source, three artifact trees. What the same harness rule becomes on each host
+— and, just as importantly, where a host cannot do it and something must be
+written down instead (⚠):
+
+```
+                          ONE NEUTRAL SOURCE
+             framework/agents · framework/skills · framework/memory
+                                    │
+        ┌───────────────────────────┼───────────────────────────┐
+        ▼                           ▼                           ▼
+   KiroCrew                  Mission Control              Claude Code
+   ~/.kiro/agents/           <DATA_DIR>/agents.json       .claude/agents/
+     <role>.json               .instructions                <role>.md
+   resources:                skills-library.json          .claude/skills/
+     skill:// + file://      + the RUN REPO's .claude/     CLAUDE.md
+                               and devcrew-memory/
+   ─────────────────         ─────────────────────         ─────────────────
+   DISPATCH                  DISPATCH                     DISPATCH
+   spawn_run (MCP)           the daemon · scheduler        the Task tool, in
+                             → dispatcher → runner         the live session
+                             (board mode: the session)
+   ─────────────────         ─────────────────────         ─────────────────
+   🔴 CEO GATE               🔴 CEO GATE                   🔴 CEO GATE
+   a suspended TURN          a PENDING ROW in              the turn ending —
+   (no queue — the           decisions.json; nothing       the CEO is already
+   ledger records it)        dispatches past it            in the conversation
+   ─────────────────         ─────────────────────         ─────────────────
+   DURABLE LEDGER            DURABLE LEDGER                DURABLE LEDGER
+   session_ledger (MCP)      missions.json                 ⚠ no primitive —
+                             .taskHistory                  keep it as a file
+                                                           under .aidlc/
+   ─────────────────         ─────────────────────         ─────────────────
+   SCHEDULER (meta-loop)     SCHEDULER                     SCHEDULER
+   cron_add (MCP)            the daemon loop               ⚠ none — the
+                                                           meta-review is
+                                                           run on request
+   ─────────────────         ─────────────────────         ─────────────────
+   SHARED MEMORY             SHARED MEMORY                 SHARED MEMORY
+   file:// glob, mounted     installed into the run        ⚠ no mount — a
+   read-only                 repo as devcrew-memory/       CLAUDE.md RULE
+```
+
+Everything below the fan-out is a **generated artifact**. The repo stays the
+source of truth, so on a new machine you re-run this file and the tree is rebuilt
+— never hand-edit an installed artifact and expect it to survive.
+
 ## Step 2 — Read the neutral source
 
-- `framework/agents/*.md` — the 11 role agents. Each is YAML frontmatter
+- `framework/agents/*.md` — the 12 role agents. Each is YAML frontmatter
   (`name`, `role`, `description`, `tools`, `model`, `skills`, `memory`) plus a
   Markdown body that is the agent's system prompt.
 - `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
-  follows (phases, gates, contract hand-offs). Its `contracts/` holds the
-  requirements / design / standards / verdicts templates. The `standards.md`
-  produced from it is the per-project single source of truth for deploy target,
-  API, DB schema, compliance and other cross-cutting rules — never hardcoded in
-  a skill.
-  (protocol detail continues:) every role
-  follows (phases, gates, contract hand-offs, adversarial decision points,
-  gated self-evolution). Its `contracts/` holds the requirements/design
-  templates.
+  follows: phases, gates, contract hand-offs, adversarial decision points, gated
+  self-evolution. Its `contracts/` holds the requirements / design / standards /
+  verdicts templates. The `standards.md` produced from it is the per-project
+  single source of truth for deploy target, API, DB schema, compliance, the code
+  quality & efficiency budget (what the Phase-4 `auditor` judges against) and
+  other cross-cutting rules — never hardcoded in a skill.
 - `framework/memory/` — the shared team memory (lessons, ADRs, retrospectives,
   style). Every role mounts it, so experience is shared across the team.
+- `framework/tools/check_live.py` — the no-fake-data sensor (invariant 10),
+  installed into every project the team works on.
+- `framework/session-governance.md` + `framework/tools/boot.py` — how the
+  orchestrator role is held when the host can run **several sessions at once**
+  (an `O_EXCL` lock, an mtime lease, a human escape hatch). Read this whenever
+  your host lets the user open a second window on the same repo; it is the one
+  part of the framework that must be wired to lifecycle events instead of
+  written into a prompt.
 
 ## Step 3 — Install into your host
 
@@ -75,7 +126,11 @@ Open the adapter guide for your host and follow it. In short:
   `framework/agents/<name>.md` to `.claude/agents/<name>.md` (frontmatter
   `tools` mapped to Claude Code's tool names), copy the skill to
   `.claude/skills/`, and add a devcrew section to `CLAUDE.md` naming the roles
-  and the AIDLC flow.
+  and the AIDLC flow. **Then install the multi-session governance layer** —
+  `framework/tools/boot.py` plus four hooks in `.claude/settings.json`. On this
+  host the user can open five windows on one repo and each boots believing it is
+  the dispatcher; the adapter's § *Multi-session governance* is the fix, and
+  skipping it is a thing to say out loud, not a default.
 
 Map the neutral tool names with the table in the adapter guide. Map
 `model: best-available` to the strongest general model the host offers **today**
@@ -87,6 +142,14 @@ Confirm every generated agent file parses, every referenced prompt/skill/memory
 path exists, and the orchestrator (`orchestrator`) is selectable in the host. Report
 to the user which host you installed into and how to switch to the `orchestrator`
 agent.
+
+If you installed the multi-session governance layer, **race it** rather than
+reading it: N concurrent elections must produce exactly one orchestrator, and M
+concurrent takeovers of one expired lock must produce exactly one winner. Both
+are a single shell loop against a throwaway tree (copy-pasteable in
+`hosts/claude-code.md` § *Multi-session governance*). A layer that claims
+kernel-level mutual exclusion and was never made to demonstrate it is a claim,
+not a mechanism.
 
 ## Step 5 — Tell the user how to run it
 
@@ -109,9 +172,12 @@ the single source of truth; the host files are generated artifacts.
    real adversarial review, one shared `framework/memory/` for shared experience.
 3. **Adversarial by design** — load-bearing decisions (architecture, design, QA)
    go through a cross-vendor `llm-council`, not a single model's say-so.
-4. **Gated self-evolution, reviewed by a different model** — an agent may draft
-   changes to the framework, but it opens a PR and NEVER pushes `main` or merges
-   its own change. Review is done inside AIDLC by the `reviewer` role,
+4. **Gated self-evolution, reviewed by a different model** — a framework change
+   starts at Phase 0 like any product change: a
+   `proposals/<slug>/requirements.md` the CEO signs. An agent may then draft the
+   change, but it opens a PR and NEVER pushes `main` or merges its own change.
+   CI runs first. `qa` verifies the change against its signed requirements.
+   Review is done inside AIDLC by the `reviewer` role,
    dispatched on a DIFFERENT model family than the author and with no team memory
    mounted (that is what makes it unbiased). The reviewer never reviews its own
    change and never merges; the CEO makes the final merge. Never rewrite
@@ -122,3 +188,37 @@ the single source of truth; the host files are generated artifacts.
    environments and targets live in the project's `standards.md` (defined with
    the CEO at Phase 1), never hardcoded in a skill or role. The framework stores
    only the RULE that `standards.md` must be produced, signed, and followed.
+7. **Waste is a gate failure, not a style note** — an AI implementer ships code
+   that is green, traceable and CVE-free while being twice the size it needed and
+   costlier to run than it should be. QA (intent) and Security (safety) are blind
+   to that by design, so a third Phase-4 sensor exists: the `auditor` audits the
+   delivered diff for redundancy, duplication/missed reuse, over-abstraction,
+   hot-path cost, running cost and dependency weight. It fires on a deterministic
+   **magnitude floor** — two size triggers read off `git diff --shortstat`
+   (changed lines / changed files), narrow on purpose so they cannot be argued
+   away; a project adds its own triggers in `standards.md`. It judges against the
+   budget in `standards.md`, holds no write tool, and its blocker/high findings
+   fail the gate. Do not fold it into QA and do not downgrade it to advisory-only.
+   A size floor cannot catch a small expensive change — that is what the
+   implementer roles' reuse-first rule and the Security floor are for.
+8. **No gate is weakened to make something pass** — an approval gate, a safety
+   control, a permission boundary or a trigger is never loosened without a
+   CEO decision recorded with its reasoning.
+9. **The framework is host- and machine-neutral** — `framework/`,
+   `ARCHITECTURE.md` and `docs/` name no host's tools and no specific
+   machine's facts (instance size, cloud service, region, home directory). A
+   host's tool names live only in `hosts/<host>.md`, which maps the neutral
+   terms (`spawn`, the ledger, the gate primitive, a resource check) onto
+   them. `tools/check_neutral.py` enforces this over the whole tree, not just
+   the diff, so a leak that predates a change is still caught.
+10. **No fake data in delivered work** — an AI implementer can make every
+   sensor green with fakes: stubbed upstreams, a fake DOM, seed data, a backend
+   that was never deployed. So every requirement is `Verify: live` by default
+   (the only other level, `local`, is for work that touches no service and no
+   remote data, and the CEO signs it); there is no level that accepts a fake.
+   `framework/tools/check_live.py` is the sensor: each requirement needs fresh
+   evidence from a probe against the real, deployed service, and production
+   code may not carry a mock, stub, seed or illustrative data. A test double
+   tests logic; it never proves a requirement. A missing service or credential
+   is a question for the CEO, never a reason to build on a fake, and work
+   without live evidence is never reported as done.

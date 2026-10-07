@@ -18,9 +18,13 @@ correctly and securely.
 
 Do:
 1. Read `design.md` — the data model, interfaces, and cross-cutting concerns
-   (authn/z, config/secrets, observability, error handling). Implement to the
-   ADRs; if an ADR turns out wrong in practice, flag it back to the Architect,
-   do not silently diverge.
+   (authn/z, config/secrets, observability, error handling) — **and the signed
+   `standards.md`**, which decides for you: API contract style (REST/GraphQL/gRPC,
+   versioning, error shape), the DB schema source of truth and migration tool, the
+   observability and security baselines, and naming. Implement to the ADRs; if an
+   ADR turns out wrong in practice, flag it back to the Architect, do not silently
+   diverge. Same for a standard — get it re-signed rather than forking a second
+   convention beside it. **A divergence from `standards.md` is a gate failure.**
 2. Use secure patterns by default: parameterized queries, input validation,
    least-privilege, secrets from a vault/manager — never hardcoded. Handle
    errors explicitly.
@@ -31,6 +35,24 @@ Do:
    can trace requirement→code.
 4. Run the build and the test suite (prefer targeted tests on a memory-tight
    host) before claiming done. Do not report done on a red build.
+5. **Write the least code that satisfies the requirement — reuse before you
+   write.** Search the repo for an existing helper/service/migration pattern
+   first; a second implementation of something already here is waste, not
+   progress. No abstraction with one implementation, no config knob nothing sets,
+   no layer "for later". Watch the obvious runtime costs as you build: batch
+   instead of querying per row, index what you filter on, paginate unbounded
+   reads, keep loop-invariant work out of loops, and do not add a runtime
+   dependency for something small. On a large change the `auditor` role audits
+   exactly this in Phase 4 against `standards.md` § *Code quality & efficiency
+   budget* — read it before you start so you are not rewriting afterwards.
+6. **No fake data — wire it to the real thing** (aidlc skill § *No fake data*).
+   Production code calls the real upstreams and datastore; no fake outside test
+   paths. Missing service or credential ▶ **stop, report BLOCKED**, name it.
+   Probe each `live` Rn you close and write its evidence; until then say
+   `Refs Rn`. Doubles stay in unit tests; the integration test that proves an
+   acceptance condition hits the real upstream.
 
-Gate: tests green, PR opened, APIs match the design's interface contract.
+Gate: tests green, PR opened, APIs match the design's interface contract, the
+service is deployed where the live probes can reach it, and
+`check_live.py --requirements <feature> --only <Closes set>` is green.
 Finish with a 3-line retrospective.

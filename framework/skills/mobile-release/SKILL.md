@@ -12,6 +12,50 @@ material and *their* review, and is not "done" until *they* approve it. This is
 the hardest, most external part of a mobile pipeline — treat every 🔴 below as a
 hard stop.
 
+Unlike every other phase, this one is a **state machine with an external actor in
+it**, so the terminal state is not yours to declare:
+
+```
+  a versioned, verified build exists
+        │
+        ▼
+  🔴 SIGNING GATE — does the CEO's signing material exist?
+        │
+        ├── missing ──▶ SUSPEND. Tell the CEO exactly what to provide.
+        │               NEVER generate a throwaway cert/keystore: a mismatched
+        │               identity locks the app out of every FUTURE update.
+        ▼ present
+  build the signed artifact       .ipa (gym/xcodebuild) · .aab (bundleRelease)
+        │
+        ▼  the channel ladder — a first release never skips a rung
+     INTERNAL TEST ─────────▶ BETA ────────────────▶ PRODUCTION
+     TestFlight internal      TestFlight external    App Store submission
+     Play Internal track      (light Apple review)   Play Production track
+                              Play Closed/Open
+        │
+        ▼
+  🔴 SUBMISSION GATE — state what goes out, to whom, and the rollback. Then WAIT
+     (promoting a staged rollout past its FIRST phase is a 🔴 of its own)
+        │
+        ▼
+  STORE REVIEW ── an EXTERNAL actor decides. "submitted" ≠ "released".
+        │
+        ├── REJECTED ──▶ loop back to whichever owns the fix:
+        │                implementation, OR the submission package.
+        │                Never to Phase 0. ──┐
+        │   ◀─────────────────────────────── ┘ re-submit
+        │
+        └── APPROVED ──▶ staged rollout (Play %, App Store 7-day phased)
+                         │   halt criteria: crash / ANR spike
+                         ▼
+                    APPROVED AND LIVE ──▶ only now is the pipeline complete
+```
+
+Two properties of this machine that a web deploy does not have: the terminal
+state is granted by Apple/Google rather than reached by you, and the back edge
+from a rejection is a **re-submission**, not a rollback — see the rollback
+reality check below.
+
 ## 🔴 The signing gate (external dependency — the CEO owns the keys)
 You (the agent) do NOT hold signing material. A real release needs:
 - **iOS**: Apple Developer Program membership, a distribution certificate, and a

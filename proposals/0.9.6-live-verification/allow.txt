@@ -1,0 +1,2 @@
+# Exemptions for running check_live.py on devcrew itself (`<path-glob> <regex> -- <reason>`).
+framework/tools/check_live.py (?i)mock|fake|stub|dumm|lorem|假|示意|todo|testdata|fixtures -- the sensor's own deny-list and self-test fixtures; installed projects carry it under .aidlc/, which the scan skips

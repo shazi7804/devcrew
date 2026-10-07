@@ -1,0 +1,11 @@
+{
+  "id": "R10",
+  "verify": "local",
+  "command": "grep -o -e '--src' -e '--test' -e '--live-host' -e '--deployed' -e '--allow' framework/skills/aidlc/contracts/standards.template.md | sort -u | tr '\\n' ' '; python3 framework/tools/check_live.py --help",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)--allow --deployed --live-host --src --test .*--only.*--live-host.*--src.*--test.*--allow.*--deployed",
+  "observed": "--allow --deployed --live-host --src --test usage: check_live.py [-h] [--root ROOT]\n                     [--requirements REQUIREMENTS [REQUIREMENTS ...]]\n                     [--evidence EVIDENCE] [--env ENV] [--only ONLY]\n                     [--live-host LIVE_HOST [LIVE_HOST ...]]\n                     [--src SRC [SRC ...]] [--test TEST [TEST ...]]\n                     [--allow ALLOW] [--rerun] [--record]\n                     [--deployed DEPLOYED]\n\nno fake data: evidence + code scan\n\noptions:\n  -h, --help            show this help message and exit\n  --root ROOT\n  --requirements REQUIREMENTS [REQUIREMENTS ...]\n  --evidence EVIDENCE\n  --env ENV\n  --only ONLY\n  --live-host LIVE_HOST [LIVE_HOST ...]\n  --src SRC [SRC ...]\n  --test TEST [TEST ...]\n  --allow ALLOW\n  --rerun\n  --record\n  --deployed DEPLOYED",
+  "result": "pass",
+  "sha": "6e0c443779852edf6e72b39689690d6b6c120907",
+  "at": "2026-10-05T18:33:39+00:00"
+}

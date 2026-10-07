@@ -1,0 +1,11 @@
+{
+  "id": "N1",
+  "verify": "local",
+  "command": "git log -1 --format=%B 6e0c443779852edf6e72b39689690d6b6c120907",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "reviewer APPROVE",
+  "observed": "PASS (medium: implementer step 6 duplicated\nin frontend/backend — tech debt) · reviewer APPROVE after four rounds\n(H1–H3, M1–M7, L1–L5, N1–N7, D1–D5 fixed). Review DEGRADED: s",
+  "result": "pass",
+  "sha": "6e0c443779852edf6e72b39689690d6b6c120907",
+  "at": "2026-10-05T18:33:39+00:00"
+}

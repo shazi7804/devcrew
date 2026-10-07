@@ -1,0 +1,11 @@
+{
+  "id": "R5",
+  "verify": "local",
+  "command": "grep -n 'If the project has a runtime, this phase runs' framework/agents/devops.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "If the project has a runtime, this phase runs",
+  "observed": "37:5. **If the project has a runtime, this phase runs.** A server, a function, an",
+  "result": "pass",
+  "sha": "6e0c443779852edf6e72b39689690d6b6c120907",
+  "at": "2026-10-05T18:33:38+00:00"
+}

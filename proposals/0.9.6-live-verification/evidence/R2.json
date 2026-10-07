@@ -1,0 +1,11 @@
+{
+  "id": "R2",
+  "verify": "local",
+  "command": "python3 framework/tools/check_live.py --self-test",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "self-test ok \\(\\d+ cases\\)",
+  "observed": "self-test ok (89 cases)",
+  "result": "pass",
+  "sha": "6e0c443779852edf6e72b39689690d6b6c120907",
+  "at": "2026-10-05T18:33:38+00:00"
+}

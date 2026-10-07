@@ -1,0 +1,30 @@
+# The deterministic sensors for a change to devcrew itself. They run before
+# qa and reviewer judge anything: a red check fails the gate on its own.
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Neutrality check proves it can fail
+        run: python3 tools/check_neutral.py --self-test
+      - name: Host- and machine-neutral source (invariant 9)
+        run: python3 tools/check_neutral.py
+      - name: Live sensor proves it can fail (invariant 10)
+        run: python3 framework/tools/check_live.py --self-test
+      - name: Relative links and role frontmatter
+        run: python3 tools/check_repo.py
+      - name: Diagrams aligned and within 80 columns
+        run: python3 tools/diagram.py check $(git ls-files '*.md')
