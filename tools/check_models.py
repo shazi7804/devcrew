@@ -8,7 +8,9 @@
     check_models.py --accepts real|mutant
                                        exit 0 iff the scripted trace of boot.py
                                        (or of the mutant) matches the model
-                                       -- single checks for formal evidence
+                                       -- single checks for formal evidence;
+                                       exit 0 accepted, 1 rejected, 2 the run
+                                       broke an assumption (no verdict)
     options: --jar PATH (or $TLA2TOOLS_JAR)  --java PATH (or $JAVA, else java)
 
 WHAT RUNS
@@ -55,7 +57,8 @@ MODELS = [
     ("Aidlc", "AidlcBroken", "NoPhasePastUnsignedBatch"),
 ]
 
-STALE, MARGIN = 2, 1          # seconds, for the trace runs: fresh <= 1 < margin <= 2 < stale
+STALE, MARGIN = 4, 2          # seconds, for the trace runs: fresh <= 2 < margin <= 4 < stale
+RETRIES = 3                   # a run that broke an assumption is re-run, not judged
 MUTANT = ('if mine and top["age"] == "fresh":', "if mine:")
 
 
@@ -113,11 +116,31 @@ def boot(script, project, trace, sid, mode):
                    env=env, capture_output=True, text=True, timeout=30, check=True)
 
 
+GAPS = []                     # (sid, seconds) between two beats of one turn
+
+
 def turn(script, project, trace, sid, mids=0):
-    boot(script, project, trace, sid, "beat")                  # the turn starts
-    for _ in range(mids):
-        boot(script, project, trace, sid, "beat")              # a tool call
-    boot(script, project, trace, sid, "beat")                  # the turn ends
+    last = time.time()
+    for _ in range(mids + 2):                                  # start, tool calls, end
+        boot(script, project, trace, sid, "beat")
+        GAPS.append((sid, time.time() - last))
+        last = time.time()
+
+
+def assumptions(events):
+    """What this run broke of the model's assumptions, from the timestamps:
+    A1, a hook run (fire .. its last step) shorter than MARGIN; A2, two beats
+    of one turn closer than STALE - MARGIN. A run that broke one is outside
+    what the model claims anything about -- neither a pass nor a failure."""
+    broke, start = [], {}
+    for e in events:
+        if e["op"] == "fire":
+            start[e["s"]] = e["t"]
+        elif e["t"] - start.get(e["s"], e["t"]) >= MARGIN:
+            broke.append(f"A1: a hook run of {e['s']} took {e['t'] - start[e['s']]:.1f}s")
+    broke += [f"A2: {sid} beat {gap:.1f}s apart inside a turn" for sid, gap in GAPS
+              if gap >= STALE - MARGIN]
+    return broke
 
 
 def scripted(script, project, trace):
@@ -187,13 +210,26 @@ def trace_module(events, path):
 
 
 def validate(java, jar, script, scenario):
-    """True when TLC matches the whole trace against the model."""
+    """(matched, steps, outcome). A run that broke an assumption is re-run;
+    after RETRIES it is reported as outside the assumptions, never as a pass."""
+    for _ in range(RETRIES):
+        ok, n, got = attempt(java, jar, script, scenario)
+        if not got.startswith("outside"):
+            break
+    return ok, n, got
+
+
+def attempt(java, jar, script, scenario):
     work = pathlib.Path(tempfile.mkdtemp(prefix="trace-"))
     try:
         project, trace = work / "project", work / "trace.jsonl"
         (project / ".aidlc" / "claims").mkdir(parents=True)
+        GAPS.clear()
         scenario(script, project, trace)
         events = [json.loads(ln) for ln in trace.read_text().splitlines()]
+        broke = assumptions(events)
+        if broke:
+            return False, len(events), f"outside the assumptions ({'; '.join(broke[:2])})"
         sids = sorted({e["s"] for e in events})
         for f in ("Election.tla", "ElectionTrace.tla"):
             shutil.copy(FORMAL / f, work / f)
@@ -217,7 +253,9 @@ def check_trace(java, jar):
         print(f"  {'ok ' if ok else 'BAD'} boot.py {name}: {n} steps "
               f"{'accepted by the model' if ok else 'REJECTED (' + got + ')'}")
         if not ok:
-            hits.append(f"boot.py trace ({name}) is not a behaviour of Election.tla")
+            hits.append(f"boot.py trace ({name}): " + (
+                f"could not be run inside the model's assumptions -- {got}"
+                if got.startswith("outside") else "not a behaviour of Election.tla"))
     with tempfile.TemporaryDirectory() as d:
         mutant = pathlib.Path(d) / "boot.py"
         src = BOOT.read_text()
@@ -225,11 +263,14 @@ def check_trace(java, jar):
             hits.append(f"mutation site {MUTANT[0]!r} not found in boot.py")
         else:
             mutant.write_text(src.replace(MUTANT[0], MUTANT[1]))
-            ok, n, _ = validate(java, jar, mutant, scripted)
-            print(f"  {'ok ' if not ok else 'BAD'} mutant boot.py (refresh a lease "
-                  f"whatever its age): {n} steps {'rejected' if not ok else 'ACCEPTED'}")
-            if ok:
-                hits.append("trace validation accepted a mutant -- it cannot fail")
+            ok, n, got = validate(java, jar, mutant, scripted)
+            valid = not got.startswith("outside")
+            print(f"  {'ok ' if valid and not ok else 'BAD'} mutant boot.py (refresh a "
+                  f"lease whatever its age): {n} steps "
+                  f"{'rejected' if valid and not ok else got if not valid else 'ACCEPTED'}")
+            if ok or not valid:
+                hits.append("trace validation did not reject the mutant inside the "
+                            "assumptions -- it has not shown it can fail")
     return hits
 
 
@@ -268,8 +309,8 @@ def main(argv):
                 script.write_text(BOOT.read_text().replace(*MUTANT))
             ok, n, got = validate(a.java, jar, script, scripted)
         print(f"boot.py ({a.accepts}) scripted trace, {n} steps: "
-              f"{'accepted' if ok else 'rejected (' + got + ')'}")
-        return 0 if ok else 1
+              f"{'accepted' if ok else got if got.startswith('outside') else 'rejected'}")
+        return 0 if ok else 2 if got.startswith("outside") else 1
     both = not (a.models or a.trace)
     hits = []
     if a.models or both:

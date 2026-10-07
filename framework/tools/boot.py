@@ -166,7 +166,8 @@ def step(sid, op):
         fcntl.flock(f, fcntl.LOCK_EX)
         seen = {}
         yield seen
-        f.write(json.dumps({"s": sid, "op": op, **seen}) + "\n")
+        f.write(json.dumps({"s": sid, "op": op, "t": round(time.time(), 4), "pid": os.getpid(),
+                            **seen}) + "\n")
 
 
 def scan(sid):
