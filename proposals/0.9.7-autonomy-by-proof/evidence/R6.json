@@ -4,8 +4,8 @@
   "command": "grep -n '^| Former 🔴 gate' framework/skills/aidlc/SKILL.md",
   "target": "python3 + git in the devcrew repo checkout",
   "expect": "\\| Former 🔴 gate",
-  "observed": "796:| Former 🔴 gate | Now |",
+  "observed": "799:| Former 🔴 gate | Now |",
   "result": "pass",
-  "sha": "73271d7e101eed6e5523382028386b5c986bf7a1",
-  "at": "2026-10-07T21:48:43+00:00"
+  "sha": "bf8cb1b11a83df2a536a23132239fc4e4e57bc07",
+  "at": "2026-10-08T02:24:57+00:00"
 }
