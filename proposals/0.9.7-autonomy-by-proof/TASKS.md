@@ -22,6 +22,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] N3 stdlib sensors, neutral, pinned checker
 - [x] N4 small on purpose (auditor: PASS-WITH-DEBT)
 
+- [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
+
 ## In progress
 
 ## Todo
