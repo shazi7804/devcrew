@@ -1,0 +1,11 @@
+{
+  "id": "N2",
+  "verify": "local",
+  "command": "git diff 49d78dd HEAD -- AGENTS.md | grep -c '^[-+]10\\. ' ; python3 framework/tools/check_tasks.py --self-test",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)^0\\s.*self-test ok",
+  "observed": "0\nself-test ok (38 cases)",
+  "result": "pass",
+  "sha": "08e16b15ab9882af9f09fbc275963f6b447254d1",
+  "at": "2026-10-08T02:27:02+00:00"
+}

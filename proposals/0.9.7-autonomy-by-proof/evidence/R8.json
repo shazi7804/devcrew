@@ -1,0 +1,11 @@
+{
+  "id": "R8",
+  "verify": "local",
+  "command": "grep -n 'Pre-authorized actions' framework/skills/aidlc/contracts/requirements.template.md && grep -n '^JudgmentRecorded ==' framework/formal/Aidlc.tla && grep -n 'JudgmentRecorded' framework/formal/Aidlc.cfg",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)Pre-authorized actions.*JudgmentRecorded ==.*INVARIANT.*JudgmentRecorded",
+  "observed": "117:## Pre-authorized actions (what the run may do on its own)\n184:JudgmentRecorded ==\n10:INVARIANT TypeOK NoPhasePastUnsignedBatch DoneHasEvidence AsksOnlyForBatchOrInterrupt JudgmentRecorded",
+  "result": "pass",
+  "sha": "08e16b15ab9882af9f09fbc275963f6b447254d1",
+  "at": "2026-10-08T02:25:55+00:00"
+}

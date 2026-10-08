@@ -1,0 +1,11 @@
+{
+  "id": "R15",
+  "verify": "local",
+  "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds ElectionV096 ; [ $? -eq 1 ] && grep -c '^| A[1-4]' framework/session-governance.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)AtMostOneActing.*\\n4\\s*$",
+  "observed": "ElectionV096/ElectionV096: AtMostOneActing\n4",
+  "result": "pass",
+  "sha": "08e16b15ab9882af9f09fbc275963f6b447254d1",
+  "at": "2026-10-08T02:26:58+00:00"
+}

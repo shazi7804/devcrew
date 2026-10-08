@@ -1,0 +1,11 @@
+{
+  "id": "R12",
+  "verify": "local",
+  "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds Aidlc:AidlcBroken ; [ $? -eq 1 ] && grep -cE 'LiveBroken|V096|AidlcBroken' tools/check_models.py",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)NoPhasePastUnsignedBatch.*\\n[4-9]\\s*$",
+  "observed": "Aidlc/AidlcBroken: NoPhasePastUnsignedBatch\n4",
+  "result": "pass",
+  "sha": "08e16b15ab9882af9f09fbc275963f6b447254d1",
+  "at": "2026-10-08T02:26:47+00:00"
+}

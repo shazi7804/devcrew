@@ -1,0 +1,26 @@
+{
+  "id": "R12",
+  "property": "Election: AtMostOneActing /\\ ActingHoldsTop at 3 sessions, HooksEnd /\\ ElectedAfterGone at 2; Aidlc: NoPhasePastUnsignedBatch /\\ DoneHasEvidence /\\ AtBoundNoProgress /\\ AsksOnlyForBatchOrInterrupt /\\ JudgmentRecorded /\\ StopsOnlyForCEO /\\ NeverStuck /\\ LoopTerminates /\\ BoundInterrupts /\\ TroubleReachesCEO",
+  "level": "checked",
+  "conformance": "none",
+  "tool": "TLC 2.19 (tla2tools 1.7.4)",
+  "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --models",
+  "sources": [
+    "tools/check_models.py",
+    "framework/formal/Election.tla",
+    "framework/formal/Aidlc.tla",
+    "framework/formal/ElectionV096.tla"
+  ],
+  "bounds": "Election: 3 sessions under symmetry (safety), 2 (liveness); Aidlc: 2 items, Loop A 5/3, every scope subset; broken variants: 1-2",
+  "expect": "models: ok",
+  "observed": "models:\n  ok  Election/Election: holds (expected holds; 3573920 states, 25s)\n  ok  Election/ElectionLive: holds (expected holds; 65343 states, 58s)\n  ok  ElectionV096/ElectionV096: AtMostOneActing (expected AtMostOneActing; 90611 states, 2s)\n  ok  Election/ElectionLiveBroken: temporal (expected temporal; 51054 states, 3s)\n  ok  Aidlc/Aidlc: holds (expected holds; 134464 states, 1s)\n  ok  Aidlc/AidlcLive: holds (expected holds; 134464 states, 17s)\n  ok  Aidlc/AidlcBroken: NoPhasePastUnsignedBatch (expected NoPhasePastUnsignedBatch; 643 states, 1s)\n  ok  Aidlc/AidlcLiveBroken: temporal (expected temporal; 30592 states, 2s)\nmodels: ok",
+  "result": "pass",
+  "sha": "08e16b15ab9882af9f09fbc275963f6b447254d1",
+  "at": "2026-10-08T02:28:54+00:00",
+  "vacuity": {
+    "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds ElectionV096 || python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds Aidlc:AidlcBroken",
+    "expect": "NoPhasePastUnsignedBatch",
+    "observed": "ElectionV096/ElectionV096: AtMostOneActing\nAidlc/AidlcBroken: NoPhasePastUnsignedBatch",
+    "result": "fail"
+  }
+}

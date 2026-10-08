@@ -1,0 +1,11 @@
+{
+  "id": "R14",
+  "verify": "local",
+  "command": "grep -n 'Autonomy is earned by proof' AGENTS.md && grep -n 'invariants_checked: \\[1,2,3,4,5,6,7,8,9,10,11\\]' framework/agents/reviewer.md",
+  "target": "python3 + git in the devcrew repo checkout",
+  "expect": "(?s)11\\. \\*\\*Autonomy is earned by proof.*invariants_checked: \\[1,2,3,4,5,6,7,8,9,10,11\\]",
+  "observed": "238:11. **Autonomy is earned by proof** — the CEO signs in three batches (intent,\n104:invariants_checked: [1,2,3,4,5,6,7,8,9,10,11]",
+  "result": "pass",
+  "sha": "08e16b15ab9882af9f09fbc275963f6b447254d1",
+  "at": "2026-10-08T02:26:57+00:00"
+}
