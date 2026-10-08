@@ -117,7 +117,9 @@ design** (below), answered by the CEO — never a reason to build on a fake.
 ## Pre-authorized actions (what the run may do on its own)
 Every irreversible or production action the run may take between batches, with
 the condition under which it may. Signed in the intent batch. An action that is
-not here is the `unauthorized` interrupt: the run stops and asks.
+not here does not stop the run: the role decides it and records a `Cn`
+checkbox in TASKS.md for the CEO to tick at the next batch. List here what
+must be confirmed up front.
 
 | Action | Condition | Environment | Blast radius · reversible? |
 |---|---|---|---|

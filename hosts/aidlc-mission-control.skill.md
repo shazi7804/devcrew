@@ -28,7 +28,7 @@ Either way the bus is the same: state lives in the files, not in a conversation.
 |---|---|
 | hand work to another role | append a task to `mission-control/data/tasks.json` with `assignedTo: "<role id>"`, `blockedBy: ["<the task that must finish first>"]`, and the `Rn` list in `acceptanceCriteria` |
 | run two roles in parallel | two sibling tasks with the same `blockedBy` (the daemon's `concurrency.maxParallelAgents` is the fan-out cap) |
-| stop for the CEO | only at one of the three batches (intent · design · ship) or on one of the six interrupts a sensor raises — append a `status: "pending"` row to `decisions.json` whose `taskId` is the task it blocks, write TASKS.md's `Gate:` line, then END YOUR TURN — nothing dispatches that task until the CEO answers in the Decisions page, and their answer returns to you in the retry prompt |
+| stop for the CEO | only at one of the three batches (intent · design · ship) or on one of the five interrupts a machine raises (a judgment is never a stop: decide it and record a `Cn` checkbox in TASKS.md) — append a `status: "pending"` row to `decisions.json` whose `taskId` is the task it blocks, write TASKS.md's `Gate:` line, then END YOUR TURN — nothing dispatches that task until the CEO answers in the Decisions page, and their answer returns to you in the retry prompt |
 | record durable state | `TASKS.md` in the run repo (Done · In progress · Todo, current state only; the orchestrator writes it, `.aidlc/tools/check_tasks.py` checks it). The mission's `taskHistory` in `missions.json` + your final summary MAY mirror it; when they disagree, TASKS.md wins |
 | act on the outside world | a Field Ops task (`field-ops/tasks.json`) with `approvalRequired: true` — never raw shell |
 
@@ -48,10 +48,12 @@ everything at once: **intent** (`requirements.md` with every `Property:`, the
 market verdict when 0.5 runs, the pre-authorized actions), **design**
 (`design.md` + `standards.md` + the chosen prototype; skipped when scope skips
 Phases 1 and 2), **ship** (production release, signing material, submission,
-merge). Between batches the run does not stop for the CEO except on one of six
-interrupts a sensor raises: drift of a signed hash, a change crossing the signed
-design, Loop A's bound, a missing service or credential, an irreversible action
-not on the pre-authorized list, a failed model check. The 🔴 marks below say
+merge). Between batches the run does not stop for the CEO except on one of five
+interrupts a machine raises: drift of a signed hash, a change to a signed design
+file, Loop A's bound, a missing service or credential, a failed model check. A
+judgment — an irreversible action not on the pre-authorized list, a spent
+budget, a design call — is never a stop: decide it, record a `Cn` checkbox in
+TASKS.md, and the CEO ticks it at the next batch. The 🔴 marks below say
 which batch each sign-off joins.
 
 | # | Phase | Role | Contract out | Gate |

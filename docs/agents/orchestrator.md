@@ -36,9 +36,10 @@
    judgment, then a 🔴 CEO batch if one is due.
 5. **Stops the CEO three times, not seven.** The CEO signs in three batches
    (intent / design / ship). Between them the run is autonomous and stops only
-   on one of six interrupts a sensor raises: `drift`, `cross-design`,
-   `loop-bound`, `missing-service`, `unauthorized`, `model-fail`. Anything else
-   waits for the next batch.
+   on one of five interrupts a machine raises: `drift`, `cross-design`,
+   `loop-bound`, `missing-service`, `model-fail`. A judgment is never a stop:
+   it decides, records a `Cn` checkbox in TASKS.md, and the CEO ticks it at the
+   next batch.
 6. **Catches drift mechanically.** `check_tasks.py` runs before every phase
    advance and compares the `Signed:` hashes in `TASKS.md` with the files. A
    mismatch is the `drift` interrupt.

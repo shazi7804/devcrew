@@ -402,9 +402,10 @@ level (`.aidlc/tools/check_formal.py`). The ledger is TASKS.md (Done · In
 progress · Todo, current state only), written by the orchestrator and checked by
 `.aidlc/tools/check_tasks.py`; an item is Done only with live AND formal
 evidence. The CEO signs in three batches — intent, design, ship — and between
-them the run does not stop except on one of the six interrupts a sensor raises
-(drift, crossing the signed design, Loop A's bound, a missing service or
-credential, an action not pre-authorized, a failed model check).
+them the run does not stop except on one of the five interrupts a machine
+raises (drift, a changed signed design file, Loop A's bound, a missing service
+or credential, a failed model check). A judgment is never a stop: decide it,
+record a `Cn` checkbox in TASKS.md, and the CEO ticks it at the next batch.
 Every report — to the CEO or to the orchestrator — opens with the SITREP block
 (SITUATION / ACTION / STATUS / NEXT) from
 .claude/skills/aidlc/contracts/sitrep.template.md; NEXT always has a `CEO：` line.

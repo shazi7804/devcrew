@@ -599,8 +599,11 @@ OUT    live URL + smoke evidence
 **High-risk, production, or infra-mutating actions come only from the
 pre-authorized list** signed in the intent batch (action · condition ·
 environment — with the blast radius and whether it is reversible). An action
-not on it is the `unauthorized` interrupt: stop, state what it does, the blast
-radius and the reversibility, and wait. A judgment call is not a substitute.
+not on it is a judgment, and a judgment never stops the run: the role decides
+it itself — do it, or don't — and records the decision as a `Cn` checkbox in
+TASKS.md's Todo (what it did, the blast radius, how to undo it), for the CEO to
+tick at the next batch. What needs the CEO beforehand goes in the list, up
+front, never mid-run.
 
 For a **mobile app there is no runtime to deploy**: the artifact goes to
 Apple/Google, so this phase covers backend/services only and the shipping itself
@@ -765,9 +768,9 @@ one exists). Enforce:
 - the fix-loop attempt bound above;
 - a fan-out cap — serialize role agents on a memory-tight host; a wide parallel
   wave only when headroom is ample;
-- a token/time budget — a run that blows its stated budget raises the
-  `loop-bound` interrupt (a bound is reached) rather than pressing on — it is
-  not a seventh kind of stop;
+- a token/time budget — a run that blows its stated budget does not stop for
+  the CEO: the orchestrator decides (go on, or pause) and records it as a `Cn`
+  checkbox for the next batch;
 - cost awareness — if the host runs on metered compute, pause a long-idle run
   rather than let it bill while it waits.
 
@@ -805,35 +808,40 @@ rather than the orchestrator remembering to ask:
 | ∞ — `proposals/<slug>/requirements.md` signed | intent batch |
 | ∞ — the CEO merges | ship batch |
 | an architecture change crossing a signed boundary | interrupt `cross-design` |
-| a high-risk / production / infra-mutating action | the pre-authorized list (intent batch), else interrupt `unauthorized` |
+| a high-risk / production / infra-mutating action | the pre-authorized list (intent batch); otherwise the role decides and records a `Cn` |
 
-The interrupts are exactly six. Each says which part a machine raises and
-which part is still a role's judgment — named here, never hidden:
+The interrupts are exactly five, and a machine raises every one:
 
 | Interrupt | Raised by | Kind |
 |---|---|---|
 | `drift` | `check_tasks.py` — a `Signed:` hash no longer matches its file | machine |
-| `cross-design` | `check_tasks.py` — a file signed in the design batch (`design.md`, an ADR) changed · the architect's architecture-delta check, for code that departs from an unchanged design | machine · judgment |
-| `loop-bound` | `check_tasks.py` — an item at `5/5` or `stalled 3/3` · the run's token/time budget is spent (§ Budgets) | machine · judgment |
-| `missing-service` | `check_live.py` — no live evidence can exist · an implementer's BLOCKED | machine · judgment |
-| `unauthorized` | the role about to act reads the pre-authorized list — an irreversible action that is not on it | judgment |
+| `cross-design` | `check_tasks.py` — a file signed in the design batch (`design.md`, an ADR) changed | machine |
+| `loop-bound` | `check_tasks.py` — an item at `5/5` or `stalled 3/3` | machine |
+| `missing-service` | `check_live.py` — no live evidence can exist | machine |
 | `model-fail` | the protocol model check (`framework/formal/`, run in CI) fails | machine |
 
-A judgment stop is **fail-closed**: unsure means raise it. Mechanising the
-three judgment parts needs the host — a guard on irreversible commands, a
-budget counter, a design-to-code check — and is tracked as debt, not
-claimed as done.
+**A judgment is never a stop.** The role decides it itself, records the
+decision as a `Cn` checkbox in TASKS.md's Todo —
+`- [ ] C1 <what was decided> — <why, and how to undo it>` — and carries on.
+The next batch's SITREP lists every open `Cn` as a checklist for the CEO to
+tick. That covers an irreversible action not on the pre-authorized list (do
+it or not — either way a `Cn`), code that departs from an unchanged design
+(the architect's call), a spent token/time budget (go on or pause), an
+implementer's doubt. What genuinely needs the CEO beforehand is confirmed up
+front — the pre-authorized list, the batch — never mid-run. (CEO ruling,
+2026-10-08, recorded under invariant 8.)
 
 ```
 <!-- protocol sets: tools/check_repo.py checks these against framework/formal/Aidlc.tla -->
 stages:     intent market arch design build verify deploy release
 batches:    intent design ship
-interrupts: drift cross-design loop-bound missing-service unauthorized model-fail
+interrupts: drift cross-design loop-bound missing-service model-fail
 ```
 
 The protocol is itself a model: `framework/formal/Aidlc.tla` proves, at its
 stated bounds and under weak fairness of the agents only, that no stage starts
-past an unsigned batch, the run stops only at a batch or on one of these six,
+past an unsigned batch, the run stops only at a batch or on one of these five,
+a production deploy that was not pre-authorized never passes without its `Cn`,
 an item reaches Done only with live and formal evidence, Loop A terminates, and
 a running run always reaches a batch, an interrupt or the end. A change to the
 batches or interrupts here changes the model in the same PR.
@@ -874,12 +882,13 @@ mid-flight:
    hash) — never accept a structural change on the requester's say-so.
 2. For a load-bearing reversal the architect runs an `llm-council` pass, and
    returns APPROVE (writes a superseding ADR) / REQUEST-CHANGES / ESCALATE.
-3. **Raise the `cross-design` interrupt when the change crosses a signed
-   boundary**: it breaks a signed requirement's acceptance condition, changes the
-   platform strategy (native ↔ cross-platform, adding/dropping a platform),
-   materially changes cost or vendor lock-in, or reverses an ADR the CEO
-   explicitly approved. The architect advises; the human decides. Bring the human
-   in whenever the tradeoff is a business call, not a purely technical one.
+3. **A change that crosses a signed boundary edits a signed file** — it breaks
+   a signed requirement's acceptance condition, changes the platform strategy
+   (native ↔ cross-platform, adding/dropping a platform), materially changes
+   cost or vendor lock-in, or reverses an ADR the CEO approved — so the
+   superseding ADR moves `design.md`'s hash and `check_tasks.py` raises
+   `cross-design`: the CEO re-signs. A change inside the signed boundary is
+   the architect's call: decide it, record a `Cn`, go on.
 4. Record the new/superseding ADR in `design.md` before the change is built. An
    unreviewed architecture change is a gate failure, the same as intent drift.
 
@@ -890,8 +899,11 @@ actually built against `design.md` + the ADRs, and flag any new or changed
 load-bearing element — a new dependency/framework, a new datastore, a new
 external service or API, a changed deployment topology, or a new trust boundary.
 Any detected delta not already covered by an ADR is routed to `architect`
-(step 1 above) before the gate can pass. Uncertainty escalates to architect
-review rather than defaulting to "not architectural" (fail-closed).
+(step 1 above) before the gate can pass; uncertainty goes to the architect,
+never to "not architectural". The architect decides: a superseding ADR (which,
+crossing a signed boundary, raises `cross-design` by moving `design.md`), or
+the delta is within the design — recorded as a `Cn`. Either way the run does
+not stop to ask.
 
 ### Contracts must be structurally complete
 A contract is only accepted at its gate if it is structurally complete:
@@ -1122,9 +1134,10 @@ drift is never flagged" into a detectable gate failure.
   needs. On a memory-tight host, serialize instead of a wide parallel wave, and
   check host resources before a heavy step.
 - **Escalate real decisions to the CEO; decide the rest yourself.** The three
-  batches and the six interrupts go to the CEO; a genuine trade-off that is
-  not an interrupt waits for the next batch. Do not ask what you can discover
-  or reasonably decide.
+  batches and the five interrupts go to the CEO; a genuine trade-off that is
+  not an interrupt you decide yourself and record as a `Cn` checkbox, which the
+  next batch's SITREP lists. Do not ask what you can discover or reasonably
+  decide, and never stop mid-run to ask.
 - **Keep TASKS.md — the run's only ledger.** Current state only: what is Done
   (one line, no record), what is In progress (status · owner · attempts ·
   next), what is Todo — plus the `Signed:` hashes and the open Gate

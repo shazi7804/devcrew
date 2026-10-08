@@ -149,3 +149,28 @@ independently (REQUEST-CHANGES), and QA re-ran every piece of evidence
 | `unauthorized`, part of `cross-design` and the budget part of `loop-bound` are role judgments, not machine checks (both reviewers) | named per interrupt in SKILL.md (machine · judgment), fail-closed, and in invariant 11; mechanising them needs the host and is debt D6–D8 — **whether that is acceptable for merge is the CEO's call** |
 | an interrupt looked like a dropped sign-off (glm-5) | SKILL.md: an interrupt is still a hard stop the CEO decides |
 | "trace-validated" over-claimed (glm-5) | "sampled real runs checked against the model"; exhaustiveness is the model's |
+
+## 8. Round 3, the final audit, and the CEO's second ruling
+
+`gpt-5.6-sol` round 3 returned REQUEST-CHANGES: everything but the CEO's
+decisions resolved or honestly stated. What it still found was fixed: a
+nested `requirements.md` decoy, lowered Loop-A bounds, untracked files
+counting as a clean checkout, a create that failed before the link leaving
+no trace, a tool named only in a comment. Running the sensors on this
+proposal found two bugs in the author's own work. The requirements parser
+read a prose line beginning `**R12's …**` as the item R12, and the Done-line
+rule took R9's title `Property · Formal · Conformance` for a status. Both
+are fixed and both are in the self-tests. The final-tree auditor
+(PASS-WITH-DEBT) escalated one correctness hole: with no Java runtime a
+mutant trace check printed "rejected", so a vacuity run could pass with no
+checker run. Now an errored check is no verdict (exit 2), never a rejection.
+
+Then the CEO ruled 「"不確定就停" 我要求 LLM 先自我判斷，但是產生 checkbox 讓我判斷。
+不要一直停下來。或是提前跟我確認。這樣效率太差. 全部 commit and sign. 不要再問我簽不簽的問題」.
+The judgment stops are gone. `unauthorized` is no longer an interrupt; an
+action that is not pre-authorized, a design question or a spent budget is
+decided by the role and recorded as a `Cn` checkbox for the next batch.
+The five interrupts left are the ones a machine raises. `Aidlc.tla` gained
+`JudgmentRecorded`, which TLC shows fails if the record is dropped. The
+ruling signs `requirements.md` and this file; D6–D8, mechanising the
+judgment stops, are dropped as moot.

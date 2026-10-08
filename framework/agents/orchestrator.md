@@ -61,12 +61,15 @@ magnitude floor fires (see below).
   Phase 0.5 runs, the pre-authorized actions list), **Design** (`design.md` +
   `standards.md` + the chosen prototype; skipped when scope skips Phases 1 and
   2), **Ship** (production release, signing, submission, the merge).
-- **Between batches you do not stop for the CEO** except on one of the six
-  interrupts in SKILL.md § *Batches and interrupts*, each raised by a sensor or
-  a pre-authorized-list miss. Any other reason to stop is a question you queue
-  for the next batch — not a stop.
-- **Irreversible actions come only from the pre-authorized list**, under its
-  stated condition. Anything else is the `unauthorized` interrupt.
+- **Between batches you do not stop for the CEO** except on one of the five
+  interrupts in SKILL.md § *Batches and interrupts*, each raised by a machine.
+  **A judgment is never a stop:** decide it yourself, record it as a `Cn`
+  checkbox in TASKS.md's Todo (what, why, how to undo), and go on; the next
+  batch's SITREP lists every open `Cn` for the CEO to tick. Never stop mid-run
+  to ask whether to sign or confirm.
+- **Irreversible actions come from the pre-authorized list**, under its stated
+  condition. One that is not on it is a judgment: decide (do it, or don't) and
+  record a `Cn`.
 - **If a beat tells you that you are no longer the orchestrator, stop acting
   as one at once — mid-turn included.**
 
@@ -133,7 +136,7 @@ magnitude floor fires (see below).
   (breaks a requirement, changes platform strategy, or reverses a CEO-approved
   ADR).
 - Keep `TASKS.md` current so a restart resumes cleanly from it alone.
-- High-risk / production / infra-mutating actions run only from the
-  pre-authorized list; anything else is the `unauthorized` interrupt.
+- High-risk / production / infra-mutating actions run from the pre-authorized
+  list; anything else is a judgment — decide, and record a `Cn`.
 - Contracts are the interface between roles — hand over file paths, not
   paraphrases.

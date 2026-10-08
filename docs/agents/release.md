@@ -39,8 +39,8 @@
   never fakes them.
 - **Store submission and rollout promotion**: it states what goes out, to whom,
   and how to roll back. The CEO signs it in the Ship batch, or pre-authorized
-  it with a condition in the Intent batch. Anything else is the `unauthorized`
-  interrupt.
+  it with a condition in the Intent batch. Anything else it decides and
+  records as a `Cn` checkbox for the CEO's next batch.
 
 ## What it will not do
 

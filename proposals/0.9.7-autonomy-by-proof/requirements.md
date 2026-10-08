@@ -2,9 +2,9 @@
 
 > Signed intent contract for a change to devcrew's own framework. Every gate of
 > this change re-reads this file.
-> Status: SIGNED (CEO ruling) — 2026-10-08: 「好。加進去後直接做」, given on this
-> draft after the four formal-methods revisions were proposed; recorded
-> verbatim under *Constraints*.
+> Status: SIGNED (CEO rulings) — 2026-10-08: 「好。加進去後直接做」 on the draft,
+> then 「全部 commit and sign. 不要再問我簽不簽的問題」 on this text, with the
+> post-review corrections and the Cn rule; both verbatim under *Constraints*.
 > Scope: feature (framework: `framework/` · `hosts/` · `AGENTS.md` · docs · CI)
 
 ## Vision
@@ -107,22 +107,28 @@ changes, one idea:
   - *Verify*: local
   - *Property*: none — prose in templates, SKILL.md, roles or adapters; its acceptance is read and grepped, there is no behaviour to model
 - **R7** — Between batches the run SHALL NOT stop for the CEO, except on an
-  interrupt, and the interrupts SHALL be exactly these: a `Signed:` hash
-  drifted; a change crosses the signed design; a Loop-A bound is reached; a
-  real service or credential is missing; an irreversible action is not on the
-  pre-authorized list; the protocol model check (R12) fails.
-  - *Acceptance*: SKILL.md lists the six interrupts; each is raised by a
-    sensor (`check_tasks.py`, `check_live.py`, `check_formal.py`, the model
-    check) or by a pre-authorized-list miss; `orchestrator.md` says any other
-    reason to stop is a question for the next batch, not a stop.
+  interrupt a machine raises, and the interrupts SHALL be exactly these: a
+  `Signed:` hash drifted; a file signed in the design batch changed; a Loop-A
+  bound is reached; a real service or credential is missing (no live evidence
+  can exist); the protocol model check (R12) fails. A judgment SHALL NOT stop
+  the run: the role decides it and records it as a `Cn` checkbox in TASKS.md,
+  which the CEO ticks at the next batch.
+  - *Acceptance*: SKILL.md lists the five interrupts, each with the sensor
+    that raises it (`check_tasks.py`, `check_live.py`, the model check);
+    `check_tasks.py` accepts `Cn` in Todo or Done and refuses it in progress;
+    `orchestrator.md` says a judgment is decided and recorded as a `Cn`, and
+    any other question waits for the next batch.
   - *Verify*: local
   - *Property*: none — prose in templates, SKILL.md, roles or adapters; its acceptance is read and grepped, there is no behaviour to model
 - **R8** — The Intent batch SHALL carry a pre-authorized action list — each
   irreversible action the run may take on its own (for example "deploy to
   production when every sensor is green") with its condition — and an action
-  not on the list SHALL be an interrupt.
+  not on the list SHALL be decided by the role about to act and recorded as a
+  `Cn` checkbox, never a stop.
   - *Acceptance*: `requirements.template.md` has a *Pre-authorized actions*
-    table (action · condition · environment); SKILL.md Phases 5–6 consult it.
+    table (action · condition · environment); SKILL.md Phases 5–6 consult it;
+    `Aidlc.tla`'s `JudgmentRecorded` holds (a deploy that was not
+    pre-authorized never passes unrecorded).
   - *Verify*: local
   - *Property*: none — prose in templates, SKILL.md, roles or adapters; its acceptance is read and grepped, there is no behaviour to model
 
@@ -187,7 +193,7 @@ changes, one idea:
     bounds and every property holds; a CI step proves the check can fail by
     checking a seeded broken variant and expecting a counterexample.
   - *Verify*: local
-  - *Property*: Election: AtMostOneActing /\ ActingHoldsTop at 3 sessions, HooksEnd /\ ElectedAfterGone at 2; Aidlc: NoPhasePastUnsignedBatch /\ DoneHasEvidence /\ AtBoundNoProgress /\ AsksOnlyForBatchOrInterrupt /\ StopsOnlyForCEO /\ NeverStuck /\ LoopTerminates /\ BoundInterrupts /\ TroubleReachesCEO
+  - *Property*: Election: AtMostOneActing /\ ActingHoldsTop at 3 sessions, HooksEnd /\ ElectedAfterGone at 2; Aidlc: NoPhasePastUnsignedBatch /\ DoneHasEvidence /\ AtBoundNoProgress /\ AsksOnlyForBatchOrInterrupt /\ JudgmentRecorded /\ StopsOnlyForCEO /\ NeverStuck /\ LoopTerminates /\ BoundInterrupts /\ TroubleReachesCEO
   - *Formal*: checked
   - *Conformance*: none
 - **R13** — The model and the code SHALL NOT drift. `boot.py` SHALL be
@@ -288,9 +294,16 @@ changes, one idea:
   dressing an example test up as a formal method.
 - **A correction to the R12 Property after review (2026-10-08):** the model
   replaced `LoopBounded` with `AtBoundNoProgress` and `BoundInterrupts`
-  (reviewer round 2, QA). That is a change to signed text, so it needs the
-  CEO's re-signature: until then `check_tasks.py` reports DRIFT on this file
-  and the run is at the `drift` interrupt, as the protocol requires.
+  (reviewer round 2, QA), and gained `JudgmentRecorded` with the Cn rule. A
+  change to signed text: `check_tasks.py` reported DRIFT until the CEO
+  re-signed it (the second ruling below).
+- **CEO ruling (2026-10-08, second), verbatim:** 「"不確定就停" 我要求 LLM
+  先自我判斷，但是產生 checkbox 讓我判斷。不要一直停下來。或是提前跟我確認。
+  這樣效率太差. 全部 commit and sign. 不要再問我簽不簽的問題」 — recorded under
+  invariant 8, since it removes stops: a judgment is no longer a fail-closed
+  stop but a decision the role makes and records as a `Cn` checkbox; what
+  needs the CEO is confirmed up front in the pre-authorized list. It signs
+  this file and `design.md` (the design batch).
 - This change edits `reviewer.md`, so the reviewer may not review it alone; if
   no other vendor is callable, review runs as a council of independent agents
   with no team memory and is recorded as degraded.

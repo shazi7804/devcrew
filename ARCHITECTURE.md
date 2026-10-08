@@ -18,7 +18,7 @@ this doc is the map.
 │   • intent contract + version lock                            │
 │   • per-gate verification                                     │
 │   • loop bounds + budgets (stop conditions)                   │
-│   • three CEO batches + six interrupts (the only stops)       │
+│   • three CEO batches + five interrupts (the only stops)      │
 │   • TASKS.md, the only ledger, checked every step             │
 │   • formal models of the protocol, checked in CI — §10        │
 │   • retrospective capture hook                                │
@@ -109,8 +109,8 @@ CEO idea
   ▼
 ┌─ PHASE 5 · Deploy runtime (DevOps) — service targets ────────────────────┐
 │  Deploy to the envs in standards.md. CI/CD, observability.               │
-│  high-risk/infra actions only from the pre-authorized list;              │
-│  anything else is the `unauthorized` interrupt.                          │
+│  high-risk/infra actions from the pre-authorized list; anything else     │
+│  the role decides and records as a `Cn` checkbox — never a stop.         │
 │  GATE: production smoke tests green with evidence.                       │
 │  (thin for a mobile app — no runtime to deploy)                          │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -385,7 +385,7 @@ written in each `.cfg`:
 
 | Model | Proves | Bounds |
 |---|---|---|
-| `Aidlc.tla` | no stage past an unsigned batch · the run stops only at a batch or one of the six interrupts · Done only with live + formal evidence · Loop A bounded and terminating · a running run always reaches a batch, an interrupt or the end | 2 items, Loop A at 5 / 3 stalled, every scope, deploy pre-authorized or not; liveness under weak fairness of the agents only |
+| `Aidlc.tla` | no stage past an unsigned batch · the run stops only at a batch or one of the five interrupts · an action not pre-authorized leaves its `Cn` · Done only with live + formal evidence · Loop A bounded and terminating · a running run always reaches a batch, an interrupt or the end | 2 items, Loop A at 5 / 3 stalled, every scope, deploy pre-authorized or not; liveness under weak fairness of the agents only |
 | `Election.tla` | never two sessions acting as orchestrator · only the top claim's holder acts · every hook run ends · once the holder is gone, a session is elected | safety at 3 sessions, liveness at 2 |
 
 Two rules keep them honest:

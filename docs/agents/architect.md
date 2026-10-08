@@ -44,7 +44,9 @@
   to the architect, never lands on an implementer's say-so. It answers APPROVE,
   REQUEST-CHANGES or ESCALATE. It escalates to the CEO when the change breaks a
   requirement, changes the platform strategy, shifts cost or lock-in, or
-  reverses an ADR the CEO approved.
+  reverses an ADR the CEO approved: the superseding ADR moves `design.md`'s
+  signed hash and `check_tasks.py` raises `cross-design`. A change inside the
+  signed design it decides itself, recorded as a `Cn` checkbox.
 - **Mobile consultation in Phase 0.** For an app, it recommends native or
   cross-platform (Flutter / React Native / KMP) over the draft requirements. The
   CEO signs that choice as the first ADR.

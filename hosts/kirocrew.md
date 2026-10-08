@@ -46,8 +46,8 @@ arrow crossing a gap is either an install artifact or a host primitive.
 │   council       ▶ the llm-council skill                                │
 │   🔴 CEO batch  ▶ ask_question, then END THE TURN — the turn itself IS │
 │                   the suspension; this host has no decision QUEUE.     │
-│                   Three batches (intent · design · ship) + the six     │
-│                   sensor-raised interrupts are the only stops          │
+│                   Three batches (intent · design · ship) + the five    │
+│                   machine-raised interrupts are the only stops         │
 │   budgets       ▶ resource_status before each heavy step               │
 │   question      ▶ ask_question card · an [OPTIONS:] line               │
 │   preview       ▶ the dashboard Browser panel (web-preview)            │

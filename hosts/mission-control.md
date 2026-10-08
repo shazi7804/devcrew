@@ -103,7 +103,7 @@ convention that mc's own functions then enforce for free.
 │   phase order   ▶ tasks.json .blockedBy        enforced by isTaskUnblocked() │
 │   dispatch      ▶ tasks.json .assignedTo       → the registry id             │
 │   🔴 CEO batch  ▶ decisions.json {status:pending, taskId} — an open batch    │
-│                   (intent·design·ship) or one of the six interrupts          │
+│                   (intent·design·ship) or one of the five interrupts         │
 │                                              enforced by hasPendingDecision()│
 │   gate answer   ▶ decisions.json {status:answered, answer} → the next prompt,│
 │                                              via buildRetryContext()         │
@@ -325,7 +325,7 @@ carries it, and the skill entry states it.
 | Phase ordering | one task per phase in `tasks.json`; later phases carry `blockedBy: [<earlier task ids>]`. `isTaskUnblocked()` enforces the spine. |
 | Dispatch | `assignedTo: "<role id>"` (daemon mode: the daemon picks it up in Eisenhower order; board mode: the interactive orchestrator reads the board and dispatches). |
 | Parallel phases (P3 FE ∥ BE, P4 QA ∥ Security ∥ Auditor) | sibling tasks with the same `blockedBy`; `concurrency.maxParallelAgents` is the fan-out cap. |
-| 🔴 CEO batch or interrupt | the CEO signs in three batches — intent, design, ship — and is otherwise stopped only by one of the six interrupts a sensor raises. Either is a `decisions.json` row `{ requestedBy, taskId: <the task the gate blocks>, question, options, context, status: "pending" }`. `hasPendingDecision()` refuses to dispatch that task until the CEO answers in the Decisions page, and `buildRetryContext()` feeds the answer back into the next prompt. **A role writes the pending row and ENDS ITS TURN — it never assumes a gate passed.** In a non-interactive daemon run this is the only suspension mechanism available. |
+| 🔴 CEO batch or interrupt | the CEO signs in three batches — intent, design, ship — and is otherwise stopped only by one of the five interrupts a machine raises; a judgment is a `Cn` checkbox in TASKS.md, never a pending row. Either is a `decisions.json` row `{ requestedBy, taskId: <the task the gate blocks>, question, options, context, status: "pending" }`. `hasPendingDecision()` refuses to dispatch that task until the CEO answers in the Decisions page, and `buildRetryContext()` feeds the answer back into the next prompt. **A role writes the pending row and ENDS ITS TURN — it never assumes a gate passed.** In a non-interactive daemon run this is the only suspension mechanism available. |
 | Contracts | `requirements.md` / `design.md` / `standards.md` / verdict blocks as files in the product repo (e.g. `.aidlc/` or `projects/<slug>/aidlc/`); the task's `notes` names the path. Templates from the installed `aidlc/contracts/`. |
 | Intent hash / standards hash | the `Signed:` line of `TASKS.md` (12 hex of `sha256` per signed file; also mirrored into the phase task's `notes`); `check_tasks.py` re-computes and compares at every step. Drift without a fresh sign-off → halt and raise a pending decision (interrupt `drift`). |
 | Acceptance criteria | mirror each `Rn` into the task's `acceptanceCriteria[]`, so the prompt builder hands the gate its own definition of done. |

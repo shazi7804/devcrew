@@ -27,9 +27,9 @@
 2. **Wires observability**: health checks, logs, metrics and alerts.
 3. **Runs an irreversible action only from the pre-authorized list** the CEO
    signed in the Intent batch, when its condition holds (production release is
-   in the Ship batch). An action that is not on the list is the `unauthorized`
-   interrupt: it states what the action does, its blast radius and whether it
-   is reversible, then stops.
+   in the Ship batch). An action that is not on the list does not stop the
+   run: it decides (an unrecoverable one: no) and records a `Cn` checkbox —
+   what it did, the blast radius, how to undo it — for the CEO's next batch.
 4. **Runs production smoke tests** end to end and captures evidence: status
    codes, a screenshot, and the key user path working.
 

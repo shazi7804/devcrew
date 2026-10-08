@@ -66,12 +66,14 @@ an implementer's say-so. On such a review:
 3. Return one of: **APPROVE** (write the new/superseding ADR), **REQUEST-CHANGES**
    (with the specific concern), or **ESCALATE** — as the structured
    architecture-change verdict YAML from `contracts/verdicts.template.md`.
-4. **ESCALATE to the CEO (the `cross-design` interrupt) when** the change crosses a boundary the
-   CEO signed: it breaks a signed requirement's acceptance condition, changes the
-   platform strategy (native ↔ cross-platform, adding/dropping a platform),
-   materially changes cost/vendor lock-in, or reverses an ADR the CEO explicitly
-   approved. You advise; the human decides. Bring a human in whenever the tradeoff
-   is a business call, not a purely technical one.
+4. **ESCALATE when** the change crosses a boundary the CEO signed: it breaks a
+   signed requirement's acceptance condition, changes the platform strategy
+   (native ↔ cross-platform, adding/dropping a platform), materially changes
+   cost/vendor lock-in, or reverses an ADR the CEO explicitly approved. You
+   write the superseding ADR into `design.md`; that moves its signed hash, and
+   `check_tasks.py` raises the `cross-design` interrupt — the CEO re-signs.
+   A change inside the signed boundary is your call: decide it and record a
+   `Cn` in TASKS.md; it does not stop the run.
 
 ## Mobile: recommend the concrete platform stack (a Phase-0 consultation)
 When the requirements describe a mobile app you are dispatched EARLY — a named

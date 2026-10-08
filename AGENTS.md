@@ -84,7 +84,7 @@ source of truth, so on a new machine you re-run this file and the tree is rebuil
   Markdown body that is the agent's system prompt.
 - `framework/skills/aidlc/SKILL.md` — the collaboration protocol every role
   follows: phases, gates, contract hand-offs, adversarial decision points, gated
-  self-evolution, the three CEO batches and the six interrupts. Its
+  self-evolution, the three CEO batches and the five interrupts. Its
   `contracts/` holds the requirements / design / standards / verdicts / TASKS
   templates. The `standards.md` produced from it is the per-project
   single source of truth for deploy target, API, DB schema, compliance, the code
@@ -167,7 +167,7 @@ not a mechanism.
 The user is the **CEO**. They switch to the `orchestrator` agent and drop an idea.
 devcrew runs Phase 0 (intent alignment → a signed `requirements.md`), then walks
 the AIDLC pipeline, stopping for the CEO three times — the intent, design and
-ship batches — or on one of six interrupts a sensor raises. `TASKS.md` at the
+ship batches — or on one of five interrupts a machine raises. `TASKS.md` at the
 project root always says what is done, in progress and left. The full
 protocol is in `framework/skills/aidlc/SKILL.md`.
 
@@ -241,12 +241,13 @@ the single source of truth; the host files are generated artifacts.
    hashes, Loop A's bound), `check_live.py`, `check_formal.py` (every
    requirement's formal property, with a run that must fail) and the protocol
    models in `framework/formal/`, which `tools/check_models.py` checks in CI.
-   The run stops between batches only on one of six interrupts a sensor
-   raises (drift, cross-design, loop-bound, missing-service, unauthorized,
-   model-fail); any other reason to ask waits for the next batch. Where a
-   stop is still a role's judgment (SKILL.md names each one), it fails
-   closed — unsure means stop — and is debt to mechanise, never presented as
-   machine-checked. Formal
+   The run stops between batches only on one of five interrupts a machine
+   raises (drift, cross-design, loop-bound, missing-service, model-fail). A
+   judgment is never a stop and never hidden: the role decides it, records it
+   as a `Cn` checkbox in TASKS.md, and the CEO ticks it at the next batch.
+   What needs the CEO in advance goes in the pre-authorized list, confirmed
+   up front — never mid-run (the CEO's ruling of 2026-10-08, recorded under
+   invariant 8). Formal
    evidence adds to live evidence, never replaces it. Loosening a bound, or
    adding a way to proceed that no machine checks, is a gate weakened
    (invariant 8).

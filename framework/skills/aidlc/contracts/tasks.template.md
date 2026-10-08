@@ -14,11 +14,12 @@ Gate: 🔴 design — awaiting CEO
 - [x] R1 the user can log in
 
 ## In progress
-- [~] R3 export CSV — verifying · backend · 2/5 · next: QA re-runs check_live
+- [~] R3 export CSV — verifying · backend · 2/5 stalled 0/3 · next: QA re-runs check_live
 - [~] R4 import — blocked on the CRM key (CEO) · backend · 1/5 stalled 1/3 · next: ask
 
 ## Todo
 - [ ] R5 audit log
+- [ ] C1 deployed the import worker to production, not on the pre-authorized list — every sensor green; undo: `make rollback`
 - [ ] D1 split the 900-line handler (audit, medium)
 ```
 
@@ -36,9 +37,18 @@ Gate: 🔴 design — awaiting CEO
 | Section | Line form | Rule |
 |---|---|---|
 | `## Done` | `- [x] <ID> <title>` | one line, no status, no record. Only with fresh live (`check_live.py`) AND formal (`check_formal.py`) evidence |
-| `## In progress` | `- [~] <ID> <title> — <status> · <owner> · <n>/<max> · next: <step>` | status is `building`, `verifying`, `fixing` or `blocked on <what>`. `<n>/<max>` is Loop A's attempt count, max at most 5; add `stalled <k>/3` once an attempt did not lower the failure count |
-| `## Todo` | `- [ ] <ID> <title>` | not started. Also the home of `Dn` tech debt (the Phase-4 audit's medium/low findings) |
+| `## In progress` | `- [~] <ID> <title> — <status> · <owner> · <n>/5 stalled <k>/3 · next: <step>` | status is `building`, `verifying`, `fixing` or `blocked on <what>`. `<n>/5` is Loop A's attempt count, `stalled <k>/3` the attempts that did not lower the failure count — both, always |
+| `## Todo` | `- [ ] <ID> <title>` | not started. Also the home of `Dn` tech debt (the Phase-4 audit's medium/low findings) and of open `Cn` decisions |
 
 Every `Rn`/`Nn` of the signed requirements appears exactly once; no other ID
-appears except `Dn`. Reaching `5/5` or `stalled 3/3` is the `loop-bound`
-interrupt — stop and tell the CEO, do not raise the bound.
+appears except `Dn` and `Cn`. Reaching `5/5` or `stalled 3/3` is the
+`loop-bound` interrupt — the status becomes `blocked on loop-bound`; do not
+raise the bound.
+
+## `Cn` — a decision for the CEO to tick, never a stop
+A judgment does not stop the run. The role decides it, writes
+`- [ ] C<n> <what was decided> — <why, and how to undo it>` in Todo, and goes
+on: an irreversible action not on the pre-authorized list, code that departs
+from an unchanged design, a spent token/time budget, an implementer's doubt.
+The next batch's SITREP lists every open `Cn` as a checklist; when the CEO
+ticks one it moves to Done as `[x]`. Never in progress.

@@ -46,6 +46,11 @@ so a parser (and the eye) can find them.
 - **Below the block, only what the CEO asked for.** If they asked a question,
   answer it in ≤3 lines under the block. Otherwise stop.
 
+**A batch SITREP lists every open `Cn`** — the decisions the run made on its
+own since the last batch — as a checklist under the block (`- [ ] C1 <what> —
+<why, how to undo>`), for the CEO to tick or reverse. They are decided, not
+asked: none of them stopped the run, and none of them is a question.
+
 Judgment roles still end with their verdict YAML (`verdicts.template.md`): the
 SITREP goes on top for the reader, the YAML at the bottom for the parser.
 

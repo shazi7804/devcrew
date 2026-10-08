@@ -32,10 +32,16 @@ so the bounds became code first.
   Every host uses it; a host primitive may mirror it.
 - **Three batch sign-offs: intent, design, ship** (R6–R8). Every item the CEO
   signed before is still signed, now grouped, and SKILL.md maps each former
-  🔴 gate to its batch. Between batches the run stops only on six interrupts,
-  each raised by a sensor: drift, cross-design, loop-bound, missing-service,
-  unauthorized, model-fail. Irreversible actions come from a pre-authorized
-  list signed in the intent batch.
+  🔴 gate to its batch. Between batches the run stops only on five
+  interrupts, each raised by a machine: drift, cross-design (a design-batch
+  file moved), loop-bound, missing-service, model-fail.
+- **A judgment is never a stop** (the CEO's second ruling). An irreversible
+  action that is not on the pre-authorized list, code that departs from an
+  unchanged design, a spent budget: the role decides, records a `Cn`
+  checkbox in TASKS.md, and goes on. The next batch's SITREP lists every open
+  `Cn` for the CEO to tick. What needs the CEO beforehand is confirmed up
+  front, in the pre-authorized list. `Aidlc.tla` proves an unauthorized
+  deploy never passes unrecorded (`JudgmentRecorded`).
 - **Formal methods, honestly levelled** (R9–R11). Every requirement carries a
   `Property:`, a level and a conformance:
   - levels are `tested` (property testing, named as *not* formal), `checked`

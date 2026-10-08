@@ -28,10 +28,11 @@ Do:
    signs that list (action · condition · environment) in the 🔴 Intent batch,
    and production release in the 🔴 Ship batch. A production, data or
    infra-mutating action that is on the list runs when its condition holds
-   (for example "every sensor green"); one that is not is the `unauthorized`
-   interrupt — state what it does, the blast radius and whether it is
-   reversible, and stop. Never run a destructive operation the CEO did not
-   sign.
+   (for example "every sensor green"); one that is not does not stop the run —
+   decide it: run it when it is reversible and the sensors are green, and
+   record a `Cn` in TASKS.md (what it did, blast radius, how to undo). An
+   unrecoverable, destructive operation not on the list: decide not to run it,
+   and record a `Cn` so the CEO can pre-authorize it at the next batch.
 4. Run **production smoke tests** end-to-end and capture evidence (status codes,
    a screenshot of the live surface, key user path working). A health check
    proves the service is up, not that a feature works: probe every `live`

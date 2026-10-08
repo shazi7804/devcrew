@@ -21,8 +21,10 @@ CONSTANTS Items, MaxAttempts, MaxStalled,
 
 Stages     == <<"intent", "market", "arch", "design", "build", "verify", "deploy", "release">>
 Batches    == {"intent", "design", "ship"}
-Interrupts == {"drift", "cross-design", "loop-bound", "missing-service",
-               "unauthorized", "model-fail"}
+\* the stops a MACHINE raises. A judgment (an irreversible action not on the
+\* pre-authorized list, a design question, a spent budget) is not a stop: the
+\* role decides it, records a Cn checkbox for the CEO's next batch, and goes on.
+Interrupts == {"drift", "cross-design", "loop-bound", "missing-service", "model-fail"}
 Optional   == {"market", "arch", "design", "deploy", "release"}   \* scope routing may skip these
 
 \* every batch that must be signed before a stage starts -- cumulative: a scope
@@ -33,9 +35,9 @@ Required(s) == CASE s \in {"arch", "design"}                  -> {"intent"}
                  [] s \in {"release", "done"}                  -> {"intent", "design", "ship"}
                  [] OTHER                                      -> {}
 
-VARIABLES stage, run, waiting, signed, trouble, skip, preauth,
+VARIABLES stage, run, waiting, signed, trouble, skip, preauth, review,
           item, live, formal, attempts, stalled
-vars == <<stage, run, waiting, signed, trouble, skip, preauth,
+vars == <<stage, run, waiting, signed, trouble, skip, preauth, review,
           item, live, formal, attempts, stalled>>
 
 Idx(s) == CHOOSE k \in 1..8 : Stages[k] = s
@@ -67,6 +69,7 @@ Init ==
   /\ trouble = "none"
   /\ skip \in SUBSET Optional          \* the scope, fixed at Phase 0
   /\ preauth \in BOOLEAN               \* is a production deploy pre-authorized?
+  /\ review = FALSE                    \* a Cn checkbox recorded for the CEO
   /\ item = [i \in Items |-> "todo"]
   /\ live = [i \in Items |-> FALSE] /\ formal = [i \in Items |-> FALSE]
   /\ attempts = 0 /\ stalled = 0
@@ -79,7 +82,6 @@ Work == <<item, live, formal, attempts, stalled>>
 Advance ==
   /\ Calm
   /\ stage \in {"build", "verify"} => \A i \in Items : item[i] = "done"
-  /\ stage = "deploy" => preauth
   /\ LET n == Next(stage) IN
        IF Missing(n) = "none"
        THEN /\ stage' = n
@@ -87,6 +89,7 @@ Advance ==
             /\ UNCHANGED <<waiting, signed>>
        ELSE /\ run' = "batch" /\ waiting' = Missing(n)
             /\ UNCHANGED <<stage, signed>>
+  /\ review' = (review \/ (stage = "deploy" /\ ~preauth))   \* decided, recorded as Cn
   /\ UNCHANGED <<trouble, skip, preauth>> /\ UNCHANGED Work
 
 \* Loop A, inside build: an item starts, fails, or passes with its evidence.
@@ -94,56 +97,51 @@ Start(i) == /\ Calm /\ stage = "build" /\ item[i] = "todo"
             /\ \A j \in Items : item[j] # "doing"
             /\ item' = [item EXCEPT ![i] = "doing"]
             /\ attempts' = 0 /\ stalled' = 0
-            /\ UNCHANGED <<live, formal, stage, run, waiting, signed, trouble, skip, preauth>>
+            /\ UNCHANGED <<live, formal, stage, run, waiting, signed, trouble, skip, preauth, review>>
 Fail(i)  == /\ Calm /\ item[i] = "doing"
             /\ attempts < MaxAttempts /\ stalled < MaxStalled
             /\ attempts' = attempts + 1
             /\ stalled' \in {0, stalled + 1}        \* did the failure count drop?
-            /\ UNCHANGED <<item, live, formal, stage, run, waiting, signed, trouble, skip, preauth>>
+            /\ UNCHANGED <<item, live, formal, stage, run, waiting, signed, trouble, skip, preauth, review>>
 Under(i) == attempts < MaxAttempts /\ stalled < MaxStalled
 Prove(i) == /\ Calm /\ item[i] = "doing" /\ Under(i)
             /\ live' = [live EXCEPT ![i] = TRUE] /\ formal' = [formal EXCEPT ![i] = TRUE]
-            /\ UNCHANGED <<item, attempts, stalled, stage, run, waiting, signed, trouble, skip, preauth>>
+            /\ UNCHANGED <<item, attempts, stalled, stage, run, waiting, signed, trouble, skip, preauth, review>>
 Close(i) == /\ Calm /\ item[i] = "doing" /\ Under(i) /\ live[i] /\ formal[i]  \* check_tasks R3
             /\ item' = [item EXCEPT ![i] = "done"]
-            /\ UNCHANGED <<live, formal, attempts, stalled, stage, run, waiting, signed, trouble, skip, preauth>>
+            /\ UNCHANGED <<live, formal, attempts, stalled, stage, run, waiting, signed, trouble, skip, preauth, review>>
 
 \* The bound is reached: the run must stop, not try again.
 Bound == /\ Calm /\ (attempts = MaxAttempts \/ stalled = MaxStalled)
          /\ trouble' = "loop-bound"
-         /\ UNCHANGED <<stage, run, waiting, signed, skip, preauth>> /\ UNCHANGED Work
-\* The deploy is not pre-authorized: an interrupt, not a judgment call.
-Unauthorized == /\ Calm /\ stage = "deploy" /\ ~preauth
-                /\ trouble' = "unauthorized"
-                /\ UNCHANGED <<stage, run, waiting, signed, skip, preauth>> /\ UNCHANGED Work
+         /\ UNCHANGED <<stage, run, waiting, signed, skip, preauth, review>> /\ UNCHANGED Work
 \* A sensor saw trouble: the run stops and the CEO is told which.
 Raise == /\ ~NoRaise /\ run = "running" /\ trouble # "none"
          /\ run' = "interrupted" /\ waiting' = trouble
-         /\ UNCHANGED <<stage, signed, trouble, skip, preauth>> /\ UNCHANGED Work
+         /\ UNCHANGED <<stage, signed, trouble, skip, preauth, review>> /\ UNCHANGED Work
 
 \* ---- the environment (not fair: it may or may not happen) -----------------
 Trouble == /\ run = "running" /\ trouble = "none" /\ stage # "intent"
-           /\ trouble' \in Interrupts \ {"loop-bound", "unauthorized"}
-           /\ UNCHANGED <<stage, run, waiting, signed, skip, preauth>> /\ UNCHANGED Work
+           /\ trouble' \in Interrupts \ {"loop-bound"}
+           /\ UNCHANGED <<stage, run, waiting, signed, skip, preauth, review>> /\ UNCHANGED Work
 
 \* ---- the CEO (not fair: the model proves the run reaches the CEO, not that
 \*      the CEO answers) --------------------------------------------------------
 Sign == /\ run = "batch"
         /\ signed' = [signed EXCEPT ![waiting] = TRUE]
         /\ run' = "running" /\ waiting' = "none"
-        /\ UNCHANGED <<stage, trouble, skip, preauth>> /\ UNCHANGED Work
+        /\ UNCHANGED <<stage, trouble, skip, preauth, review>> /\ UNCHANGED Work
 Resolve == /\ run = "interrupted"
            /\ run' = "running" /\ waiting' = "none" /\ trouble' = "none"
-           \* drift is resolved by re-signing what drifted; unauthorized by
-           \* adding the action to the list; loop-bound by a fresh budget
-           /\ preauth' = (preauth \/ waiting = "unauthorized")
+           \* drift is resolved by re-signing what drifted; loop-bound by a
+           \* fresh budget
            /\ attempts' = IF waiting = "loop-bound" THEN 0 ELSE attempts
            /\ stalled' = IF waiting = "loop-bound" THEN 0 ELSE stalled
-           /\ UNCHANGED <<stage, signed, skip, item, live, formal>>
+           /\ UNCHANGED <<stage, signed, skip, preauth, review, item, live, formal>>
 
 Done == run = "finished" /\ UNCHANGED vars
 
-Agent == Advance \/ Bound \/ Unauthorized \/ Raise
+Agent == Advance \/ Bound \/ Raise
          \/ \E i \in Items : Start(i) \/ Fail(i) \/ Prove(i) \/ Close(i)
 NextStep == Agent \/ Trouble \/ Sign \/ Resolve \/ Done
 Spec == Init /\ [][NextStep]_vars /\ WF_vars(Agent)
@@ -180,6 +178,11 @@ NeverStuck == (run = "running") ~> (run \in {"batch", "interrupted", "finished"}
 
 \* (e) Loop A terminates: an item in progress is closed or stops the run
 LoopTerminates == \A i \in Items : (item[i] = "doing") ~> (item[i] = "done" \/ run = "interrupted")
+
+\* a production deploy that was not pre-authorized never passes unrecorded:
+\* the role decided it, and the CEO sees the Cn checkbox at the next batch
+JudgmentRecorded ==
+  ("deploy" \notin skip /\ ~preauth /\ stage \in {"release", "done"}) => review
 
 \* reaching the bound stops the run
 BoundInterrupts == (attempts = MaxAttempts \/ stalled = MaxStalled) ~> (run = "interrupted")

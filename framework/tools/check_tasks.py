@@ -28,6 +28,12 @@ THE FILE -- the current state, nothing more (git keeps the history)
     - [~] R4 import — blocked on the CRM key (CEO) · backend · 1/5 stalled 0/3 · next: ask
     ## Todo
     - [ ] R5 audit log
+    - [ ] C1 deployed to production without a pre-authorization — every sensor green, rollback tested
+    - [ ] D1 split the 900-line handler (audit, medium)
+
+    `Cn` is a decision a role made on its own judgment -- it did not stop the
+    run to ask. Open (`[ ]`) in Todo until the CEO ticks it at the next batch,
+    then `[x]` in Done.
     - [ ] D1 split the 900-line handler (audit, medium)
 
     Paths in `Signed:` are relative to TASKS.md. The first is the requirements;
@@ -39,7 +45,8 @@ RED WHEN
     blocked on <what>; the attempts field is not `<n>/5 stalled <k>/3` (both
     counters, always); a count is AT its bound without `blocked on loop-bound` -- the bound stops the run,
     it is not one more try; a requirement ID is missing, listed twice, or
-    unknown -- `Dn` tech debt is allowed, in Todo only; a Done line carries a
+    unknown -- `Dn` tech debt is allowed, in Todo only, and `Cn` (a decision
+    for the CEO to tick) in Todo or Done, never In progress; a Done line carries a
     status; a Done item's live (check_live) or formal (check_formal) evidence is
     not fresh; the first `Signed:` file is not named requirements.md, or has no
     items; a
@@ -69,7 +76,7 @@ FORM = (f"— <status> · <owner> · <n>/{MAX_ATTEMPTS} stalled <k>/{MAX_STALLED
 STATUS = re.compile(r"(building|verifying|fixing|blocked on \S.*)$")
 GATE = re.compile(r"🔴 (intent|design|ship) — awaiting CEO")
 DRIFT = ("requirements.md", "standards.md")      # anything else signed: cross-design
-ITEM = re.compile(r"- \[(.)\] ([RND]\d+) (\S.*)$")
+ITEM = re.compile(r"- \[(.)\] ([RNDC]\d+) (\S.*)$")
 DASH = re.compile(r"\s+[—–]\s+")
 
 
@@ -153,6 +160,11 @@ def check(root, tasks, evidence=True, env=None, rerun=False):
                 if sec != "Todo":
                     hits.append(f"{tag}: tech debt lives in Todo")
                 continue
+            if rid.startswith("C"):
+                if sec == "In progress":
+                    hits.append(f"{tag}: a decision for the CEO is open (Todo) or "
+                                "ticked (Done), never in progress")
+                continue
             parts = DASH.split(rest, maxsplit=1)
             # a status, however it is joined: a dash then a status word, an
             # attempt count, or `next:` -- not a title that has a `·` in it
@@ -168,7 +180,7 @@ def check(root, tasks, evidence=True, env=None, rerun=False):
     for rid, secs in seen.items():
         if len(secs) > 1:
             hits.append(f"TASKS.md: {rid} is listed {len(secs)} times ({', '.join(secs)})")
-        if not rid.startswith("D") and rid not in req:
+        if rid[0] not in "DC" and rid not in req:
             hits.append(f"TASKS.md: {rid} is not a requirement of {signed[0][0]}")
     done = [rid for _, _, rid, _ in sections.get("Done", []) if rid in req]
     if evidence and done and reqfile.is_file():
@@ -233,6 +245,12 @@ def self_test():
         ("a missing ID", lambda t: t.replace("- [ ] N1 c\n", ""), "N1 is in the requirements"),
         ("a duplicated ID", lambda t: t + "- [ ] R2 b again\n", "listed 2 times"),
         ("an unknown ID", lambda t: t + "- [ ] R9 ghost\n", "R9 is not a requirement"),
+        ("an open decision for the CEO", lambda t: t + "- [ ] C1 shipped without the key — the CEO ticks it\n", None),
+        ("a ticked decision", lambda t: t.replace("## In progress", "- [x] C1 shipped — ticked\n## In progress"),
+         "!C1"),
+        ("a decision in progress", lambda t: t.replace(
+            "## Todo", "- [~] C1 deciding — fixing · be · 1/5 stalled 0/3 · next: x\n## Todo"),
+         "never in progress"),
         ("tech debt in progress", lambda t: t.replace(
             "- [ ] D1 split the handler\n", "").replace(
             "## Todo", "- [~] D1 split — fixing · be · 1/5 · next: x\n## Todo"), "tech debt lives in Todo"),
