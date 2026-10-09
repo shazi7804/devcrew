@@ -68,6 +68,14 @@ changes, one idea:
   line SHALL be dropped. A `Cn` is a recorded judgment, not a requirement:
   it carries no evidence, and moves to `## Done` when it is resolved or the
   CEO ticks it.
+  - *Threat model* (the CEO's ruling of 2026-10-09): a probe command is
+    trusted -- a role writes it and the reviewer reads it in the diff. The
+    sensors SHALL keep accidents out of a re-run: an uncommitted change, an
+    untracked or ignored file, what an earlier probe left behind, a symlink,
+    a name two filesystems spell differently. On a re-run they SHALL never
+    pass what the plain run fails. A probe that sets out to fool the sensor
+    (rewriting git's objects, config or refs) is out of scope, stated in
+    HeadTree's docstring.
   - *Acceptance*: the TASKS sensor fails a `[x]` whose `check_live.py --only <ID>`
     or `check_formal.py --only <ID>` fails, and fails a `[x]` line that still
     carries a status.

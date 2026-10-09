@@ -198,7 +198,7 @@ def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
         ev = reqfile.parent / "evidence"
         # one HEAD for both re-runs, reading up front what the checks will read
         tree = check_live.HeadTree(root, check_formal.sources(reqfile, only=done) +
-                                   ([os.path.relpath(allow, root)] if allow else []))
+                                   ([check_live.rel_to(root, allow)] if allow else []))
         try:
             live = check_live.check_evidence(root, reqfile, ev / env if env else ev, done,
                                              (), rerun, False, False, tree)

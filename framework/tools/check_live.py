@@ -230,7 +230,8 @@ class HeadTree:
     reviewer reads the probe commands in the diff."""
     def __init__(self, root, want=()):
         self.root, self.path, self.tmp, self.sha, self.blobs = root, None, None, None, None
-        self.want = {canon(w) for w in want}  # files a check will read beyond the code
+        self.index = None
+        self.want = {canon(w) for w in want} - {None}  # read beyond the code
 
     def head(self):
         if self.sha is None:
@@ -272,6 +273,12 @@ class HeadTree:
             ls = git(self.root, *QUIET_GIT, "ls-tree", "-r", "-z", "--full-tree", self.head())
             if ls.returncode:
                 raise SystemExit(f"cannot read HEAD's tree in {self.root}")
+            # the index --src is read against, built now, before any command
+            self.index = tempfile.mkdtemp()
+            if subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "read-tree", self.head()],
+                              env={**os.environ, "GIT_INDEX_FILE": self.index + "/index"},
+                              capture_output=True).returncode:
+                raise SystemExit(f"cannot read HEAD's tree in {self.root}")
             names = ls.stdout.decode("utf-8", "surrogateescape")
             ents = {rel: (meta.split()[0], meta.split()[2]) for meta, rel in
                     (e.split("\t", 1) for e in names.split("\0") if "\t" in e)
@@ -279,6 +286,23 @@ class HeadTree:
             links = [r for r, (m, _) in ents.items() if m == "120000"]
             dest = dict(zip(links, (b.decode("utf-8", "surrogateescape")
                                     for b in self._cat([ents[r][1] for r in links]))))
+
+            # every name a path passes -- each directory, each link, each file --
+            # and the ones a case-insensitive or normalizing filesystem folds
+            # into another spelling: which of them is on disk depends on the
+            # checkout, so nothing read through one is trusted
+            fold = {}
+            for r in ents:
+                parts = r.split("/")
+                for i in range(1, len(parts) + 1):
+                    at = "/".join(parts[:i])
+                    fold.setdefault(unicodedata.normalize("NFD", at).casefold(), set()).add(at)
+            clash = {at for group in fold.values() if len(group) > 1 for at in group}
+            hit = {}                                # name read -> the folded name it passed
+
+            def passes(rel, at):
+                if at in clash:
+                    hit.setdefault(rel, at)
 
             def resolve(rel):
                 done, todo, hops = [], rel.split("/"), 0
@@ -292,6 +316,7 @@ class HeadTree:
                         done.pop()
                         continue
                     at = "/".join(done + [c])
+                    passes(rel, at)
                     if at in dest:
                         hops += 1
                         if hops > 40 or dest[at].startswith("/"):
@@ -301,20 +326,18 @@ class HeadTree:
                     done.append(c)
                 at = "/".join(done)
                 return at if at in ents and at not in dest else None
-            # two names a case-insensitive or normalizing filesystem folds into
-            # one: which of them runs depends on the checkout, so neither is read
-            fold = {}
-            for r in ents:
-                fold.setdefault(unicodedata.normalize("NFD", r).casefold(), []).append(r)
-            clash = {r for group in fold.values() if len(group) > 1 for r in group}
             read = {r: resolve(r) if r in dest else r for r in ents
                     if is_code(r) or r in self.want or r in dest}
-            need = sorted({t for t in read.values() if t and t not in clash})
+            for r in read:
+                parts = r.split("/")
+                for i in range(1, len(parts) + 1):
+                    passes(r, "/".join(parts[:i]))
+            need = sorted({t for r, t in read.items() if t and r not in hit})
             body = dict(zip(need, self._cat([ents[t][1] for t in need])))
             self.blobs = {}
             for r, t in read.items():
-                if t in clash or r in clash:
-                    self.blobs[r] = (f"{t or r} collides with another name of HEAD's tree "
+                if r in hit:
+                    self.blobs[r] = (f"{hit[r]} collides with another name of HEAD's tree "
                                      "on a case-insensitive filesystem -- which runs depends "
                                      "on the checkout")
                 elif t:
@@ -327,20 +350,19 @@ class HeadTree:
     def ls(self, src):
         """The names `src` selects at the pinned commit, as git reads the
         pathspec (magic, `..`) -- the plain scan's ls-files, over HEAD."""
-        with tempfile.TemporaryDirectory() as d:
-            env = {**os.environ, "GIT_INDEX_FILE": os.path.join(d, "index")}
-            git_ = ["git", "-C", str(self.root), *QUIET_GIT]
-            rt = subprocess.run([*git_, "read-tree", self.head()], env=env, capture_output=True)
-            ls = subprocess.run([*git_, "ls-files", "-z", "--", *(src or ["."])], env=env,
-                                capture_output=True)
-        if rt.returncode or ls.returncode:
+        self.files()
+        ls = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "ls-files", "-z", "--",
+                             *(src or ["."])], capture_output=True,
+                            env={**os.environ, "GIT_INDEX_FILE": self.index + "/index"})
+        if ls.returncode:
             raise SystemExit(f"--src {' '.join(src or [])}: git cannot read it over HEAD")
         return ls.stdout.decode("utf-8", "surrogateescape").split("\0")
 
     def blob(self, rel):
         """One file read up front, or None: a name no check registered is not
         read at all -- after a probe the object store is not to be trusted."""
-        got = self.files().get(canon(rel))
+        name = canon(rel)
+        got = self.files().get(name) if name else None
         return got if isinstance(got, bytes) else None
 
     def get(self):
@@ -369,8 +391,9 @@ class HeadTree:
     def close(self):
         if self.path is not None:
             git(self.root, "worktree", "remove", "--force", str(self.path))
-        if self.tmp:
-            shutil.rmtree(self.tmp, ignore_errors=True)
+        for d in (self.tmp, self.index):
+            if d:
+                shutil.rmtree(d, ignore_errors=True)
 
 
 def drifted(root, sha, *evidence):
@@ -642,7 +665,7 @@ def scan(root, tree, rerun, src, tests, allow):
     allow file too); otherwise over this checkout's tracked files."""
     if not rerun:
         return check_code(root, src, tests, allowed(allow))
-    rel = os.path.relpath(allow, root) if allow else None
+    rel = rel_to(root, allow) if allow else None
     text = tree.blob(rel) if rel else None
     if rel and text is None:
         raise SystemExit(f"--allow {rel}: not in HEAD")
@@ -651,8 +674,20 @@ def scan(root, tree, rerun, src, tests, allow):
 
 
 def canon(rel):
-    """A repo-relative name as HEAD's tree spells it: no `./`, no `a/..`."""
-    return posixpath.normpath(str(rel).replace(os.sep, "/")).removeprefix("./")
+    """A repo-relative name as HEAD's tree spells it (no `./`, no `//`), or
+    None for one with a `..`: the kernel resolves that through links, so
+    collapsing it here could name a different file."""
+    parts = [c for c in str(rel).replace(os.sep, "/").split("/") if c not in ("", ".")]
+    return None if ".." in parts or not parts else "/".join(parts)
+
+
+def rel_to(root, path):
+    """`path` relative to the repo, without collapsing a `..` it was given."""
+    p = pathlib.Path(path)
+    try:
+        return str(p.relative_to(root)) if p.is_absolute() else str(p)
+    except ValueError:
+        return os.path.relpath(p, root)
 
 
 def is_code(rel):
@@ -704,7 +739,7 @@ def default_requirements(root):
 
 def run(root, reqfiles=None, evidence=None, only=None, env=None, live_hosts=(),
         src=None, tests=(), allow=None, rerun=False, record=False, deployed=None):
-    tree = HeadTree(root, [os.path.relpath(allow, root)] if allow else ())
+    tree = HeadTree(root, [rel_to(root, allow)] if allow else ())
     try:
         return _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow,
                     rerun, record, deployed, tree)
@@ -1066,6 +1101,28 @@ def self_test():
                      run(root, rf, rerun=True, deployed=deployed), "src/app.js:1"):
             return 1
         probe("python3 rewrite.py 'export const temp = mockTemp();'", root)   # put it back
+        # ...nor one that rewrites HEAD's tree object for src/ to drop app.js
+        write(d, {"retree.py": "import os, subprocess as sp\n"
+                               "g = lambda *a, **k: sp.run(['git', *a], capture_output=True, **k)\n"
+                               "old = g('rev-parse', 'HEAD:src', text=True).stdout.strip()\n"
+                               "ls = g('ls-tree', old).stdout\n"
+                               "keep = b''.join(l + b'\\n' for l in ls.splitlines() if not l.endswith(b'\\tapp.js'))\n"
+                               "new = g('mktree', input=keep).stdout.decode().strip()\n"
+                               "o, n = (f'.git/objects/{x[:2]}/{x[2:]}' for x in (old, new))\n"
+                               "os.chmod(o, 0o644)\n"
+                               "open(o + '.bak', 'wb').write(open(o, 'rb').read())\n"
+                               "open(o, 'wb').write(open(n, 'rb').read())\n"})
+        write(d, {"src/ok.js": "x()\n"})
+        git(d, "add", "src/ok.js")
+        git(d, *quiet, "commit", "-qm", "ok")
+        head_now = out(git(d, "rev-parse", "HEAD")).strip()
+        deployed = [f"echo https://api.prod.acme.io/version {head_now} && python3 {root}/retree.py"]
+        if not check("a --deployed probe that rewrites HEAD's tree object",
+                     run(root, rf, rerun=True, deployed=deployed), "src/app.js:1"):
+            return 1
+        for bak in (root / ".git/objects").glob("*/*.bak"):    # put it back
+            bak.replace(bak.with_suffix(""))
+        (root / "retree.py").unlink()
         (root / "rewrite.py").unlink()
         git(d, *quiet, "reset", "-q", "--hard")
         # A probe that alters the checkout -- index flags, sparse patterns, a
@@ -1120,7 +1177,16 @@ def self_test():
         if not check("a symlink into two names that differ only in case, on a re-run",
                      run(root, rf, rerun=True), "src/g.js: tests/X.js collides"):
             return 1
-        git(d, *quiet, "reset", "-q", "--hard", "HEAD~1")
+        for rel, mode, body in (("TESTS", "120000", b"e"), ("e/x.js", "100644", b"x()\n"),
+                                ("src/h.js", "120000", b"../TESTS/x.js")):
+            oid = subprocess.run(["git", "-C", d, "hash-object", "-w", "--stdin"],
+                                 input=body, capture_output=True).stdout.decode().strip()
+            git(d, "update-index", "--add", "--cacheinfo", f"{mode},{oid},{rel}")
+        git(d, *quiet, "commit", "-qm", "prefix case")
+        if not check("a symlink through a directory link that folds into a real directory",
+                     run(root, rf, rerun=True), "src/h.js: TESTS"):
+            return 1
+        git(d, *quiet, "reset", "-q", "--hard", "HEAD~2")
         for name, trick in tricks.items():
             ev(d, sha, where=f"{f}/evidence", verify="local", target="this checkout",
                command=f"{trick}; echo 'temp: 21'", expect=r"temp: \d+", observed="temp: 21")
@@ -1136,16 +1202,17 @@ def self_test():
         commit(d, {"fail.sh": "exit 3\n", "src/app.js": "x()\n", "assets/big.bin": "0" * 4096,
                    "spec/M.tla": "a\n"})
         hook = "$(git rev-parse --git-common-dir)/hooks/post-checkout"
-        tree = HeadTree(root, ["./spec/x/../M.tla"])
+        tree = HeadTree(root, ["./spec/M.tla", "spec/x/../M.tla"])
         try:
             got = tree.files()
             if not check("HEAD's blobs: the code and the named files, not the rest",
                          [] if set(got) == {"fail.sh", "src/app.js", "spec/M.tla"}
                          else [f"read {sorted(got)}"], None):
                 return 1
-            if not check("a name read up front, however spelled; nothing read later",
+            if not check("a name read up front with `./`; one with `..` refused; nothing read later",
                          [] if tree.blob("./spec/M.tla") == b"a\n" and
-                         tree.blob("assets/big.bin") is None else ["blob() read late"], None):
+                         tree.blob("spec/x/../M.tla") is None and
+                         tree.blob("assets/big.bin") is None else ["blob() read it"], None):
                 return 1
             for name, trick, then in (
                     ("skip-worktree", "git update-index --skip-worktree fail.sh && "

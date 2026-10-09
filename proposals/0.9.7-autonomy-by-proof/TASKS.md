@@ -1,4 +1,4 @@
-Signed: requirements.md sha256:e3a031f9da07 · design.md sha256:7b44072f92d2
+Signed: requirements.md sha256:040a58119cd0 · design.md sha256:7b44072f92d2
 Gate: 🔴 ship — awaiting CEO
 
 ## Done
@@ -23,8 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — blocked on loop-bound · qa · 5/5 stalled 0/3 · next: CEO rules the probe threat model (QA rounds 2-9 failed 8 times; the bound was passed unrecorded)
-- [~] R10 check_formal.py — blocked on loop-bound · qa · 5/5 stalled 0/3 · next: CEO rules the probe threat model (with R3)
+- [~] R3 Done only with live + formal evidence — verifying · qa · 1/5 stalled 0/3 · next: a context-free QA, Security and reviewer round on the threat model the CEO ruled (C13)
+- [~] R10 check_formal.py — verifying · qa · 1/5 stalled 0/3 · next: the same round as R3 (C13)
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -38,6 +38,7 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] C10 narrowed what is exempt from staleness beside a feature's requirements to the run's record (signed contracts, TASKS.md, verdicts/, evidence and formal JSON); a model or helper kept there now makes evidence stale -- undo: contract() returns the whole dir
 - [ ] C11 after QA round 4, check_tasks runs check_live's code scan for Done items (R3: Done = `check_live --only <ID>` green), so devcrew's own tree needs tools/live-allow.txt: three exemptions, one per sensor file that names fakes to hunt them -- undo: drop the scan from check_tasks and amend R3 (a CEO re-sign)
 - [ ] C12 after QA round 5, the --rerun scans read HEAD's blobs from the object store and each probe's checkout is reset with no index, sparse pattern, worktree config or hook carried over; accepted as a stated limit (HeadTree's docstring) that a probe runs with the user's shell and can still write outside the checkout or into the repo's shared refs and config; after QA rounds 6-7, a symlink at HEAD reads as the file it resolves to in HEAD's tree, component by component, and one that does not resolve (out of the tree, absolute, a loop, another case, two names that differ only in case) is reported, not skipped; the blobs are read once before any command runs and never after, and --src is read by git over HEAD -- undo: revert the commits after b22f5dc
+- [ ] C13 the CEO ruled on the loop-bound (2026-10-09, 「依據你建議。該修就修」): threat model A -- a probe is trusted, the sensors keep accidents out and the re-run is never weaker than the plain run (R3, re-signed sha256:040a58119cd0); Loop A for R3/R10 restarts at 1/5; QA round 9's three blockers fixed test-first -- undo: revert R3's Threat model and re-sign
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer
