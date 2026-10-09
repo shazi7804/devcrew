@@ -1,4 +1,4 @@
-Signed: requirements.md sha256:51e9b358e3c3 · design.md sha256:7b44072f92d2
+Signed: requirements.md sha256:e3a031f9da07 · design.md sha256:7b44072f92d2
 Gate: 🔴 ship — awaiting CEO
 
 ## Done
@@ -32,6 +32,8 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] C3 the last fixes (1506e43, 73271d7 and the Cn rule) were checked by check_tasks --rerun and the models, not by another reviewer or QA round — undo: run one before merge
 - [ ] C4 accepted check_formal's stated limit: it binds a check to a named tool and source, but cannot prove the program is a faithful checker; a reviewer reads that in the diff
 - [ ] C5 dropped D6-D8 (mechanising the judgment stops): under the CEO's second ruling a judgment is a Cn, not a stop
+- [ ] C7 after review round 4, amended the signed requirements and re-signed them (sha256:e3a031f9da07): R2/R3 now state the Cn exception the sensor already made, R13's Property says sampled runs, not every run -- undo: revert those hunks of 7d7aff4 and re-sign
+- [ ] C8 a local re-run is now HEAD's proof by running in a throwaway checkout of HEAD, instead of refusing a tree with untracked or ignored files beside it -- undo: restore clean_head (7d7aff4)
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer
