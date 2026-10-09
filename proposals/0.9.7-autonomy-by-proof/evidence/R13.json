@@ -4,8 +4,8 @@
   "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --accepts real && python3 tools/check_repo.py",
   "target": "python3 + git in the devcrew repo checkout",
   "expect": "(?s)accepted.*repo: ok",
-  "observed": "boot.py (real) scripted trace, 52 steps: accepted\nrepo: ok",
+  "observed": "boot.py (real) scripted trace, 54 steps: accepted\nrepo: ok",
   "result": "pass",
-  "sha": "320fae85d5f7dd75c728924f107c6803a9c65398",
-  "at": "2026-10-09T16:49:54+00:00"
+  "sha": "e830d78d24be69761276a63d966bdc47890ea0ca",
+  "at": "2026-10-09T20:25:42+00:00"
 }

@@ -13,20 +13,20 @@
   ],
   "bounds": "5 sampled real runs: scripted (every branch), stampede 2x8, 3 seeded crowds of 6; 3 mutants",
   "expect": "(?s)skip-gen.*rejected.*touch-old.*rejected.*models: ok",
-  "observed": "by the model\n  ok  boot.py mutant ('if mine:'): 52 steps rejected\n  ok  boot.py skip-gen ('if create(sid, n + 2, cwd) and verify(sid, n + 2):'): 52 steps rejected\n  ok  boot.py touch-old ('if touch(sid, n - 1) and verify(sid, n):'): 49 steps rejected\nmodels: ok",
+  "observed": "by the model\n  ok  boot.py mutant ('if mine:'): 54 steps rejected\n  ok  boot.py skip-gen ('if create(sid, n + 2, cwd) and verify(sid, n + 2):'): 54 steps rejected\n  ok  boot.py touch-old ('if touch(sid, n - 1) and verify(sid, n):'): 51 steps rejected\nmodels: ok",
   "result": "pass",
-  "sha": "320fae85d5f7dd75c728924f107c6803a9c65398",
-  "at": "2026-10-09T16:54:45+00:00",
+  "sha": "e830d78d24be69761276a63d966bdc47890ea0ca",
+  "at": "2026-10-09T20:33:40+00:00",
   "vacuity": {
     "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --accepts mutant; [ $? -ne 1 ]",
     "expect": "rejected",
-    "observed": "boot.py (mutant) scripted trace, 52 steps: rejected",
+    "observed": "boot.py (mutant) scripted trace, 54 steps: rejected",
     "result": "fail"
   },
   "conformance_check": {
     "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --accepts real",
     "expect": "accepted",
-    "observed": "boot.py (real) scripted trace, 52 steps: accepted",
+    "observed": "boot.py (real) scripted trace, 54 steps: accepted",
     "result": "pass"
   }
 }
