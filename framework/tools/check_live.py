@@ -201,31 +201,75 @@ def requirements(path):
             for i, f in fields(path).items()}
 
 
+# git with nothing a probe can plant in the repo's config taking part: no
+# hook, no sparse checkout, no fsmonitor, no replace object.
+QUIET_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.sparseCheckout=false",
+             "-c", "core.fsmonitor=false", "--no-replace-objects")
+
+
 class HeadTree:
-    """A throwaway checkout of HEAD (a detached worktree), made on first use,
-    one per invocation, reset every time it is handed out: a re-run there ran
-    on what is committed, and a scan there read it -- no uncommitted change,
-    no untracked or ignored file, nothing an earlier probe wrote: the commit
-    is pinned, so a probe that commits or switches branch there is undone,
-    `clean -ffdx` removes a nested repository too, and whatever a probe put
-    beside the checkout goes."""
+    """HEAD, pinned at first use, one per invocation. Two ways to read it:
+
+    - files(): HEAD's blobs straight from the object store -- what a scan
+      reads, so no checkout state, hook, filter or attribute a probe set can
+      change what it sees;
+    - get(): a throwaway checkout (a detached worktree) to run a probe in,
+      reset every time it is handed out -- the commit is pinned, the index,
+      sparse patterns and worktree config are dropped, `clean -ffdx` removes
+      untracked, ignored and nested repositories, whatever a probe put beside
+      the checkout goes, and no hook runs.
+
+    What no reset undoes: a probe runs with the user's shell, so it can write
+    outside the checkout (an absolute path, $HOME) and into the repository's
+    shared refs, config and hooks. The sensor cannot sandbox a command; a
+    reviewer reads the probe commands in the diff."""
     def __init__(self, root):
-        self.root, self.path, self.tmp, self.sha = root, None, None, None
+        self.root, self.path, self.tmp, self.sha, self.blobs = root, None, None, None, None
+
+    def head(self):
+        if self.sha is None:
+            self.sha = out(git(self.root, "rev-parse", "HEAD")).strip()
+            if not re.fullmatch(r"[0-9a-f]{40}", self.sha):
+                raise SystemExit(f"cannot read HEAD of {self.root}")
+        return self.sha
+
+    def files(self):
+        """{path: bytes} of every regular file at the pinned commit."""
+        if self.blobs is None:
+            ls = git(self.root, *QUIET_GIT, "ls-tree", "-r", "-z", "--full-tree", self.head())
+            ents = [e.split("\t", 1) for e in out(ls).split("\0") if "\t" in e]
+            ents = [(meta.split()[2], rel) for meta, rel in ents
+                    if meta.split()[0] in ("100644", "100755")]
+            cat = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "cat-file", "--batch"],
+                                 input="".join(f"{oid}\n" for oid, _ in ents).encode(),
+                                 capture_output=True)
+            if ls.returncode or cat.returncode:
+                raise SystemExit(f"cannot read HEAD's tree in {self.root}")
+            data, at, self.blobs = cat.stdout, 0, {}
+            for _, rel in ents:
+                nl = data.index(b"\n", at)
+                size = int(data[at:nl].split()[2])
+                self.blobs[rel] = data[nl + 1:nl + 1 + size]
+                at = nl + 2 + size
+        return self.blobs
 
     def get(self):
         if self.path is None:
-            self.sha = out(git(self.root, "rev-parse", "HEAD")).strip()
             self.tmp = tempfile.mkdtemp()
             tree = pathlib.Path(self.tmp) / "head"
-            if not self.sha or git(self.root, "worktree", "add", "--detach", "--quiet",
-                                   str(tree), self.sha).returncode:
+            if git(self.root, *QUIET_GIT, "worktree", "add", "--detach", "--quiet",
+                   str(tree), self.head()).returncode:
                 raise SystemExit(f"cannot check out HEAD of {self.root} for a re-run")
             self.path = tree
             return tree
         for p in pathlib.Path(self.tmp).iterdir():
             if p != self.path:
                 shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink()
-        if any(git(self.path, *c).returncode for c in (
+        gitdir = pathlib.Path(out(git(self.path, "rev-parse", "--absolute-git-dir")).strip())
+        for f in ("index", "info/sparse-checkout", "config.worktree"):
+            if gitdir.name and (gitdir / f).exists():
+                (gitdir / f).unlink()
+        if any(git(self.path, *QUIET_GIT, *c).returncode for c in (
                 ("checkout", "-q", "--detach", "-f", self.sha),
                 ("reset", "-q", "--hard", self.sha), ("clean", "-qffdx"))):
             raise SystemExit(f"cannot reset the checkout of HEAD at {self.path}")
@@ -474,12 +518,12 @@ def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pr
     return hits
 
 
-def allowed(allow):
+def allowed(allow, text=None):
     rules = []
     if not allow:
         return rules
     try:
-        text = allow.read_text(encoding="utf-8")
+        text = allow.read_text(encoding="utf-8") if text is None else text
     except (OSError, UnicodeDecodeError) as err:
         raise SystemExit(f"--allow {allow}: {err}")
     for n, line in enumerate(text.splitlines(), 1):
@@ -502,19 +546,39 @@ def allowed(allow):
     return rules
 
 
-def check_code(root, src, tests, rules):
-    ls = git(root, "ls-files", "-z", "--", *(src or ["."]))
-    if ls.returncode:
-        return [f"not a git repo: {root}"]
+def scan(root, tree, rerun, src, tests, allow):
+    """The code scan as a gate runs it: on a re-run, over HEAD's blobs (the
+    allow file too); otherwise over this checkout's tracked files."""
+    if not rerun:
+        return check_code(root, src, tests, allowed(allow))
+    blobs = tree.files()
+    rel = os.path.relpath(allow, root) if allow else None
+    if rel and rel not in blobs:
+        raise SystemExit(f"--allow {rel}: not in HEAD")
+    rules = allowed(allow, blobs[rel].decode("utf-8", "replace")) if rel else []
+    return check_code(root, src, tests, rules, blobs)
+
+
+def check_code(root, src, tests, rules, blobs=None):
+    """blobs: {path: bytes} to scan instead of this checkout (HEAD's, on a re-run)."""
+    if blobs is None:
+        ls = git(root, "ls-files", "-z", "--", *(src or ["."]))
+        if ls.returncode:
+            return [f"not a git repo: {root}"]
+        names = out(ls).split("\0")
+    else:
+        pre = [s.strip("/").removeprefix("./") for s in src or ["."]]
+        names = [r for r in blobs if any(p in ("", ".") or r == p or r.startswith(p + "/")
+                                         or fnmatch.fnmatch(r, p) for p in pre)]
     hits = []
-    for rel in out(ls).split("\0"):
+    for rel in names:
         p = root / rel
         is_code = p.suffix in CODE or p.name.startswith(".env")
         if not rel or not is_code or TEST_DIR.search(rel) or TEST_FILE.search(rel) \
                 or NOT_CODE.search(rel) or any(fnmatch.fnmatch(rel, g) for g in tests) \
-                or not p.is_file():
+                or (blobs is None and not p.is_file()):
             continue
-        data = p.read_bytes()
+        data = p.read_bytes() if blobs is None else blobs[rel]
         if b"\0" in data[:8192]:
             continue
         for n, line in enumerate(data.decode("utf-8", "replace").splitlines(), 1):
@@ -586,10 +650,7 @@ def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rer
         hits += check_evidence(root, rf, ev / env if env else ev, only, live_hosts,
                                rerun, record, proven, tree)
     # A re-run proves HEAD, so the scan reads HEAD too, not this checkout.
-    base = tree.get() if rerun else root
-    if allow and rerun:
-        allow = base / os.path.relpath(allow, root)
-    return hits + check_code(base, src, tests, allowed(allow))
+    return hits + scan(root, tree, rerun, src, tests, allow)
 
 
 def self_test():
@@ -879,6 +940,46 @@ def self_test():
         if not check("a re-run scans HEAD, not an edit that hides a fake",
                      run(root, rf, rerun=True), "src/app.js:1"):
             return 1
+        # A probe that alters the checkout -- index flags, sparse patterns, a
+        # hook, a smudge filter -- changes nothing the scan reads: it reads blobs.
+        tricks = {
+            "skip-worktree": "git update-index --skip-worktree src/app.js && "
+                             "echo 'export const t = 3;' > src/app.js",
+            "sparse checkout": "git sparse-checkout set --no-cone /proposals/ >/dev/null 2>&1",
+            "a smudge filter": "git config filter.qq.smudge 'sed s/mockTemp/realTemp/' && "
+                               "git config filter.qq.clean cat && echo '*.js filter=qq' > "
+                               "\"$(git rev-parse --git-common-dir)/info/attributes\" && "
+                               "echo x >> src/app.js"}
+        for name, trick in tricks.items():
+            ev(d, sha, where=f"{f}/evidence", verify="local", target="this checkout",
+               command=f"{trick}; echo 'temp: 21'", expect=r"temp: \d+", observed="temp: 21")
+            if not check(f"a probe that hides a committed fake by {name}",
+                         run(root, rf, rerun=True), "src/app.js:1"):
+                return 1
+            git(d, "config", "--unset-all", "filter.qq.smudge")
+            (root / ".git/info/attributes").unlink(missing_ok=True)
+    # ...nor what the next probe runs: each is handed a checkout reset to HEAD
+    # with no index flag, sparse pattern, worktree config or hook carried over.
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        commit(d, {"fail.sh": "exit 3\n", "src/app.js": "x()\n"})
+        hook = "$(git rev-parse --git-common-dir)/hooks/post-checkout"
+        tree = HeadTree(root)
+        try:
+            for name, trick, then in (
+                    ("skip-worktree", "git update-index --skip-worktree fail.sh && "
+                                      "echo 'echo ok' > fail.sh", "sh fail.sh"),
+                    ("sparse checkout", "git sparse-checkout set --no-cone /src/ >/dev/null 2>&1",
+                     "test ! -e fail.sh"),
+                    ("a post-checkout hook", f"printf '#!/bin/sh\\necho echo ok > fail.sh\\n' "
+                                             f"> \"{hook}\" && chmod +x \"{hook}\"", "sh fail.sh")):
+                probe(trick, tree.get())
+                rc = probe(then, tree.get())[0]
+                if not check(f"a probe that runs what an earlier probe set up by {name}",
+                             [] if rc else [f"{name} carried over"], None):
+                    return 1
+        finally:
+            tree.close()
     # Two features: one PR's run, staleness after another feature lands, a
     # re-run that refreshes it, and environments that do not overwrite each other.
     with tempfile.TemporaryDirectory() as d:

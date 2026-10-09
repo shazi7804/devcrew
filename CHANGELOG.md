@@ -64,8 +64,12 @@ so the bounds became code first.
   `--rerun` probe and formal check now runs in one throwaway checkout of
   HEAD per invocation, pinned to its commit and reset before each probe, so
   no uncommitted, untracked or ignored file, and nothing an earlier probe
-  wrote or committed, can take part in it;
-  the no-fake scan and the escape-hatch scan read that checkout too. Evidence
+  wrote, committed or set up (index flags, sparse patterns, hooks) can take
+  part in it. The no-fake scan and the escape-hatch scan read HEAD's blobs
+  from the object store, so nothing a probe does to a checkout changes what
+  they see. What no reset undoes is stated: a probe runs with the user's
+  shell, so it can write outside the checkout and into the repo's shared
+  refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,
   TASKS.md, verdicts, evidence JSON): a Markdown file is no longer exempt,
   since a prompt is what this framework ships, and neither is a model or a

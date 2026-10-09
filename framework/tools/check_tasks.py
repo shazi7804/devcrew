@@ -61,7 +61,6 @@ RED WHEN
 import argparse
 import hashlib
 import json
-import os
 import pathlib
 import re
 import subprocess
@@ -202,10 +201,8 @@ def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
                                              (), rerun, False, False, tree)
             hits += [f"Done but not live: {h}" for h in live]
             # check_live --only <ID> also runs the code scan over what ships
-            base = tree.get() if rerun else root
-            rules = check_live.allowed(base / os.path.relpath(allow, root) if allow else None)
             hits += [f"Done but not live: {h}"
-                     for h in check_live.check_code(base, src, tests, rules)]
+                     for h in check_live.scan(root, tree, rerun, src, tests, allow)]
             hits += [f"Done but not formal: {h}" for h in
                      check_formal.check(root, reqfile, only=done, rerun=rerun, tree=tree)]
         finally:

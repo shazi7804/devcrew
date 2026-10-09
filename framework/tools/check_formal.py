@@ -117,11 +117,10 @@ def signed(reqfile):
     return out
 
 
-def hatches(path):
+def hatches(path, text):
     rules = ANY + HATCHES.get(path.suffix, [])
     hits = []
-    for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace")
-                             .splitlines(), 1):
+    for n, line in enumerate(text.splitlines(), 1):
         for rx in rules:
             if re.search(rx, line):
                 hits.append(f"{path.name}:{n} `{line.strip()[:60]}`")
@@ -243,12 +242,13 @@ def _check(root, reqfile, evidence, only, rerun, tree):
         cx = pattern(tag, "the conformance check", c, hits) if isinstance(c, dict) and \
             c.get("command") else None
         texts = {}
-        # a re-run proves HEAD: its sources are read from HEAD's checkout too
-        base = tree.get() if rerun else root
+        # a re-run proves HEAD: its sources are read from HEAD's objects too
+        blobs = tree.files() if rerun else None
         for src in sources:
             try:
-                texts[src] = (base / src).read_text(encoding="utf-8", errors="replace")
-            except OSError:
+                texts[src] = (blobs[str(src)].decode("utf-8", "replace") if rerun else
+                              (root / src).read_text(encoding="utf-8", errors="replace"))
+            except (OSError, KeyError):
                 pass
         word = str(e["tool"]).split()[0].lower() if str(e["tool"]).split() else ""
         code = [ln for t in texts.values() for ln in t.lower().splitlines()
@@ -263,11 +263,10 @@ def _check(root, reqfile, evidence, only, rerun, tree):
                     hits.append(f"{tag}: the signed Property names {ident}, which no .tla "
                                 "source defines -- the checked property is not the signed one")
         for src in sources:
-            p = base / src
-            if not p.is_file():
+            if src not in texts:
                 hits.append(f"{tag}: source {src} does not exist")
                 continue
-            for h in hatches(p):
+            for h in hatches(pathlib.PurePosixPath(str(src)), texts[src]):
                 hits.append(f"{tag}: escape hatch in {h} -- a proof that is not a proof")
         why = check_live.drifted(root, str(e["sha"]).lower(), evidence,
                                  *check_live.contract(root, reqfile))
