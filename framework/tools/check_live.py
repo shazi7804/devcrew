@@ -202,7 +202,10 @@ def unclean(root):
     ls = git(root, "ls-files", "-v")
     if st.returncode or ls.returncode:
         return f"not a git repository: {root}"
-    dirty = [ln[3:] for ln in out(st).splitlines() if ln.strip()]
+    # bytecode Python writes beside a tracked module is regenerated from it and
+    # never imported without it: the environment, not a file of the tree
+    dirty = [ln[3:] for ln in out(st).splitlines()
+             if ln.strip() and "__pycache__/" not in ln[3:] and not ln.endswith(".pyc")]
     dirty += [f"{ln[2:]} (flagged {ln[0]!r} in the index)" for ln in out(ls).splitlines()
               if ln and not ln.startswith("H ")]
     if dirty:
@@ -522,7 +525,14 @@ def drifted(root, sha, *evidence):
     spec = ["--", ".",
             # an evidence dir is exempt for its records only, not a helper put there
             *(f":(exclude,glob){os.path.relpath(e, root)}" + ("/**/*.json" if e.is_dir() else "")
-              for e in evidence), f":!{STATE}", ":!TASKS.md"]
+              for e in evidence), ":!TASKS.md",
+            # under the state dir, only the run's record: the signed contracts,
+            # the ledger, verdicts, evidence and formal records, the claims --
+            # a feature's spec or a probe's helper kept there is code
+            *(f":(exclude,glob){STATE}/{g}" for g in (
+                "**/requirements.md", "**/design.md", "**/standards.md", "**/TASKS.md",
+                "**/verdicts/**", "**/evidence/**/*.json", "**/formal/**/*.json",
+                "claims/**"))]
     # against the working tree and against HEAD: an uncommitted edit that puts
     # a file back as it was at `sha` does not make HEAD's change go away
     if any(git(root, "diff", "--quiet", sha, *at, *s).returncode
@@ -979,6 +989,11 @@ def self_test():
         if isinstance(want, tuple):
             want = next((w for w in want if any(w in h for h in got)), want[0])
         ran.append(label)
+        if isinstance(want, str) and want.startswith("!"):        # "!x": no hit says x
+            if not any(want[1:] in h for h in got):
+                return True
+            print(f"self-test FAILED: {label}: expected no {want[1:]!r}, got {got}")
+            return False
         if (not got) if want is None else any(want in h for h in got):
             return True
         print(f"self-test FAILED: {label}: expected "
@@ -1542,6 +1557,27 @@ def self_test():
         if not check("a re-run from a git hook's environment", got, "commit or stash") or \
                 not check("...leaves the user's index, HEAD and worktrees alone",
                           [] if kept else ["the user's repository changed"], None):
+            return 1
+    # Security final 5: under the state dir only the run's record is exempt from
+    # staleness -- a feature's spec or helper there is code; and bytecode the
+    # sensors' own imports leave is the environment, not an untracked file
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        f = f"{STATE}/features/x"
+        sha = commit(d, {f"{f}/requirements.md": "- **R1** — x\n  - *Verify*: local\n",
+                         f"{f}/spec/M.tla": "a\n"})
+        ev(d, sha, where=f"{f}/evidence", verify="local", target="this checkout",
+           command="echo 'temp: 21'", expect=r"temp: \d+", observed="temp: 21")
+        if not check("a feature's record under the state dir", run(root), None):
+            return 1
+        write(d, {f"{f}/spec/M.tla": "b\n"})
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "spec")
+        if not check("a feature's spec under the state dir changed", run(root), "stale"):
+            return 1
+        write(d, {f"{STATE}/tools/__pycache__/check_live.cpython-3.pyc": "x"})
+        if not check("a re-run beside the sensors' own bytecode",
+                     attempt(root, rerun=True), "!commit or stash"):
             return 1
     # QA final 2: --src narrows the scan, not the reports of what the checkout
     # holds; a submodule a probe initialised is gone before the next probe

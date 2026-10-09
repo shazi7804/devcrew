@@ -88,14 +88,15 @@ so the bounds became code first.
   decide what HEAD is judged against (git status runs with fsmonitor, ignoreStat
   and the untracked cache off, and an index flag that hides an edit --
   skip-worktree, assume-unchanged -- is itself unclean; the ledger, the
-  requirements and every signed file must be HEAD's byte for byte), and `--deployed`
+  requirements and every signed file must be HEAD's byte for byte; the
+  sensors' own bytecode is the environment), and `--deployed`
   runs in HEAD's checkout. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,
   TASKS.md, verdicts, evidence JSON): a Markdown file is no longer exempt,
   since a prompt is what this framework ships, and neither is a model or a
-  helper kept beside the requirements.
+  helper kept beside the requirements, or under the state directory.
 - **The framework's own protocols, model-checked** (R12–R13, TLA+ / TLC 1.7.4
   in CI):
   - `framework/formal/Election.tla` checks the orchestrator election: safety

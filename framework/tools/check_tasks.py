@@ -69,6 +69,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+sys.dont_write_bytecode = True     # no __pycache__ in the user's tree
 import check_formal  # noqa: E402
 import check_live  # noqa: E402
 
