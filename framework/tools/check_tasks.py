@@ -115,6 +115,8 @@ def parse(text):
             continue
         if cur is None:
             if line.startswith("Signed:"):
+                if signed:
+                    hits.append(f"TASKS.md:{n}: `Signed:` twice -- one line holds every signed file")
                 for part in line[7:].split("·"):
                     m = re.fullmatch(r"\s*(\S+)\s+sha256:([0-9a-f]{12})\s*", part)
                     if not m:
@@ -122,8 +124,10 @@ def parse(text):
                     else:
                         signed.append((m.group(1), m.group(2)))
             elif line.startswith("Gate:"):
+                if gate is not None:
+                    hits.append(f"TASKS.md:{n}: `Gate:` twice -- one batch is open at a time")
                 gate = line[5:].strip()
-            elif not line.startswith("#"):
+            else:
                 hits.append(f"TASKS.md:{n}: before the sections only `Signed:` and `Gate:`")
             continue
         m = ITEM.match(line.strip())
@@ -140,6 +144,7 @@ def parse(text):
 
 def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
           allow=None):
+    check_live._DRIFTED.clear()
     if rerun and (why := check_live.unclean(root)):
         return [why]
     if not tasks.is_file():
@@ -281,6 +286,10 @@ def self_test():
         ("sections out of order", lambda t: t.replace("## Done\n\n## In progress\n",
                                                       "## In progress\n## Done\n"), "in that order"),
         ("an extra section", lambda t: t + "## Later\n", "only Done"),
+        ("a heading before the sections", lambda t: "# Ledger\n" + t, "only `Signed:` and `Gate:`"),
+        ("two Signed lines", lambda t: t.split("\n", 1)[0] + "\n" + t, "`Signed:` twice"),
+        ("two Gate lines", lambda t: t.replace("\n\n## Done", "\nGate: 🔴 ship — awaiting CEO\n"
+                                              "Gate: 🔴 ship — awaiting CEO\n\n## Done"), "`Gate:` twice"),
         ("a bad status", lambda t: t.replace("verifying ·", "almost ·"), "status `almost`"),
         ("blocked with no reason", lambda t: t.replace("blocked on the CRM key", "blocked"),
          "status `blocked`"),

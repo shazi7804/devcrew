@@ -218,10 +218,12 @@ creep).
 **Architecture-change guard.** `design.md` and its ADRs are a contract too. A
 later phase may not reverse an ADR or introduce a new load-bearing decision on its
 own: it goes to `architect` (task with `assignedTo: "architect"`), which returns
-APPROVE (with a superseding ADR) / REQUEST-CHANGES / ESCALATE. Escalate to a 🔴
-CEO decision when the change crosses a signed boundary (breaks a signed acceptance
-condition, changes the platform strategy, materially changes cost or vendor
-lock-in, reverses a CEO-approved ADR). Before the Phase 4 gate passes, the
+APPROVE (with a superseding ADR) / REQUEST-CHANGES. When the change crosses a
+signed boundary (breaks a signed acceptance condition, changes the platform
+strategy, materially changes cost or vendor lock-in, reverses a CEO-approved
+ADR), the architect writes it into the signed `design.md` / ADR: the hash moves,
+`check_tasks.py` raises the `cross-design` interrupt, and the CEO decides there.
+Within the boundary it is the architect's call, recorded as a `Cn`. Before the Phase 4 gate passes, the
 orchestrator runs a **mandatory architecture-delta check** — diff what was built
 against `design.md` + ADRs and route any new load-bearing element to `architect`.
 An implementer saying "this isn't architectural" does not close the guard.

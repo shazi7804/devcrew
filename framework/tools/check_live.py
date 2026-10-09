@@ -276,7 +276,9 @@ class HeadTree:
       untracked, ignored and nested repositories, whatever a probe put beside
       the checkout goes, and no hook runs.
 
-    What no reset undoes: a probe runs with the user's shell, so it can write
+    What no reset undoes: a probe runs with the user's shell, so a process it
+    detaches from its own group (setsid, a daemon) outlives the group kill and
+    is the probe's to stop; and it can write
     outside the checkout (an absolute path, $HOME) and into the repository's
     shared refs, config, hooks and object store -- what a later probe runs can
     differ, though what the scan reads was read before the first probe. The sensor cannot sandbox a command; a
@@ -537,7 +539,17 @@ class HeadTree:
                 shutil.rmtree(d, ignore_errors=True)
 
 
+_DRIFTED = {}
+
+
 def drifted(root, sha, *evidence):
+    key = (str(root), sha, *map(str, evidence))
+    if key not in _DRIFTED:            # one answer per sensor invocation (D23)
+        _DRIFTED[key] = _drifted(root, sha, *evidence)
+    return _DRIFTED[key]
+
+
+def _drifted(root, sha, *evidence):
     """Why evidence recorded at `sha` does not prove what ships now, or None:
     'bad' (not a full commit id), 'orphan' (not in HEAD's history), 'stale'
     (the tree changed since outside the evidence dirs, the state and the
@@ -560,7 +572,7 @@ def drifted(root, sha, *evidence):
     # against the working tree and against HEAD: an uncommitted edit that puts
     # a file back as it was at `sha` does not make HEAD's change go away
     if any(git(root, "diff", "--quiet", sha, *at, *s).returncode
-           for at in ((), ("HEAD",)) for s in (spec, ["--", f"{STATE}/tools"])):
+           for at in ((), ("HEAD",)) for s in (spec,)):
         return "stale"
     return None
 
@@ -816,7 +828,10 @@ def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pr
             hint = ("; the re-run passed, but nothing proves the environment runs HEAD "
                     "(--deployed)" if excerpt and not proven else "; re-run the probe")
             hits.append(f"{tag}: {why}{hint}")
-        if record and fresh and len(hits) == n0 and not SECRET.search(excerpt) and \
+        if record and f.is_symlink():
+            hits.append(f"{tag}: {os.path.relpath(f, root)} is a symlink -- --record will not "
+                        "write through it")
+        elif record and fresh and len(hits) == n0 and not SECRET.search(excerpt) and \
                 not moved(root, tree):
             now = datetime.datetime.now(datetime.timezone.utc)
             f.write_text(json.dumps({**e, "observed": excerpt, "sha": head,
@@ -934,6 +949,7 @@ def default_requirements(root):
 
 def run(root, reqfiles=None, evidence=None, only=None, env=None, live_hosts=(),
         src=None, tests=(), allow=None, rerun=False, record=False, deployed=None):
+    _DRIFTED.clear()
     tree = HeadTree(root, [rel_to(root, allow)] if allow else ())
     try:
         return _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow,
@@ -997,6 +1013,12 @@ def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rer
 
 
 def self_test():
+    # the fixtures' git never reaches the caller's repository (run from a hook,
+    # GIT_DIR / GIT_INDEX_FILE would point it there), and no hook runs
+    for k in [k for k in os.environ if k.startswith("GIT_")]:
+        del os.environ[k]
+    os.environ.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="core.hooksPath",
+                      GIT_CONFIG_VALUE_0="/dev/null")
     global resolve
     # The self-test runs offline: every host resolves to a public address but
     # the ones named "nowhere".
@@ -1574,6 +1596,25 @@ def self_test():
         git(d, *quiet, "commit", "-qm", "data")
         if not check("a data file in a case clash, on a re-run", run(root, rerun=True),
                      clash("data/value.txt: data/value.txt collides")):
+            return 1
+    # --record never writes through a symlink: an evidence record that is a
+    # link would overwrite whatever it points to
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        sha = commit(d, base)
+        ev(d, sha, command="echo https://api.prod.acme.io/v1/weather '\"temp\": 21'", commit=False)
+        (root / "src/real.json").write_bytes((root / STATE / "evidence/R1.json").read_bytes())
+        (root / STATE / "evidence/R1.json").unlink()
+        os.symlink("../../src/real.json", root / STATE / "evidence/R1.json")
+        before = (root / "src/real.json").read_bytes()
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "linked record")
+        head_now = out(git(d, "rev-parse", "HEAD")).strip()
+        got = attempt(root, rerun=True, record=True,
+                      deployed=[f"echo https://api.prod.acme.io/version {head_now}"])
+        if not check("--record through a symlinked evidence record",
+                     [] if (root / "src/real.json").read_bytes() == before and
+                     any("symlink" in h for h in got) else [f"overwrote it, or no hit: {got}"], None):
             return 1
     # Security final 8: a git that cannot name the checkout's git dir stops the
     # re-run -- it never turns a later re-make into a delete of the user's repo

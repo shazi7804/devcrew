@@ -36,7 +36,7 @@ it**, so the terminal state is not yours to declare:
         │
         ▼
   🔴 SHIP BATCH — state what goes out, to whom, and the rollback, in its SITREP
-     (promoting a staged rollout past its FIRST phase: pre-authorized, or a Cn)
+     (a staged rollout past its FIRST phase: pre-authorized, or this batch)
         │
         ▼
   STORE REVIEW ── an EXTERNAL actor decides. "submitted" ≠ "released".
@@ -104,10 +104,10 @@ Before submitting, assemble and verify:
 - **IAP / subscriptions** configured and in the right state if the app monetizes
   (a paid app submitted with unconfigured IAP is rejected).
 
-Submitting to a store is signed in the 🔴 ship batch -- state what goes out, to
-whom, and the rollback. Promoting a staged rollout past its first phase is done
-only if the intent batch pre-authorized it; otherwise the role decides and
-records it as a `Cn` for the next batch.
+Submitting to a store, and promoting a staged rollout past its first phase, is
+signed in the 🔴 ship batch -- state what goes out, to whom, and the rollback --
+or pre-authorized with its condition in the intent batch. Neither is ever done
+on the role's own judgment.
 
 ## Staged rollout & rollback
 - Use **Play staged rollout** (start small %, ramp) and **App Store phased

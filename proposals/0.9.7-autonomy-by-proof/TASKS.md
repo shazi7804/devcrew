@@ -1,4 +1,4 @@
-Signed: requirements.md sha256:8b6ddde1efc9 · design.md sha256:7b44072f92d2
+Signed: requirements.md sha256:3139d052b472 · design.md sha256:7b44072f92d2
 Gate: 🔴 ship — awaiting CEO
 
 ## Done
@@ -23,8 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 2/5 stalled 0/3 · next: round 1's blockers fixed (old gates and budget stops left in prompts and adapters; a git dir that is not ours is never removed; the self-test's git is scrubbed; escape hatches matched mid-line); round 2 adds a second reviewer on another model family
-- [~] R10 check_formal.py — verifying · qa · 2/5 stalled 0/3 · next: with R3
+- [~] R3 Done only with live + formal evidence — verifying · qa · 3/5 stalled 0/3 · next: round 2's blockers fixed test-first (a store submission waits for the ship batch; --record refuses a symlink; one Signed/Gate line, nothing else before the sections; more escape-hatch kin and admit cases; KiroCrew denies reviewer and auditor the core MCP; the drifted() cache); round 3
+- [~] R10 check_formal.py — verifying · qa · 3/5 stalled 0/3 · next: with R3
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -44,6 +44,7 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] C16 the CEO ruled on the second loop-bound (2026-10-09, 「A」): close the whole class -- a re-run refuses a working tree with any uncommitted or untracked file, and --deployed runs in HEAD's checkout -- and restart Loop A for R3/R10 at 1/5 -- undo: revert the commit that adds the clean-tree rule
 - [ ] C17 QA's blocker "an ignored in-repo virtualenv on PATH decides a probe" ruled the environment, not the tree, under C15 and the CEO's threat model; R3 now says so, and each probe gets its own TMPDIR -- re-signed -- undo: revert that sentence and re-sign
 - [ ] C18 the CEO ruled on the third loop-bound (2026-10-10, 「繼續修」): fix the final review's five blockers (an unreadable claim in boot.py, the HEAD check at the end of every re-run, TLA+ AXIOM/ASSUME, the template signing design.md, .tla/.cfg in the neutrality scan) and restart Loop A for R3/R10 at 1/5 -- undo: revert the commits after 5757e95
+- [ ] C19 a process a probe detaches from its group (setsid, a daemon) is ruled the probe's to stop, in the command the reviewer reads -- R3 says so, re-signed -- undo: revert that sentence and re-sign
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer
@@ -58,11 +59,9 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D16 small duplications: the self-test git fixture (4 copies), Aidlc.cfg and AidlcLive.cfg exploring one state space twice, a repeated check_tasks case (audit, low)
 - [ ] D17 boot.py writes its session hint into the shared temp dir following symlinks: use a per-user 0700 dir and O_NOFOLLOW (security)
 - [ ] D18 the evidence secret pattern misses common credential shapes (Stripe, JWT, Google keys, Basic auth, Slack webhooks, cookies): widen it or redact by default (security)
-- [ ] D19 role permissions: on KiroCrew every role, reviewer and auditor included, may spawn and write memory; on Claude Code the auditor keeps Bash -- deny those in the adapters (security)
+- [ ] D19 on Claude Code the auditor keeps Bash -- deny write-like commands in the adapter (security); KiroCrew's grant is fixed in its adapter, an installed reviewer.json still needs re-generating
 - [ ] D20 CI actions are pinned by tag, not commit sha (security, low)
 - [ ] D21 formal evidence is not secret-scanned (security, low)
 - [ ] D22 a failed probe's output is printed unredacted (120 chars): pass it through the secret pattern first (security, low)
-- [ ] D23 drifted() is not memoized: 100 of 102 git calls in a plain check_tasks (audit, medium); and its second pathspec (the state tools) is already covered by the first
 - [ ] D24 the code scan runs twice per gate; check_formal repeats the clean-tree guards; unused imports (audit, low)
-- [ ] D25 escape-hatch kin not yet matched: Lean sorryAx, Coq Admit Obligations, Dafny {:extern}, Verus assume_specification, Agda postulate, Quint assume (security, QA)
-- [ ] D26 check_tasks has no --live-host; --record writes through an in-tree symlink; a setsid daemon outlives its probe; boot.py's int() of DEVCREW_*_SECONDS at import (security)
+- [ ] D26 check_tasks has no --live-host; boot.py's int() of DEVCREW_*_SECONDS at import (security)

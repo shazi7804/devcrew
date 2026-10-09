@@ -10,7 +10,7 @@
 
 | | |
 |---|---|
-| **Phase** | 0.5, after intent is signed and before architecture |
+| **Phase** | 0.5, before the intent batch: the CEO signs the requirements and the verdict together |
 | **Runs when** | The idea has a commercial or product side. Purely internal tools skip it |
 | **Reads** | `requirements.md` |
 | **Produces** | Market analysis with charts, and a GO / PIVOT / NO-GO verdict |

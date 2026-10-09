@@ -90,11 +90,14 @@ ANY = [r"\bassume\s*\(\s*(false|False)\s*\)"]
 HATCHES = {
     ".lean": [r"\bsorry\b", r"\badmit\b",
               r"\baxiom\b",                 # anywhere on a line, not only first
-              r"\bnative_decide\b"],
-    ".v": [r"\bAdmitted\b", r"\badmit\b", r"\b(Axiom|Axioms|Parameter|Parameters|Hypothesis|Hypotheses|Conjecture)\b"],
-    ".dfy": [r"\bassume\b", r"\{:axiom\}", r"\{:verify\s+false\}"],
+              r"\bnative_decide\b", r"\bsorryAx\b"],
+    ".v": [r"\bAdmitted\b", r"\badmit\b", r"\bAdmit\s+Obligations\b", r"\b(Axiom|Axioms|Parameter|Parameters|Hypothesis|Hypotheses|Conjecture)\b"],
+    ".dfy": [r"\bassume\b", r"\{:axiom\}", r"\{:verify\s+false\}", r"\{:extern\b"],
     ".rs": [r"\bassume\s*\(", r"\badmit\s*\(", r"verifier::external_body",
-            r"verifier\(external_body\)"],
+            r"verifier\(external_body\)", r"\bassume_specification\b",
+            r"verifier::external_fn_specification"],
+    ".agda": [r"\bpostulate\b"],
+    ".qnt": [r"\bassume\b"],
     # AXIOM, ASSUME and ASSUMPTION state an unproved fact a proof may use
     ".tla": [r"\bOMITTED\b", r"\b(AXIOM|ASSUME|ASSUMPTION)\b"],
     ".thy": [r"\bsorry\b", r"\boops\b", r"\baxiomatization\b"],
@@ -171,6 +174,8 @@ def sources(reqfile, evidence=None, only=None):
 
 
 def check(root, reqfile, evidence=None, only=None, rerun=False, tree=None):
+    if tree is None:
+        check_live._DRIFTED.clear()
     if rerun and (why := check_live.unclean(root) or check_live.at_head(root, reqfile)):
         return [why]
     own = tree is None
@@ -338,6 +343,12 @@ print("trace accepted" if "--trace" in a else "done" if "--quiet" in a
 
 
 def self_test():
+    # the fixtures' git never reaches the caller's repository (run from a hook,
+    # GIT_DIR / GIT_INDEX_FILE would point it there), and no hook runs
+    for k in [k for k in os.environ if k.startswith("GIT_")]:
+        del os.environ[k]
+    os.environ.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="core.hooksPath",
+                      GIT_CONFIG_VALUE_0="/dev/null")
     quiet = ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
              "-c", "core.hooksPath=/dev/null"]
     git = check_live.git
@@ -432,6 +443,11 @@ def self_test():
                       (".tla", "CONSTANT N  ASSUME N = 1"), (".tla", "VARIABLE x  AXIOM C == TRUE"),
                       (".v", "Lemma l : True. Axiom a : False."),
                       (".lean", "theorem t : True := trivial; axiom bad : False"),
+                      (".lean", "exact sorryAx _"), (".v", "Admit Obligations."),
+                      (".dfy", "method {:extern} M()"), (".rs", "assume_specification[f];"),
+                      (".agda", "postulate cheat : ⊥"), (".qnt", "assume init = true"),
+                      (".lean", "  admit"), (".v", "  admit."), (".rs", "    admit();"),
+                      (".fst", "let x = admit ()"), (".fsti", "let y = admit ()"),
                       (".py", "assume(False)")]:
         cases.append((f"escape hatch {line!r}", {"sources": [f"spec/P{ext}"]},
                       {f"spec/P{ext}": line + "\n"}, "escape hatch", False))

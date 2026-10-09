@@ -96,7 +96,11 @@ so the bounds became code first.
   re-run stops before it can remove anything; the self-tests' git never
   reaches the caller's repository. Every prompt and adapter now names the three
   batches only: Phase 0.5 signs with the intent, mobile signing and submission
-  with the ship batch, and a spent budget is a `Cn`, not a stop. What no reset undoes is stated: a probe runs with the user's
+  with the ship batch, and a spent budget is a `Cn`, not a stop. A store submission
+  or a rollout promotion is never a judgment: pre-authorized, or the ship batch.
+  `--record` will not write through a symlink; TASKS.md holds one `Signed:`,
+  at most one `Gate:` and nothing else before its sections; the reviewer and
+  auditor get no core MCP on KiroCrew. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,

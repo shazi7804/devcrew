@@ -150,6 +150,14 @@ For each `framework/agents/<name>.md`:
 - The orchestrator `orchestrator` gets the full tool set + cron (it schedules the
   monthly tech-refresh scan and dispatches roles). Role agents get the `build`
   set + `kirocrew-core`.
+- **`auditor` and `reviewer` get no `@kirocrew-core` grant at all.** The generic
+  `kirocrew-core/*` allow above is for the orchestrator and the implementers: it
+  includes `spawn_run` / `spawn_sub_agents` (dispatching a write-capable agent)
+  and `learn_add` / `session_ledger` (writing team memory), which would let an
+  auditor fix its own findings by proxy (invariant 7) or a reviewer write the
+  memory it must not mount (invariant 4). For these two, drop `@kirocrew-core`
+  from `tools`/`allowedTools`, add an explicit deny rule for
+  `kirocrew-core/*`, and verify at install that neither JSON can reach it.
 - **`auditor` is read-only by design** (its frontmatter has no `write`/`edit`): give
   it the read/search/shell/web set only, and add a deny rule for the write
   capability rather than relying on `allowedTools` alone. Verify at install that

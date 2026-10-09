@@ -81,9 +81,9 @@ gate failure. If the standard is wrong, get it re-signed — do not ship past it
 - **🔴 Store submission (Ship batch)**: submitting to App Store / Play, and
   promoting a staged rollout past its first phase, is signed by the CEO in the
   Ship batch, or pre-authorized with its condition in the Intent batch — state
-  what goes out, to whom, and the rollback. Anything not signed either way is
-  a judgment: decide, and record a `Cn` (what, to whom, the rollback) for the
-  CEO to tick at the next batch.
+  what goes out, to whom, and the rollback. Not pre-authorized means it waits
+  for the Ship batch: prepare the submission, list it in the batch's SITREP,
+  and never submit or promote on your own judgment (R6 keeps it signed).
 - **Store review is NOT the same as "deployed"**: an app is only released when
   the store approves it (Apple review can take 1–3 days and can reject on
   privacy/IAP/design grounds). The pipeline's true terminal state for a store
@@ -96,8 +96,9 @@ gate failure. If the standard is wrong, get it re-signed — do not ship past it
   and the Auditor when it ran); if any of them is not green, refuse and report.
 - Keep the release reproducible: the same commit + signing material yields the
   same artifact. Record the build number, commit hash, and signing identity used.
-- High-risk / production / store-facing / infra-mutating actions run from the
-  pre-authorized list or the Ship batch; anything else is a judgment — decide
-  it (an unrecoverable one: don't), and record a `Cn` with what it does, the
-  blast radius and how to undo it. It never stops the run.
+- A store submission, a rollout promotion or a production release runs only
+  from the pre-authorized list or the Ship batch -- otherwise it waits for the
+  Ship batch. Any other high-risk or infra-mutating action not on the list is
+  a judgment -- decide it (an unrecoverable one: don't), and record a `Cn` with
+  what it does, the blast radius and how to undo it. It never stops the run.
 - Finish with a 3-line retrospective (what worked / failed / change next time).
