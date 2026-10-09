@@ -6,6 +6,6 @@
   "expect": "(?s)stdlib only.*neutral: ok.*TLA_VERSION = \\\"1\\.7\\.4\\\"",
   "observed": "stdlib only\nneutral: ok\n48:TLA_VERSION = \"1.7.4\"",
   "result": "pass",
-  "sha": "666999fa4af173c130c47e668e83eb071a4ff16b",
-  "at": "2026-10-09T09:34:16+00:00"
+  "sha": "7483bbd6b008baadc32e76acea71f4e9189217af",
+  "at": "2026-10-09T11:00:12+00:00"
 }
