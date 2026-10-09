@@ -59,6 +59,7 @@ MODELS = [
     ("Aidlc", "Aidlc", "holds"),
     ("Aidlc", "AidlcLive", "holds"),
     ("Aidlc", "AidlcBroken", "NoPhasePastUnsignedBatch"),
+    ("Aidlc", "AidlcJudgmentBroken", "JudgmentRecorded"),
     ("Aidlc", "AidlcLiveBroken", "temporal"),
 ]
 

@@ -125,7 +125,8 @@ must be confirmed up front.
 |---|---|---|---|
 | <e.g. deploy to production> | <every sensor green on pre-production, check_live --deployed on HEAD> | <production> | <all users · yes, rollback in 5 min> |
 
-An empty table is a valid answer: then every such action stops the run.
+An empty table is a valid answer: then every such action is decided by the
+role about to act and recorded as a `Cn` -- never a stop.
 
 ## Constraints & dependencies
 Budget, timeline, external APIs needing approval, accounts, compliance.

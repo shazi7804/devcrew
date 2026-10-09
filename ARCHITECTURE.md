@@ -392,7 +392,8 @@ Two rules keep them honest:
 
 - **A check that cannot fail proves nothing.** Each model ships a seeded broken
   variant that must yield a counterexample: `AidlcBroken.cfg` opens the design
-  gate; `ElectionV096.tla` is the 0.9.6 election, in which TLC finds two acting
+  gate; `AidlcJudgmentBroken.cfg` lets a deploy that was not pre-authorized
+  pass without its `Cn`; `ElectionV096.tla` is the 0.9.6 election, in which TLC finds two acting
   orchestrators in 14 steps.
 - **A model is not the code.** Sampled real runs of `boot.py` are checked
   against the model: concurrent runs log every claim step and TLC must accept

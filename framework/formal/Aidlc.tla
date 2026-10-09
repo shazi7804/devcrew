@@ -18,7 +18,8 @@ EXTENDS Naturals
 
 CONSTANTS Items, MaxAttempts, MaxStalled,
           SkipDesignGate,  \* TRUE only in AidlcBroken.cfg: a seeded broken safety variant
-          NoRaise          \* TRUE only in AidlcLiveBroken.cfg: a seeded broken liveness variant
+          NoRaise,         \* TRUE only in AidlcLiveBroken.cfg: a seeded broken liveness variant
+          DropRecord       \* TRUE only in AidlcJudgmentBroken.cfg: a judgment left unrecorded
 
 Stages     == <<"intent", "market", "arch", "design", "build", "verify", "deploy", "release">>
 Batches    == {"intent", "design", "ship"}
@@ -90,7 +91,7 @@ Advance ==
             /\ UNCHANGED <<waiting, signed>>
        ELSE /\ run' = "batch" /\ waiting' = Missing(n)
             /\ UNCHANGED <<stage, signed>>
-  /\ review' = (review \/ (stage = "deploy" /\ ~preauth))   \* decided, recorded as Cn
+  /\ review' = (review \/ (stage = "deploy" /\ ~preauth /\ ~DropRecord))   \* decided, recorded as Cn
   /\ UNCHANGED <<trouble, skip, preauth>> /\ UNCHANGED Work
 
 \* Loop A, inside build: an item starts, fails, or passes with its evidence.

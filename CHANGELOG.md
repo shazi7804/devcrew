@@ -28,7 +28,7 @@ so the bounds became code first.
   - a design-batch file (`design.md`, an ADR) that moved: `cross-design`.
 
   `--rerun` re-runs every Done item's live probes and formal checks: stored
-  evidence is its writer's claim, a re-run is the proof. 28 self-test cases.
+  evidence is its writer's claim, a re-run is the proof. 42 self-test cases.
   Every host uses it; a host primitive may mirror it.
 - **Three batch sign-offs: intent, design, ship** (R6–R8). Every item the CEO
   signed before is still signed, now grouped, and SKILL.md maps each former
@@ -58,7 +58,7 @@ so the bounds became code first.
   - has a command that names none of its sources or does nothing;
   - has no `expect`, or output (stored or re-run) that doesn't match it.
 
-  37 self-test cases. Formal adds to live and never replaces it.
+  44 self-test cases. Formal adds to live and never replaces it.
 - **A re-run proves HEAD, and a prompt is code** (review round 4). Every
   `--rerun` probe and formal check now runs in a throwaway checkout of HEAD,
   so no uncommitted, untracked or ignored file can take part in it. Evidence

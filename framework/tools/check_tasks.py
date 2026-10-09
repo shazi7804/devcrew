@@ -34,7 +34,6 @@ THE FILE -- the current state, nothing more (git keeps the history)
     `Cn` is a decision a role made on its own judgment -- it did not stop the
     run to ask. Open (`[ ]`) in Todo until the CEO ticks it at the next batch,
     then `[x]` in Done.
-    - [ ] D1 split the 900-line handler (audit, medium)
 
     Paths in `Signed:` are relative to TASKS.md. The first is the requirements;
     the design batch adds standards.md, design.md and the ADRs.
@@ -47,7 +46,8 @@ RED WHEN
     it is not one more try; a requirement ID is missing, listed twice, or
     unknown -- `Dn` tech debt is allowed, in Todo only, and `Cn` (a decision
     for the CEO to tick) in Todo or Done, never In progress; a Done line carries a
-    status; a Done item's live (check_live) or formal (check_formal) evidence is
+    status (a status word, `blocked on`, an attempt count or `next:`, after
+    any joint); a Done item's live (check_live) or formal (check_formal) evidence is
     not fresh; the first `Signed:` file is not named requirements.md, or has no
     items; a
     `Signed:` hash does not match the file now -- the run stops until the CEO
@@ -74,6 +74,9 @@ MAX_ATTEMPTS, MAX_STALLED = 5, 3
 FORM = (f"— <status> · <owner> · <n>/{MAX_ATTEMPTS} stalled <k>/{MAX_STALLED} · "
         "next: <step>")
 STATUS = re.compile(r"(building|verifying|fixing|blocked on \S.*)$")
+JOINT = r"(?:--|[-—–·:,])"
+DONE_STATUS = re.compile(rf"{JOINT}\s*(?:(?:building|verifying|fixing)\s*(?:$|{JOINT})|"
+                         rf"blocked on\b|\d+/\d+\b)|\bnext:")
 GATE = re.compile(r"🔴 (intent|design|ship) — awaiting CEO")
 DRIFT = ("requirements.md", "standards.md")      # anything else signed: cross-design
 ITEM = re.compile(r"- \[(.)\] ([RNDC]\d+) (\S.*)$")
@@ -166,11 +169,11 @@ def check(root, tasks, evidence=True, env=None, rerun=False):
                                 "ticked (Done), never in progress")
                 continue
             parts = DASH.split(rest, maxsplit=1)
-            # a status, however it is joined: a dash then a status word, an
-            # attempt count, or `next:` -- not a title that has a `·` in it
-            if sec == "Done" and (len(parts) > 1 or re.search(
-                    r"\s[-—–]\s*(building|verifying|fixing|blocked on)\b|"
-                    r"\b\d+/\d+\s+stalled\b|\bnext:", rest)):
+            # a status, however it is joined (a dash, `--`, `·`, `:` or `,`): a
+            # status word that ends there or at the next joint, `blocked on`,
+            # an attempt count, or `next:` -- not a title such as
+            # `Property · Formal · Conformance` or `build - fixing the parser`
+            if sec == "Done" and (len(parts) > 1 or DONE_STATUS.search(rest)):
                 hits.append(f"{tag}: a Done line carries no status")
             if sec == "In progress":
                 hits += progress(tag, parts)
@@ -290,6 +293,14 @@ def self_test():
             "- [ ] N1 c\n", ""), "carries no status"),
         ("a Done title with a middle dot", lambda t: t.replace("- [ ] N1 c\n", "").replace(
             "## Done\n", "## Done\n- [x] N1 Property · Formal · Conformance\n"), "!carries no status"),
+        ("a Done line with a status after `--`", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 c -- verifying\n"), "carries no status"),
+        ("a Done line with a status after a middle dot", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 c · verifying · qa\n"), "carries no status"),
+        ("a Done line with an attempt count", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 c · qa · 2/5\n"), "carries no status"),
+        ("a Done title with a status word in prose", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 build - fixing the parser\n"), "!carries no status"),
         ("Done without evidence", lambda t: t.replace(
             "## Done\n", "## Done\n- [x] N1 c\n").replace("- [ ] N1 c\n", ""), "Done but not live"),
     ]
