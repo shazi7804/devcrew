@@ -270,7 +270,8 @@ class HeadTree:
       reads, so no checkout state, hook, filter, attribute or rewritten
       object a probe leaves can change what it sees; ls() reads --src as
       git does, over HEAD;
-    - get(): a throwaway checkout (a detached worktree) to run a probe in,
+    - get(): a throwaway checkout (a shared clone: refs, stash, config and
+      hooks of its own, objects borrowed read-only) to run a probe in,
       reset every time it is handed out -- the commit is pinned, the index,
       sparse patterns and worktree config are dropped, `clean -ffdx` removes
       untracked, ignored and nested repositories, whatever a probe put beside
@@ -278,11 +279,11 @@ class HeadTree:
 
     What no reset undoes: a probe runs with the user's shell, so a process it
     detaches from its own group (setsid, a daemon) outlives the group kill and
-    is the probe's to stop; and it can write
-    outside the checkout (an absolute path, $HOME) and into the repository's
-    shared refs, config, hooks and object store -- what a later probe runs can
-    differ, though what the scan reads was read before the first probe. The sensor cannot sandbox a command; a
-    reviewer reads the probe commands in the diff."""
+    is the probe's to stop; and it can write outside the checkout (an absolute
+    path, $HOME, the repository it was cloned from, by path) -- what a later
+    probe runs can differ, though what the scan reads was read before the
+    first probe. The sensor cannot sandbox a command; a reviewer reads the
+    probe commands in the diff."""
     def want_dir(self, d):
         """Read every file under `d` (an evidence dir) up front as well."""
         if self.blobs is not None:
@@ -294,7 +295,7 @@ class HeadTree:
         self.root, self.path, self.tmp, self.sha, self.blobs = root, None, None, None, None
         self.index = None
         self.want = {canon(w) for w in want} - {None}  # read beyond the code
-        self.dirs, self.gitdir, self.dotgit, self.gitlinks = set(), None, None, []
+        self.dirs, self.gitdir, self.gitlinks = set(), None, []
 
     def head(self):
         if self.sha is None:
@@ -466,28 +467,26 @@ class HeadTree:
         return got if isinstance(got, bytes) else None
 
     def _add(self):
+        """A shared clone of HEAD: its objects borrowed read-only from the
+        repository (alternates, nothing copied), but refs, stash, config and
+        hooks of its own -- so a probe's `git stash pop`, a branch or a commit
+        stay in the clone -- and nothing registered in the user's repository."""
         tree = pathlib.Path(self.tmp) / "head"
-        if git(self.root, *QUIET_GIT, "worktree", "add", "--detach", "--quiet",
-               str(tree), self.head()).returncode:
+        g = ["git", *QUIET_GIT]
+        if subprocess.run([*g, "clone", "-q", "--shared", "--no-checkout", str(self.root),
+                           str(tree)], capture_output=True, env=git_env()).returncode or \
+                subprocess.run([*g, "-C", str(tree), "checkout", "-q", "--detach", "-f",
+                                self.head()], capture_output=True, env=git_env()).returncode:
             raise SystemExit(f"cannot check out HEAD of {self.root} for a re-run")
         self.path = tree
-        # its git dir, read now, before any probe: later the checkout's own
-        # answer is not trusted -- without its .git, git would find the
-        # repository around the temp dir and reset that one
-        r = git(tree, "rev-parse", "--absolute-git-dir")
-        c = git(self.root, "rev-parse", "--git-common-dir")
-        gitdir = pathlib.Path(out(r).strip()) if not r.returncode and out(r).strip() else None
-        common = (pathlib.Path(self.root) / out(c).strip()).resolve() if not c.returncode else None
-        # the only git dir we may ever reset or remove is our own worktree's,
-        # under <common>/worktrees/ -- anything else (an empty answer is '.',
-        # the user's repository) stops the re-run before it can do harm
-        if gitdir is None or common is None or \
-                (common / "worktrees") not in gitdir.resolve().parents:
-            git(self.root, "worktree", "remove", "--force", str(tree))
+        # the only git dir we ever reset or remove is the clone's own, inside
+        # our temp dir -- named now, never asked of the checkout later
+        gitdir = (tree / ".git").resolve()
+        if not (tree / ".git").is_dir() or (tree / ".git").is_symlink() or \
+                pathlib.Path(self.tmp).resolve() not in gitdir.parents:
             raise SystemExit(f"cannot name the git dir of the checkout of HEAD at {tree} "
                              "-- the re-run stops rather than touch another repository")
-        self.gitdir = gitdir.resolve()
-        self.dotgit = (tree / ".git").read_bytes()
+        self.gitdir = gitdir
 
     def get(self):
         if self.path is None:
@@ -499,15 +498,14 @@ class HeadTree:
             if p != self.path:
                 shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink()
         dotgit = self.path / ".git"
-        # a submodule a probe initialised is a repository of its own that no
-        # reset of ours reaches into: the checkout is made again, as it is
-        # when the probe took its .git
-        if dotgit.is_symlink() or not dotgit.is_file() or dotgit.read_bytes() != self.dotgit \
+        # a probe that took or replaced the clone's .git, or initialised a
+        # submodule (a repository of its own no reset of ours reaches into):
+        # the checkout is made again
+        if dotgit.is_symlink() or not dotgit.is_dir() or dotgit.resolve() != self.gitdir \
                 or any(os.path.lexists(self.path / g / ".git") for g in self.gitlinks):
             if pathlib.Path(self.tmp).resolve() not in self.path.resolve().parents:
                 raise SystemExit(f"refusing to remove {self.path}: not our checkout")
-            shutil.rmtree(self.path, ignore_errors=True)          # make it again; drop
-            shutil.rmtree(self.gitdir, ignore_errors=True)        # only our own entry
+            shutil.rmtree(self.path, ignore_errors=True)          # the clone, git dir and all
             self._add()
             return self._scratch()
         for f in ("index", "info/sparse-checkout", "config.worktree"):
@@ -515,8 +513,10 @@ class HeadTree:
                 (self.gitdir / f).unlink()
         wt = ["git", f"--git-dir={self.gitdir}", f"--work-tree={self.path}", "-C",
               str(self.path), *QUIET_GIT]
+        # clean first: an untracked file a probe left (a .gitattributes) must
+        # not take part in the checkout that follows
         if any(subprocess.run([*wt, *c], capture_output=True, env=git_env()).returncode for c in (
-                ("checkout", "-q", "--detach", "-f", self.sha),
+                ("clean", "-qffdx"), ("checkout", "-q", "--detach", "-f", self.sha),
                 ("reset", "-q", "--hard", self.sha), ("clean", "-qffdx"))):
             raise SystemExit(f"cannot reset the checkout of HEAD at {self.path}")
         return self._scratch()
@@ -532,8 +532,6 @@ class HeadTree:
 
     def close(self):
         SCRATCH.pop(str(self.path), None)
-        if self.path is not None:
-            git(self.root, "worktree", "remove", "--force", str(self.path))
         for d in (self.tmp, self.index):
             if d:
                 shutil.rmtree(d, ignore_errors=True)
@@ -1616,6 +1614,39 @@ def self_test():
                      [] if (root / "src/real.json").read_bytes() == before and
                      any("symlink" in h for h in got) else [f"overwrote it, or no hit: {got}"], None):
             return 1
+    # QA final 10: an untracked .gitattributes an earlier probe left takes no
+    # part in the reset -- it is cleaned before git checks anything out
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        commit(d, {"data.txt": "a\nb\n"})
+        tree = HeadTree(root)
+        try:
+            probe("printf '* text eol=crlf\\n' > .gitattributes", tree.get())
+            crlf = probe("od -c data.txt | grep -q '\\\\r'", tree.get())[0]
+        finally:
+            tree.close()
+        if not check("an untracked .gitattributes an earlier probe left",
+                     [] if crlf else ["the next probe saw converted bytes"], None):
+            return 1
+    # Security final 10: a probe's checkout has refs of its own -- the common
+    # `git stash; <tests>; git stash pop` idiom cannot pop the user's stash
+    # into it (where the next reset would wipe it), nor leave a branch behind
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
+        sha = commit(d, {**lreq, "src/app.js": "x()\n"})
+        ev(d, sha, verify="local", target="this checkout",
+           command="git stash -q; git checkout -q -b probe-branch; echo 'temp: 21'; "
+                   "git stash pop -q", expect=r"temp: \d+", observed="temp: 21")
+        write(d, {"src/app.js": "y()  // the user's work, stashed\n"})
+        git(d, *quiet, "stash", "-q")
+        stash = out(git(d, "stash", "list")).strip()
+        run(root, rerun=True)
+        kept = out(git(d, "stash", "list")).strip() == stash and stash and \
+            not out(git(d, "branch", "--list", "probe-branch")).strip()
+        if not check("a probe that pops a stash or makes a branch",
+                     [] if kept else ["the user's stash or branches changed"], None):
+            return 1
     # Security final 8: a git that cannot name the checkout's git dir stops the
     # re-run -- it never turns a later re-make into a delete of the user's repo
     with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as shim:
@@ -1637,8 +1668,8 @@ def self_test():
             os.environ["PATH"] = before
             tree.close()
         if not check("a git that cannot name the checkout's git dir",
-                     [] if refused and (root / "src/app.js").exists() and (root / ".git").exists()
-                     else ["the re-run went on, or the user's repository was touched"], None):
+                     [] if (root / "src/app.js").exists() and (root / ".git").exists()
+                     else ["the user's repository was touched"], None):
             return 1
     # A sensor run from a git hook inherits GIT_DIR / GIT_INDEX_FILE: its own
     # git calls must not touch the user's index, HEAD or other worktrees.

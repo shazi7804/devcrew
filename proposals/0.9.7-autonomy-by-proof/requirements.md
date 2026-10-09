@@ -73,7 +73,10 @@ changes, one idea:
     sensors SHALL keep accidents out of a re-run: an uncommitted change, an
     untracked or ignored file, what an earlier probe left behind, a symlink,
     a name two filesystems spell differently. On a re-run they SHALL never
-    pass what the plain run fails. A probe that sets out to fool the sensor
+    pass what the plain run fails -- except a stale record the re-run itself
+    proves again at HEAD (a local probe, or a live one whose environment
+    --deployed proves runs HEAD): proving HEAD is what a re-run is for. A
+    probe that sets out to fool the sensor
     (rewriting git's objects, config or refs) is out of scope, stated in
     HeadTree's docstring. A tool on PATH or named by an environment variable
     the command uses -- wherever it lives, a virtualenv in an ignored

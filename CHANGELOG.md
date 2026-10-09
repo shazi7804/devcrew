@@ -100,7 +100,9 @@ so the bounds became code first.
   or a rollout promotion is never a judgment: pre-authorized, or the ship batch.
   `--record` will not write through a symlink; TASKS.md holds one `Signed:`,
   at most one `Gate:` and nothing else before its sections; the reviewer and
-  auditor get no core MCP on KiroCrew. What no reset undoes is stated: a probe runs with the user's
+  auditor get no core MCP on KiroCrew. A probe's checkout is a shared clone with refs, stash,
+  config and hooks of its own, so a probe's `git stash pop` or branch never
+  reaches the user's repository, and nothing is registered in it. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,

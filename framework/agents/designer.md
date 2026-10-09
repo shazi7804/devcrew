@@ -72,7 +72,7 @@ remember and share? if not, it is not award work).
 1. Screenshot the prototype at every breakpoint (and device frame if mobile) via
    `web-preview`, including the non-happy states.
 2. Evaluate: impeccable's `critique` and `audit` commands, and
-   `npx impeccable detect <prototype>` — a deterministic check for AI-default
+   `npx impeccable@4.1.0 detect <prototype>` — a deterministic check for AI-default
    patterns ("AI slop").
 3. Score the rubric. For every category under the bar, name the **specific**
    defect and the fix; "could be bolder" is not a finding.

@@ -1,5 +1,4 @@
-Signed: requirements.md sha256:3139d052b472 · design.md sha256:7b44072f92d2
-Gate: 🔴 ship — awaiting CEO
+Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
 
 ## Done
 - [x] R1 TASKS.md defined as the only ledger
@@ -23,8 +22,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 3/5 stalled 0/3 · next: round 2's blockers fixed test-first (a store submission waits for the ship batch; --record refuses a symlink; one Signed/Gate line, nothing else before the sections; more escape-hatch kin and admit cases; KiroCrew denies reviewer and auditor the core MCP; the drifted() cache); round 3
-- [~] R10 check_formal.py — verifying · qa · 3/5 stalled 0/3 · next: with R3
+- [~] R3 Done only with live + formal evidence — verifying · qa · 4/5 stalled 0/3 · next: round 3's blockers fixed test-first (the probe checkout is a shared clone with refs of its own, so a probe's stash pop cannot take the user's stash; the reset cleans before it checks out, so a probe's .gitattributes takes no part; R3 states the re-proved-record exception, C20); the ship batch opens only when this round passes
+- [~] R10 check_formal.py — verifying · qa · 4/5 stalled 0/3 · next: with R3
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -45,6 +44,8 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] C17 QA's blocker "an ignored in-repo virtualenv on PATH decides a probe" ruled the environment, not the tree, under C15 and the CEO's threat model; R3 now says so, and each probe gets its own TMPDIR -- re-signed -- undo: revert that sentence and re-sign
 - [ ] C18 the CEO ruled on the third loop-bound (2026-10-10, 「繼續修」): fix the final review's five blockers (an unreadable claim in boot.py, the HEAD check at the end of every re-run, TLA+ AXIOM/ASSUME, the template signing design.md, .tla/.cfg in the neutrality scan) and restart Loop A for R3/R10 at 1/5 -- undo: revert the commits after 5757e95
 - [ ] C19 a process a probe detaches from its group (setsid, a daemon) is ruled the probe's to stop, in the command the reviewer reads -- R3 says so, re-signed -- undo: revert that sentence and re-sign
+- [ ] C20 R3's 'a re-run never passes what the plain run fails' now names its one intended exception: a stale record the re-run proves again at HEAD -- re-signed -- undo: revert that clause and keep the plain run's stale hit on a re-run
+- [ ] C21 open for the CEO: R8 and Aidlc.tla's JudgmentRecorded let a reversible production deploy that is not pre-authorized run as a Cn before the ship batch, while R6 lists 'production release' under ship; read here as R6 = a release to end users (a store, a public artifact), R8 = a reversible service deploy -- tick to keep, or rule that every production deploy waits for the ship batch
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer
@@ -52,7 +53,6 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D5 the demotion rule is stated in three places
 - [ ] D9 check_tasks --rerun runs identical commands repeatedly: memoize per invocation
 - [ ] D10 boot.py beat: import subprocess lazily; write the hint files only on change
-- [ ] D12 a SIGTERM during a re-run leaves the HEAD checkout registered (finally does not run on a signal): prune stale devcrew worktrees on the next run
 - [ ] D13 the per-probe reset drops the index every time, so checkout rewrites the whole tree per probe (2.3-3.1 s on a 124 MB tree): drop it only when ls-files -v shows a flag, once Security rules that is as sound; Security's ruling: sound only with an allow-list of `H` tags, trustctime/checkStat/ignoreStat pinned, sparse and worktree config still dropped, and a same-size mtime-restored self-test
 - [ ] D14 HeadTree.files() reads a non-code symlink's target that no check reads: drop `or r in dest` from its read filter
 - [ ] D15 check_live and check_formal each load evidence, filter --only and compile `expect`: one helper in check_live (audit, medium)
@@ -65,3 +65,5 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D22 a failed probe's output is printed unredacted (120 chars): pass it through the secret pattern first (security, low)
 - [ ] D24 the code scan runs twice per gate; check_formal repeats the clean-tree guards; unused imports (audit, low)
 - [ ] D26 check_tasks has no --live-host; boot.py's int() of DEVCREW_*_SECONDS at import (security)
+- [ ] D27 overlapping same-session beats can demote falsely; the escape-hatch scan does not follow imported modules (TLA+ EXTENDS); SKILL.md's Phase 5 row reads stricter than its paragraph (security, low)
+- [ ] D28 the self-test environment scrub is copied into three sensors; _drifted keeps a one-element loop (audit, low)
