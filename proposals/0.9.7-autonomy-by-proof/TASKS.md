@@ -23,8 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 4/5 stalled 0/3 · next: Security round 4's blockers fixed test-first (one pinned HEAD, formal commands get the probe environment); QA round 4 still judging
-- [~] R10 check_formal.py — verifying · qa · 4/5 stalled 0/3 · next: with R3 (C16)
+- [~] R3 Done only with live + formal evidence — blocked on loop-bound · reviewer · 5/5 stalled 0/3 · next: the CEO decides; the final cross-vendor review REJECTed with 6 blockers (an unreadable claim taken as free in boot.py, no HEAD check at the end of formal/TASKS re-runs, TLA+ ASSUME not an escape hatch, the template not signing design.md, .tla outside the neutrality scan, no audit at the final tree)
+- [~] R10 check_formal.py — blocked on loop-bound · reviewer · 5/5 stalled 0/3 · next: the CEO decides, with R3
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
