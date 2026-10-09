@@ -25,12 +25,15 @@
      A3  a session told it is a worker stops acting as orchestrator
      A4  the claim directory is on a local file system (O_EXCL is atomic)
      A5  (liveness only) a file operation does not fail forever: a create or
-         touch that keeps becoming possible eventually succeeds *)
+         touch -- or the read of a claim -- that keeps becoming possible
+         eventually succeeds *)
 EXTENDS Naturals, FiniteSets, TLC
 
 CONSTANTS Sessions, None,
-          TakeOnBeat   \* FALSE only in ElectionLiveBroken.cfg: 0.9.6's "only a start
+          TakeOnBeat,  \* FALSE only in ElectionLiveBroken.cfg: 0.9.6's "only a start
                        \* may take a claim" -- the seeded broken liveness variant
+          ScanFreeOnFail  \* TRUE only in ElectionScanBroken.cfg: an unreadable
+                          \* claim taken as free -- the seeded broken safety variant
 
 Ages  == {"fresh", "margin", "stale"}
 NoTop == [sid |-> None, age |-> "stale", rel |-> TRUE]
@@ -112,6 +115,17 @@ Scan(s) ==
      ELSE Finish(s, "worker")
   /\ UNCHANGED <<top, life>>
 
+\* the read or stat of the highest claim fails: what it holds is unknown, so
+\* it is held by someone -- never free. The session stays a worker (at an end
+\* it keeps its role and releases nothing; its lease ages out).
+ScanFail(s) ==
+  /\ pc[s] = "scan"
+  /\ snap' = [snap EXCEPT ![s] = NoTop]
+  /\ valid' = [valid EXCEPT ![s] = TRUE]
+  /\ IF ScanFreeOnFail /\ hook[s] # "end" THEN Go(s, "create")
+     ELSE Finish(s, IF hook[s] = "end" THEN role[s] ELSE "worker")
+  /\ UNCHANGED <<top, life>>
+
 \* os.utime(ORCHESTRATOR.<n>.claim) -- the file that was read, by its name.
 \* If it fails the lease was not refreshed, so the session gives the role up.
 Touch(s) ==
@@ -171,7 +185,7 @@ Age ==
   /\ top' = [top EXCEPT !.age = IF @ = "fresh" THEN "margin" ELSE "stale"]
   /\ UNCHANGED <<snap, valid, pc, hook, role, acting, life>>
 
-Step(s) == Scan(s) \/ Touch(s) \/ TouchFail(s) \/ Create(s) \/ CreateFail(s) \/ Verify(s)
+Step(s) == Scan(s) \/ ScanFail(s) \/ Touch(s) \/ TouchFail(s) \/ Create(s) \/ CreateFail(s) \/ Verify(s)
            \/ Release(s) \/ ReleaseFail(s)
 Host(s) == Open(s) \/ Turn(s) \/ Mid(s) \/ Stop(s) \/ Close(s) \/ Crash(s)
 
@@ -184,7 +198,7 @@ Next == Age \/ \E s \in Sessions : Step(s) \/ Host(s)
 Fairness ==
   /\ WF_vars(Age)
   /\ \A s \in Sessions : WF_vars(Step(s)) /\ WF_vars(Turn(s)) /\ WF_vars(Stop(s))
-                         /\ SF_vars(Create(s)) /\ SF_vars(Touch(s))
+                         /\ SF_vars(Scan(s)) /\ SF_vars(Create(s)) /\ SF_vars(Touch(s))
 Spec == Init /\ [][Next]_vars /\ Fairness
 
 \* Sessions are interchangeable: safety may be checked up to their permutation

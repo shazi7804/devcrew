@@ -125,7 +125,9 @@ so the bounds became code first.
   full and published with `os.link`, is a compare-and-swap, and names are
   never reused. The holder re-wins its own lease once it is older than
   STALE−MARGIN. Any beat may take a free claim, so a crashed orchestrator is
-  replaced without a new window.
+  replaced without a new window. A claim that cannot be read is held by someone unknown,
+  never free (`ScanFail` in the model; `ElectionScanBroken.cfg`, where it is
+  taken as free, finds two orchestrators).
 
   A beat now runs after every tool call. Without it, a long autonomous turn
   outlives its lease (assumption A2). The assumptions the fix still needs

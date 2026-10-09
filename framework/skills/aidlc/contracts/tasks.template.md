@@ -26,10 +26,12 @@ Gate: 🔴 design — awaiting CEO
 ## The header — only these two lines
 - **`Signed:`** — each signed contract and the first 12 hex of its sha256,
   joined by ` · `; paths are relative to TASKS.md and the first one is the
-  requirements. `check_tasks.py --sign requirements.md standards.md` prints
-  the line; write it when the CEO signs a batch (intent adds
-  `requirements.md`, design adds `standards.md`). A file that no longer
-  matches its hash is the `drift` interrupt.
+  requirements. `check_tasks.py --sign requirements.md design.md standards.md`
+  prints the line; write it when the CEO signs a batch (intent adds
+  `requirements.md`; design adds `design.md`, `standards.md` and any ADR). A
+  changed `requirements.md` / `standards.md` is the `drift` interrupt, any
+  other signed file `cross-design`; a `design.md` that exists unsigned after
+  the design batch fails `check_tasks.py`.
 - **`Gate:`** — only while a batch is open: `Gate: 🔴 <intent|design|ship> —
   awaiting CEO`. Remove it when the CEO answers.
 

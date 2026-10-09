@@ -159,6 +159,11 @@ def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
             hits.append(f"TASKS.md: {kind.upper()} -- {path} is sha256:{digest(f)}, "
                         f"signed sha256:{want}. Interrupt `{kind}`: the run stops "
                         "until the CEO re-signs it.")
+    names = {pathlib.PurePosixPath(p).as_posix() for p, _ in signed}
+    if (tasks.parent / "design.md").is_file() and "design.md" not in names and \
+            not (gate and "design" in gate) and not (gate and "intent" in gate):
+        hits.append("TASKS.md: design.md exists but is not signed -- the design batch signs "
+                    "it, or a change to it could never raise `cross-design`")
     if gate is not None and not GATE.fullmatch(gate):
         hits.append(f"TASKS.md: Gate `{gate}` is not `🔴 <{'|'.join(BATCHES)}> — awaiting CEO`")
     reqfile = tasks.parent / signed[0][0]
@@ -217,6 +222,8 @@ def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
                      for h in check_live.scan(root, tree, rerun, src, tests, allow)]
             hits += [f"Done but not formal: {h}" for h in
                      check_formal.check(root, reqfile, only=done, rerun=rerun, tree=tree)]
+            if rerun and (why := check_live.moved(root, tree)):
+                hits.append(why)            # it proved the pinned commit, not this one
         finally:
             tree.close()
     return hits
@@ -436,7 +443,37 @@ def self_test():
         if not any("not HEAD's" in h for h in check(root, tasks, rerun=True)):
             print("self-test FAILED: a re-run of a ledger HEAD does not have")
             return 1
-    print(f"self-test ok ({len(cases) + len(drift) + 6} cases)")
+    # (2) HEAD moved during the re-run: nothing it proved is HEAD's
+    # (4) a design.md beside the requirements that is not signed: the
+    #     cross-design interrupt could never fire for it
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        (root / "req/evidence").mkdir(parents=True)
+        (root / "req/requirements.md").write_text("# r\n- **R1** — a\n  - *Verify*: local\n"
+                                                  "  - *Property*: none — text\n", encoding="utf-8")
+        (root / "req/design.md").write_text("# d\n", encoding="utf-8")
+        q = ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+        subprocess.run(["git", "-C", d, "init", "-q"], check=True)
+        subprocess.run(["git", "-C", d, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", d, *q, "commit", "-qm", "x"], check=True)
+        sha = check_live.out(check_live.git(root, "rev-parse", "HEAD")).strip()
+        (root / "req/evidence/R1.json").write_text(json.dumps(
+            {"id": "R1", "verify": "local", "target": "this checkout",
+             "command": f"git -C {d} -c user.name=t -c user.email=t@t commit -q --allow-empty "
+                        "-m moved; echo ok", "expect": "ok", "observed": "ok", "result": "pass",
+             "sha": sha, "at": "2026-10-10T00:00:00Z"}), encoding="utf-8")
+        tasks = root / "req/TASKS.md"
+        for signed_files, want in ((["requirements.md"], "design.md exists but is not signed"),
+                                   (["requirements.md", "design.md"], "HEAD moved")):
+            tasks.write_text(sign(tasks, signed_files) + "\n\n## Done\n- [x] R1 a\n"
+                             "\n## In progress\n\n## Todo\n", encoding="utf-8")
+            subprocess.run(["git", "-C", d, "add", "-A"], check=True)
+            subprocess.run(["git", "-C", d, *q, "commit", "-qm", "ledger"], check=True)
+            got = check(root, tasks, rerun=True)
+            if not any(want in h for h in got):
+                print(f"self-test FAILED: expected {want!r}, got {got or 'clean'}")
+                return 1
+    print(f"self-test ok ({len(cases) + len(drift) + 8} cases)")
     return 0
 
 

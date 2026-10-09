@@ -57,6 +57,7 @@ MODELS = [
     ("ElectionV096", "ElectionV096", "AtMostOneActing"),
     ("Election", "ElectionLiveBroken", "temporal"),
     ("Election", "ElectionOnceBroken", "temporal"),
+    ("Election", "ElectionScanBroken", "AtMostOneActing"),
     ("Aidlc", "Aidlc", "holds"),
     ("Aidlc", "AidlcLive", "holds"),
     ("Aidlc", "AidlcBroken", "NoPhasePastUnsignedBatch"),
@@ -167,6 +168,17 @@ def scripted(script, project, trace):
     held/demoted, released, first again."""
     b = lambda sid, mode: boot(script, project, trace, sid, mode)
     b("a1", "start")
+    # a claim that cannot be read is held by someone unknown, never free: a
+    # newcomer that cannot read it stays a worker
+    top = max((project / ".aidlc" / "claims").glob("ORCHESTRATOR.*.claim"),
+              key=lambda p: int(p.name.split(".")[1]))
+    top.chmod(0)
+    try:
+        b("b1", "start")
+    finally:
+        top.chmod(0o644)
+    if len(list((project / ".aidlc" / "claims").glob("ORCHESTRATOR.*.claim"))) != 1:
+        raise SystemExit("boot.py took a claim it could not read")
     turn(script, project, trace, "a1", mids=1)                 # kept
     time.sleep(STALE - MARGIN + 0.4)                           # a1's lease: margin
     turn(script, project, trace, "a1")                         # renewed
@@ -265,7 +277,7 @@ def attempt(java, jar, script, scenario):
         trace_module(events, work / "TraceData.tla")
         (work / "ElectionTrace.cfg").write_text(
             "CONSTANTS\n  Sessions = {" + ", ".join(f'"{s}"' for s in sids) + "}\n"
-            "  None = None\n  TakeOnBeat = TRUE\nSPECIFICATION TSpec\nINVARIANT Unmatched\nCHECK_DEADLOCK FALSE\n")
+            "  None = None\n  TakeOnBeat = TRUE\n  ScanFreeOnFail = FALSE\nSPECIFICATION TSpec\nINVARIANT Unmatched\nCHECK_DEADLOCK FALSE\n")
         got = outcome(tlc(java, jar, "ElectionTrace", "ElectionTrace", work))
         return got == "Unmatched", len(events), got
     finally:

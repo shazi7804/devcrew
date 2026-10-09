@@ -862,7 +862,8 @@ interrupt is the same hard stop, with the interrupt named in the SITREP.
 
 ### Intent hash + standards hash — the version locks, as code
 At the intent batch, `check_tasks.py --sign requirements.md` prints the
-`Signed:` line for TASKS.md; the design batch adds `standards.md`.
+`Signed:` line for TASKS.md; the design batch adds `design.md`, `standards.md` and
+any ADR, so a change to one of them raises `cross-design`.
 `check_tasks.py` re-hashes every file on that line at every step: a hash change
 without a fresh CEO signature is the **`drift` interrupt** — halt and ask the
 CEO to re-sign. Downstream roles are handed the contract path AND the expected

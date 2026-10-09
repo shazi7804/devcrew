@@ -23,8 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — blocked on loop-bound · reviewer · 5/5 stalled 0/3 · next: the CEO decides; the final cross-vendor review REJECTed with 6 blockers (an unreadable claim taken as free in boot.py, no HEAD check at the end of formal/TASKS re-runs, TLA+ ASSUME/AXIOM not an escape hatch, the template not signing design.md, .tla outside the neutrality scan; the final-tree audit is now PASS-WITH-DEBT)
-- [~] R10 check_formal.py — blocked on loop-bound · reviewer · 5/5 stalled 0/3 · next: the CEO decides, with R3
+- [~] R3 Done only with live + formal evidence — verifying · qa · 1/5 stalled 0/3 · next: the final review's 5 blockers fixed test-first (C18); one context-free QA + Security + auditor + reviewer round
+- [~] R10 check_formal.py — verifying · qa · 1/5 stalled 0/3 · next: with R3 (C18)
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -43,6 +43,7 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] C15 the reviewer's R3 blocker (a probe that runs a tool outside the repository) is ruled the environment, not the tree, under the CEO's threat model; R3 now says so -- re-signed -- undo: revert that sentence
 - [ ] C16 the CEO ruled on the second loop-bound (2026-10-09, 「A」): close the whole class -- a re-run refuses a working tree with any uncommitted or untracked file, and --deployed runs in HEAD's checkout -- and restart Loop A for R3/R10 at 1/5 -- undo: revert the commit that adds the clean-tree rule
 - [ ] C17 QA's blocker "an ignored in-repo virtualenv on PATH decides a probe" ruled the environment, not the tree, under C15 and the CEO's threat model; R3 now says so, and each probe gets its own TMPDIR -- re-signed -- undo: revert that sentence and re-sign
+- [ ] C18 the CEO ruled on the third loop-bound (2026-10-10, 「繼續修」): fix the final review's five blockers (an unreadable claim in boot.py, the HEAD check at the end of every re-run, TLA+ AXIOM/ASSUME, the template signing design.md, .tla/.cfg in the neutrality scan) and restart Loop A for R3/R10 at 1/5 -- undo: revert the commits after 5757e95
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer

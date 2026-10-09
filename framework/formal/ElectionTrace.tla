@@ -32,7 +32,8 @@ Logged ==
      IN /\ CASE e.op = "fire" /\ e.mode = "start" -> Open(s)
              [] e.op = "fire" /\ e.mode = "beat"  -> Turn(s) \/ Mid(s) \/ Stop(s)
              [] e.op = "fire" /\ e.mode = "end"   -> Close(s)
-             [] e.op = "scan"    -> top = Seen(e.top) /\ e.n = gen /\ Scan(s)
+             [] e.op = "scan"    -> e.n = gen /\ IF e.ok THEN top = Seen(e.top) /\ Scan(s)
+                                                  ELSE ScanFail(s)
              [] e.op = "touch"   -> e.n = sgen[s] /\ IF e.ok THEN Touch(s) ELSE TouchFail(s)
              [] e.op = "create"  -> e.n = sgen[s] + 1 /\
                                     IF e.ok THEN valid[s] /\ Create(s)

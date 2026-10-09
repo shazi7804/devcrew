@@ -198,7 +198,12 @@ def scan(sid):
                            age="fresh" if age <= STALE_S - MARGIN_S else
                                "margin" if age <= STALE_S else "stale")
             except OSError:
-                pass
+                # unreadable is not free: held by someone unknown, so nobody
+                # takes it on this read (Election.tla ScanFail; A5 says a read
+                # does not fail forever)
+                top.update(sid="?", age="fresh", rel=False, age_s=0)
+                seen["ok"] = False
+        seen.setdefault("ok", True)
         seen["n"] = top["n"]
         seen["top"] = {k: top[k] for k in ("sid", "age", "rel")}
     return top

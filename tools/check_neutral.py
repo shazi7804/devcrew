@@ -28,7 +28,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 NEUTRAL = ["framework", "ARCHITECTURE.md", "docs"]
 SKIP = {"framework/memory"}  # append-only history; it records what happened
 SUFFIXES = {".md", ".py", ".json", ".yml", ".yaml", ".sh", ".js", ".ts",
-            ".html", ".toml", ".txt"}
+            ".html", ".toml", ".txt", ".tla", ".cfg"}
 
 HOST_TOOLS = [
     # KiroCrew
@@ -99,6 +99,13 @@ def self_test():
             if not scan([f]):
                 print(f"self-test FAILED: no hit on {text!r}")
                 return 1
+        for name in ("leak.tla", "leak.cfg"):        # a model and its config are source too
+            f = pathlib.Path(d, name)
+            f.write_text("\\* runs on the 128GB EC2\n", encoding="utf-8")
+            if not scan([f]):
+                print(f"self-test FAILED: no hit in a {f.suffix} file")
+                return 1
+            f.unlink()
         pathlib.Path(d, "leak.md").write_text("Dispatch with `spawn`.\n", encoding="utf-8")
         if scan([pathlib.Path(d, "leak.md")]):
             print("self-test FAILED: a neutral line was flagged")

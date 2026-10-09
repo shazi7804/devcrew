@@ -95,7 +95,8 @@ HATCHES = {
     ".dfy": [r"\bassume\b", r"\{:axiom\}", r"\{:verify\s+false\}"],
     ".rs": [r"\bassume\s*\(", r"\badmit\s*\(", r"verifier::external_body",
             r"verifier\(external_body\)"],
-    ".tla": [r"\bOMITTED\b"],
+    # AXIOM, ASSUME and ASSUMPTION state an unproved fact a proof may use
+    ".tla": [r"\bOMITTED\b", r"^\s*(AXIOM|ASSUME|ASSUMPTION)\b"],
     ".thy": [r"\bsorry\b", r"\boops\b", r"\baxiomatization\b"],
     ".fst": [r"\badmit\b", r"\bassume\b"],
     ".fsti": [r"\badmit\b", r"\bassume\b"],
@@ -177,7 +178,10 @@ def check(root, reqfile, evidence=None, only=None, rerun=False, tree=None):
     if own and rerun:
         tree.want_dir(evidence or reqfile.parent / "formal")
     try:
-        return _check(root, reqfile, evidence, only, rerun, tree)
+        hits = _check(root, reqfile, evidence, only, rerun, tree)
+        if own and rerun and (why := check_live.moved(root, tree)):
+            hits.append(why)
+        return hits
     finally:
         if own:
             tree.close()
@@ -423,6 +427,8 @@ def self_test():
                       (".v", "Admitted."), (".dfy", "assume x > 0;"), (".dfy", "lemma {:axiom} L()"),
                       (".rs", "assume(n > 0);"), (".rs", "#[verifier::external_body]"),
                       (".tla", "THEOREM T == Spec => Inv PROOF OMITTED"), (".thy", "  sorry"),
+                      (".tla", "AXIOM Cheat == GoodProp"), (".tla", "ASSUME FALSE"),
+                      (".tla", "ASSUMPTION A == TRUE"),
                       (".py", "assume(False)")]:
         cases.append((f"escape hatch {line!r}", {"sources": [f"spec/P{ext}"]},
                       {f"spec/P{ext}": line + "\n"}, "escape hatch", False))
@@ -496,7 +502,15 @@ def self_test():
         if rc != 0:
             print("self-test FAILED: a formal command inherits a PYTHONPATH it never names")
             return 1
-    print(f"self-test ok ({len(cases) + len(more) + 3} cases)")
+    with tempfile.TemporaryDirectory() as d:
+        ev(d, tree(d), command=f"git -C {d} -c user.name=t -c user.email=t@t commit -q "
+                              "--allow-empty -m moved; python3 spec/check.py spec/M.tla")
+        got = check(pathlib.Path(d), pathlib.Path(d, "req/requirements.md"), only=["R1"],
+                    rerun=True)
+        if not any("HEAD moved" in h for h in got):
+            print(f"self-test FAILED: HEAD moved during a formal re-run: got {got or 'clean'}")
+            return 1
+    print(f"self-test ok ({len(cases) + len(more) + 4} cases)")
     return 0
 
 
