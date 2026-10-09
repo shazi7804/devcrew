@@ -78,7 +78,9 @@ so the bounds became code first.
   (LFS) is read as checked out; a probe's background processes die with it;
   the checkout's git dir is recorded before any probe, so a probe that
   removes `.git` cannot turn the reset on the repository around it; every
-  case clash and every link that leaves the tree is reported. What no reset undoes is stated: a probe runs with the user's
+  case clash and every link that leaves the tree is reported. The sensors' own
+  git calls drop the caller's `GIT_*` variables, so run from a git hook they
+  cannot write into the user's index or detach the user's HEAD. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,

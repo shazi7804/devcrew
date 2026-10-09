@@ -131,7 +131,7 @@ def hatches(path, text):
 def run_cmd(cmd, root):
     """(exit code or None on timeout, output)"""
     try:
-        return check_live.run_shell(cmd, root, 3600)
+        return check_live.run_shell(cmd, root, 3600, check_live.git_env())
     except subprocess.TimeoutExpired:
         return None, ""
 

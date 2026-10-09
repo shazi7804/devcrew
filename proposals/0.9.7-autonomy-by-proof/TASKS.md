@@ -23,8 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 2/5 stalled 0/3 · next: the context-free QA and Security round re-judges the whole of R3 after their 7 blockers were fixed test-first
-- [~] R10 check_formal.py — verifying · qa · 2/5 stalled 0/3 · next: the same round as R3
+- [~] R3 Done only with live + formal evidence — verifying · qa · 3/5 stalled 0/3 · next: Security's git-environment blocker fixed test-first; QA's final round is judging the batch
+- [~] R10 check_formal.py — verifying · qa · 3/5 stalled 0/3 · next: the same round as R3
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -57,3 +57,4 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D18 the evidence secret pattern misses common credential shapes (Stripe, JWT, Google keys, Basic auth, Slack webhooks, cookies): widen it or redact by default (security)
 - [ ] D19 role permissions: on KiroCrew every role, reviewer and auditor included, may spawn and write memory; on Claude Code the auditor keeps Bash -- deny those in the adapters (security)
 - [ ] D20 CI actions are pinned by tag, not commit sha (security, low)
+- [ ] D21 formal evidence is not secret-scanned, and its commands run with the full environment (security, low)

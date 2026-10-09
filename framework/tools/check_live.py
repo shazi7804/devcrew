@@ -159,8 +159,15 @@ BROAD = ("", "x", "a b", "mock", "fake", "stub", "dummy", "lorem ipsum",
 URL = re.compile(r"(?i)\b[a-z][\w+.-]*://[^\s'\"`<>]+")
 
 
+def git_env(**extra):
+    """The environment for the sensors' own git calls: none of the caller's
+    GIT_* variables -- run from a hook, GIT_DIR or GIT_INDEX_FILE would point
+    them at the user's repository and index."""
+    return {**{k: v for k, v in os.environ.items() if not k.startswith("GIT_")}, **extra}
+
+
 def git(root, *args):
-    return subprocess.run(["git", "-C", str(root), *args], capture_output=True)
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, env=git_env())
 
 
 def out(proc):
@@ -255,7 +262,7 @@ class HeadTree:
         r = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "check-attr", "-z",
                             "--stdin", f"--source={self.head()}", "filter"],
                            input="\0".join(names).encode("utf-8", "surrogateescape"),
-                           capture_output=True)
+                           capture_output=True, env=git_env())
         if r.returncode:
             raise SystemExit(f"cannot read HEAD's attributes in {self.root}")
         f = r.stdout.decode("utf-8", "surrogateescape").split("\0")
@@ -268,7 +275,8 @@ class HeadTree:
             ids.write("".join(f"{o}\n" for o in oids).encode())
             ids.seek(0)
             cat = subprocess.Popen(["git", "-C", str(self.root), *QUIET_GIT, "cat-file",
-                                    "--batch"], stdin=ids, stdout=subprocess.PIPE)
+                                    "--batch"], stdin=ids, stdout=subprocess.PIPE,
+                                   env=git_env())
             got = []
             for _ in oids:
                 head = cat.stdout.readline().split()
@@ -297,7 +305,7 @@ class HeadTree:
             # the index --src is read against, built now, before any command
             self.index = tempfile.mkdtemp()
             if subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "read-tree", self.head()],
-                              env={**os.environ, "GIT_INDEX_FILE": self.index + "/index"},
+                              env=git_env(GIT_INDEX_FILE=self.index + "/index"),
                               capture_output=True).returncode:
                 raise SystemExit(f"cannot read HEAD's tree in {self.root}")
             names = ls.stdout.decode("utf-8", "surrogateescape")
@@ -365,7 +373,8 @@ class HeadTree:
             # disk -- read now, before any probe, with the user's own config
             for t in self._filtered(need):
                 r = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "cat-file",
-                                    "--filters", f"{self.head()}:{t}"], capture_output=True)
+                                    "--filters", f"{self.head()}:{t}"], capture_output=True,
+                                   env=git_env())
                 if r.returncode:
                     raise SystemExit(f"cannot read {t} through its filter at HEAD")
                 body[t] = r.stdout
@@ -394,7 +403,7 @@ class HeadTree:
         self.files()
         ls = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "ls-files", "-z", "--",
                              *(src or ["."])], capture_output=True,
-                            env={**os.environ, "GIT_INDEX_FILE": self.index + "/index"})
+                            env=git_env(GIT_INDEX_FILE=self.index + "/index"))
         if ls.returncode:
             raise SystemExit(f"--src {' '.join(src or [])}: git cannot read it over HEAD")
         return ls.stdout.decode("utf-8", "surrogateescape").split("\0")
@@ -429,8 +438,8 @@ class HeadTree:
                 shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink()
         dotgit = self.path / ".git"
         if dotgit.is_symlink() or not dotgit.is_file() or dotgit.read_bytes() != self.dotgit:
-            shutil.rmtree(self.path, ignore_errors=True)          # make it again
-            git(self.root, "worktree", "prune")
+            shutil.rmtree(self.path, ignore_errors=True)          # make it again; drop
+            shutil.rmtree(self.gitdir, ignore_errors=True)        # only our own entry
             self._add()
             return self.path
         for f in ("index", "info/sparse-checkout", "config.worktree"):
@@ -438,7 +447,7 @@ class HeadTree:
                 (self.gitdir / f).unlink()
         wt = ["git", f"--git-dir={self.gitdir}", f"--work-tree={self.path}", "-C",
               str(self.path), *QUIET_GIT]
-        if any(subprocess.run([*wt, *c], capture_output=True).returncode for c in (
+        if any(subprocess.run([*wt, *c], capture_output=True, env=git_env()).returncode for c in (
                 ("checkout", "-q", "--detach", "-f", self.sha),
                 ("reset", "-q", "--hard", self.sha), ("clean", "-qffdx"))):
             raise SystemExit(f"cannot reset the checkout of HEAD at {self.path}")
@@ -1426,6 +1435,39 @@ def self_test():
                            ("a data link that leaves the tree", "data/hosts.txt: a symlink")):
             if not check(f"{name}, on a re-run", got, want):
                 return 1
+    # A sensor run from a git hook inherits GIT_DIR / GIT_INDEX_FILE: its own
+    # git calls must not touch the user's index, HEAD or other worktrees.
+    with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as other:
+        root = pathlib.Path(d)
+        lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
+        sha = commit(d, lreq)
+        ev(d, sha, verify="local", target="this checkout", command="echo 'temp: 21'",
+           expect=r"temp: \d+", observed="temp: 21")
+        git(d, "worktree", "add", "-q", "--detach", str(pathlib.Path(other) / "w"))
+        shutil.rmtree(pathlib.Path(other) / "w")         # the user's, gone for now
+        write(d, {"staged.py": "x = 1\n"})
+        git(d, "add", "staged.py")
+        saved = {k: os.environ.get(k) for k in ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE")}
+        os.environ.update(GIT_DIR=str(root / ".git"), GIT_INDEX_FILE=str(root / ".git/index"),
+                          GIT_WORK_TREE=str(root))
+        try:
+            got = run(root, rerun=True)
+            tree = HeadTree(root)
+            try:
+                probe("rm -rf .git", tree.get())
+                tree.get()                              # made again
+            finally:
+                tree.close()
+        finally:
+            for k, v in saved.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        kept = (out(git(d, "diff", "--cached", "--name-only")).strip() == "staged.py" and
+                out(git(d, "symbolic-ref", "-q", "HEAD")).strip() and
+                str(pathlib.Path(other) / "w") in out(git(d, "worktree", "list")))
+        if not check("a re-run from a git hook's environment", got, None) or \
+                not check("...leaves the user's index, HEAD and worktrees alone",
+                          [] if kept else ["the user's repository changed"], None):
+            return 1
     # (3) a process a probe left running takes no part in the next probe;
     # (4) a probe that removes its checkout's .git cannot turn the reset on the
     # repository around the temp dir
