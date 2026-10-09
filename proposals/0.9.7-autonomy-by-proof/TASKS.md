@@ -41,3 +41,4 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D5 the demotion rule is stated in three places
 - [ ] D9 check_tasks --rerun runs identical commands repeatedly: memoize per invocation
 - [ ] D10 boot.py beat: import subprocess lazily; write the hint files only on change
+- [ ] D11 one HeadTree per invocation, shared by check_live and check_formal (check_tasks --rerun makes two, check_live one per requirements file)
