@@ -14,8 +14,8 @@
   "expect": "Election/Election: holds",
   "observed": "Election/Election: holds",
   "result": "pass",
-  "sha": "08e16b15ab9882af9f09fbc275963f6b447254d1",
-  "at": "2026-10-08T02:31:03+00:00",
+  "sha": "a2855371a92318e85d9005bb7a9e9109a9b89cb8",
+  "at": "2026-10-09T05:03:51+00:00",
   "vacuity": {
     "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds ElectionV096",
     "expect": "AtMostOneActing",
