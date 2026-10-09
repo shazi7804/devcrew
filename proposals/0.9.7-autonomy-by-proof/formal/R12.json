@@ -15,8 +15,8 @@
   "expect": "models: ok",
   "observed": "1s)\n  ok  Aidlc/AidlcLiveBroken: temporal (expected temporal; 30592 states, 2s)\nmodels: ok",
   "result": "pass",
-  "sha": "9e0d165cc147649e9828c16298dd17b1b3dde741",
-  "at": "2026-10-09T05:39:28+00:00",
+  "sha": "bbc708da1f0039f0962dd792131905c837e3b625",
+  "at": "2026-10-09T05:57:52+00:00",
   "vacuity": {
     "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds ElectionV096 || python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds Aidlc:AidlcBroken",
     "expect": "NoPhasePastUnsignedBatch",
