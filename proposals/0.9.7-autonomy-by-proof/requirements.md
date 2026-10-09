@@ -75,7 +75,9 @@ changes, one idea:
     a name two filesystems spell differently. On a re-run they SHALL never
     pass what the plain run fails. A probe that sets out to fool the sensor
     (rewriting git's objects, config or refs) is out of scope, stated in
-    HeadTree's docstring.
+    HeadTree's docstring. A tool outside the repository -- on PATH or named
+    by an environment variable the command uses -- is the environment the
+    probe runs in, not the tree; the reviewer reads it in the command.
   - *Acceptance*: the TASKS sensor fails a `[x]` whose `check_live.py --only <ID>`
     or `check_formal.py --only <ID>` fails, and fails a `[x]` line that still
     carries a status.
@@ -204,7 +206,7 @@ changes, one idea:
     bounds and every property holds; a CI step proves the check can fail by
     checking a seeded broken variant and expecting a counterexample.
   - *Verify*: local
-  - *Property*: Election: AtMostOneActing /\ ActingHoldsTop at 3 sessions, HooksEnd /\ ElectedAfterGone at 2; Aidlc: NoPhasePastUnsignedBatch /\ DoneHasEvidence /\ AtBoundNoProgress /\ AsksOnlyForBatchOrInterrupt /\ JudgmentRecorded /\ StopsOnlyForCEO /\ NeverStuck /\ LoopTerminates /\ BoundInterrupts /\ TroubleReachesCEO
+  - *Property*: Election: AtMostOneActing /\ ActingHoldsTop at 3 sessions, HooksEnd /\ ElectedAfterGone /\ ElectedOnceGone at 2; Aidlc: NoPhasePastUnsignedBatch /\ DoneHasEvidence /\ AtBoundNoProgress /\ AsksOnlyForBatchOrInterrupt /\ JudgmentRecorded /\ StopsOnlyForCEO /\ NeverStuck /\ LoopTerminates /\ BoundInterrupts /\ TroubleReachesCEO
   - *Formal*: checked
   - *Conformance*: none
 - **R13** — The model and the code SHALL NOT drift. `boot.py` SHALL be

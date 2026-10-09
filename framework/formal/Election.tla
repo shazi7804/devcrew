@@ -207,4 +207,9 @@ Live(s) == life[s] \in {"idle", "turn"}
 Held    == \E t \in Sessions : Live(t) /\ Mine(top, t) /\ role[t] = "orch"
 ElectedAfterGone ==
   \A s \in Sessions : (hook[s] = "start" /\ pc[s] = "scan") ~> (Held \/ ~Live(s))
+
+\* ...and not only for a session that is starting: whenever no live session
+\* holds the claim while one is live -- a worker whose holder crashed after it
+\* started -- one is eventually elected, or none is left alive
+ElectedOnceGone == (~Held /\ \E s \in Sessions : Live(s)) ~> (Held \/ \A s \in Sessions : ~Live(s))
 =============================================================================

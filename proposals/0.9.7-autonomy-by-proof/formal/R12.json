@@ -1,6 +1,6 @@
 {
   "id": "R12",
-  "property": "Election: AtMostOneActing /\\ ActingHoldsTop at 3 sessions, HooksEnd /\\ ElectedAfterGone at 2; Aidlc: NoPhasePastUnsignedBatch /\\ DoneHasEvidence /\\ AtBoundNoProgress /\\ AsksOnlyForBatchOrInterrupt /\\ JudgmentRecorded /\\ StopsOnlyForCEO /\\ NeverStuck /\\ LoopTerminates /\\ BoundInterrupts /\\ TroubleReachesCEO",
+  "property": "Election: AtMostOneActing /\\ ActingHoldsTop at 3 sessions, HooksEnd /\\ ElectedAfterGone /\\ ElectedOnceGone at 2; Aidlc: NoPhasePastUnsignedBatch /\\ DoneHasEvidence /\\ AtBoundNoProgress /\\ AsksOnlyForBatchOrInterrupt /\\ JudgmentRecorded /\\ StopsOnlyForCEO /\\ NeverStuck /\\ LoopTerminates /\\ BoundInterrupts /\\ TroubleReachesCEO",
   "level": "checked",
   "conformance": "none",
   "tool": "TLC 2.19 (tla2tools 1.7.4)",

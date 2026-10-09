@@ -56,6 +56,7 @@ MODELS = [
     ("Election", "ElectionLive", "holds"),
     ("ElectionV096", "ElectionV096", "AtMostOneActing"),
     ("Election", "ElectionLiveBroken", "temporal"),
+    ("Election", "ElectionOnceBroken", "temporal"),
     ("Aidlc", "Aidlc", "holds"),
     ("Aidlc", "AidlcLive", "holds"),
     ("Aidlc", "AidlcBroken", "NoPhasePastUnsignedBatch"),
