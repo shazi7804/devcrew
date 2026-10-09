@@ -256,11 +256,14 @@ class HeadTree:
 
     def files(self):
         """{path: bytes} at the pinned commit: what a check reads -- the code
-        (CODE suffixes, .env*), each symlink as the in-tree file it resolves
-        to (what runs is the target; a dangling one is left out, as by the
-        plain scan) and the files named in `want`. Read before the first
-        probe, and only that, so no probe can rewrite an object under the
-        scan and a large tree costs only its code."""
+        (CODE suffixes, .env*), each symlink as the file it resolves to in
+        HEAD's tree, component by component as the kernel does (what runs is
+        the target), and the files named in `want`. A symlink that does not
+        resolve to a file of HEAD's tree -- out of it, absolute, a loop, a
+        case the tree does not have -- maps to None: the scan reports it
+        rather than skip what it cannot read. Read before the first probe,
+        and only that, so no probe can rewrite an object under the scan and a
+        large tree costs only its code."""
         if self.blobs is None:
             ls = git(self.root, *QUIET_GIT, "ls-tree", "-r", "-z", "--full-tree", self.head())
             if ls.returncode:
@@ -273,22 +276,42 @@ class HeadTree:
             dest = dict(zip(links, (b.decode("utf-8", "surrogateescape")
                                     for b in self._cat([ents[r][1] for r in links]))))
 
-            def resolve(rel, hops=0):
-                while rel in dest and hops < 40:
-                    rel, hops = os.path.normpath(os.path.join(os.path.dirname(rel),
-                                                              dest[rel])), hops + 1
-                return rel if rel in ents and rel not in dest else None
-            read = {r: resolve(r) for r in ents if is_code(r) or r in self.want or r in dest}
+            def resolve(rel):
+                done, todo, hops = [], rel.split("/"), 0
+                while todo:
+                    c = todo.pop(0)
+                    if c in ("", "."):
+                        continue
+                    if c == "..":
+                        if not done:
+                            return None             # out of the tree
+                        done.pop()
+                        continue
+                    at = "/".join(done + [c])
+                    if at in dest:
+                        hops += 1
+                        if hops > 40 or dest[at].startswith("/"):
+                            return None             # a loop, or absolute
+                        todo = dest[at].split("/") + todo
+                        continue
+                    done.append(c)
+                at = "/".join(done)
+                return at if at in ents and at not in dest else None
+            read = {r: resolve(r) if r in dest else r for r in ents
+                    if is_code(r) or r in self.want or r in dest}
             need = sorted({t for t in read.values() if t})
             body = dict(zip(need, self._cat([ents[t][1] for t in need])))
-            self.blobs = {r: body[t] for r, t in read.items() if t}
+            self.blobs = {r: body[t] if t else None for r, t in read.items()
+                          if t or is_code(r)}
         return self.blobs
 
     def blob(self, rel):
         """One file at the pinned commit, or None; one no check named up front
         is read now, after any probe (the stated limit above)."""
         rel = str(rel)
-        if rel not in self.files():
+        if rel in self.files() and self.blobs[rel] is None:
+            return None
+        if rel not in self.blobs:
             r = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "cat-file", "blob",
                                 f"{self.head()}:{rel}"], capture_output=True)
             if r.returncode:
@@ -627,6 +650,10 @@ def check_code(root, src, tests, rules, blobs=None):
                 or (blobs is None and not p.is_file()):
             continue
         data = p.read_bytes() if blobs is None else blobs[rel]
+        if data is None:
+            hits.append(f"{rel}: a symlink that does not resolve to a file of HEAD's tree "
+                        "-- what it runs cannot be scanned")
+            continue
         if b"\0" in data[:8192]:
             continue
         for n, line in enumerate(data.decode("utf-8", "replace").splitlines(), 1):
@@ -1005,6 +1032,28 @@ def self_test():
         for rr in (False, True):
             if not check(f"a production symlink to a fixture{' on a re-run' if rr else ''}",
                          run(root, rf, rerun=rr), "src/link.js:1"):
+                return 1
+        git(d, *quiet, "reset", "-q", "--hard", "HEAD~1")
+        # resolved as the kernel does: through a directory link, `..` after one;
+        # one that leaves the tree, is absolute or misses the case is reported
+        write(d, {"tests/sub/.keep": "", "tests/fixture.js": "export const t = mockTemp();\n",
+                  "fixture.js": "x()\n"})
+        os.symlink("tests", root / "prod")
+        os.symlink("tests/sub", root / "dd")
+        unread = "does not resolve to a file of HEAD's tree"
+        forms = {"through a directory link": ("src/a.js", "../prod/fixture.js", "1: `mock`"),
+                 "`..` after a directory link": ("src/b.js", "../dd/../fixture.js", "1: `mock`"),
+                 "out of the tree": ("src/c.js", "../../outside.js", unread),
+                 "absolute": ("src/e.js", str(root / "tests/fixture.js"), unread),
+                 "in another case": ("src/f.js", "../TESTS/fixture.js", unread)}
+        for _, (link, dest, _) in forms.items():
+            os.symlink(dest, root / link)
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "links")
+        got = run(root, rf, rerun=True)
+        for name, (link, _, why) in forms.items():
+            if not check(f"a production symlink {name}, on a re-run", got, f"{link}:{why}"
+                         if why != unread else f"{link}: a symlink that {why}"):
                 return 1
         git(d, *quiet, "reset", "-q", "--hard", "HEAD~1")
         for name, trick in tricks.items():
