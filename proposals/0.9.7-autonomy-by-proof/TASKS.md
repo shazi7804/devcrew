@@ -23,7 +23,7 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 2/5 stalled 0/3 · next: Security's index-flag blocker fixed test-first; QA's round on the clean-tree rule is still judging
+- [~] R3 Done only with live + formal evidence — verifying · qa · 2/5 stalled 0/3 · next: QA's two blockers (index flags, an ignored ledger HEAD lacks) fixed test-first; one context-free QA + Security round
 - [~] R10 check_formal.py — verifying · qa · 2/5 stalled 0/3 · next: with R3 (C16)
 
 ## Todo

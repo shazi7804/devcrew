@@ -87,7 +87,8 @@ so the bounds became code first.
   working tree with any uncommitted or untracked file, so nothing in it can
   decide what HEAD is judged against (git status runs with fsmonitor, ignoreStat
   and the untracked cache off, and an index flag that hides an edit --
-  skip-worktree, assume-unchanged -- is itself unclean), and `--deployed`
+  skip-worktree, assume-unchanged -- is itself unclean; the ledger, the
+  requirements and every signed file must be HEAD's byte for byte), and `--deployed`
   runs in HEAD's checkout. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence

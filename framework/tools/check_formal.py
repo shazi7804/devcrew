@@ -168,7 +168,7 @@ def sources(reqfile, evidence=None, only=None):
 
 
 def check(root, reqfile, evidence=None, only=None, rerun=False, tree=None):
-    if rerun and (why := check_live.unclean(root)):
+    if rerun and (why := check_live.unclean(root) or check_live.at_head(root, reqfile)):
         return [why]
     own = tree is None
     tree = tree or check_live.HeadTree(root, sources(reqfile, evidence, only))

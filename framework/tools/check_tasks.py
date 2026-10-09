@@ -146,6 +146,9 @@ def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
     signed, gate, sections, hits = parse(tasks.read_text(encoding="utf-8"))
     if not signed:
         return hits + ["TASKS.md: no `Signed:` line -- nothing is signed, nothing may run"]
+    if rerun and (why := check_live.at_head(root, tasks, *[tasks.parent / p for p, _ in signed
+                                                            if (tasks.parent / p).is_file()])):
+        return [why]
     for path, want in signed:
         f = tasks.parent / path
         if not f.is_file():
@@ -423,7 +426,16 @@ def self_test():
         if not any("commit or stash" in h for h in check(root, tasks, rerun=True)):
             print("self-test FAILED: a re-run beside an edit hidden by --skip-worktree")
             return 1
-    print(f"self-test ok ({len(cases) + len(drift) + 5} cases)")
+        subprocess.run(["git", "-C", d, "update-index", "--no-skip-worktree", "req/TASKS.md"],
+                       check=True)
+        subprocess.run(["git", "-C", d, "rm", "-q", "--cached", "req/TASKS.md"], check=True)
+        (root / ".gitignore").write_text("req/TASKS.md\n", encoding="utf-8")
+        subprocess.run(["git", "-C", d, "add", ".gitignore"], check=True)
+        subprocess.run(["git", "-C", d, *q, "commit", "-qm", "ignore the ledger"], check=True)
+        if not any("not HEAD's" in h for h in check(root, tasks, rerun=True)):
+            print("self-test FAILED: a re-run of a ledger HEAD does not have")
+            return 1
+    print(f"self-test ok ({len(cases) + len(drift) + 6} cases)")
     return 0
 
 

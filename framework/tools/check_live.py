@@ -170,6 +170,24 @@ def git(root, *args):
     return subprocess.run(["git", "-C", str(root), *args], capture_output=True, env=git_env())
 
 
+def at_head(root, *paths):
+    """Why one of these files is not HEAD's, byte for byte, or None. A re-run
+    reads the contract and the ledger from the working tree, so each must be
+    the committed file -- not an ignored or untracked stand-in HEAD lacks."""
+    for p in paths:
+        rel = rel_to(root, p)
+        r = subprocess.run(["git", "-C", str(root), "--no-replace-objects", "cat-file", "blob",
+                            f"HEAD:{rel}"], capture_output=True, env=git_env())
+        try:
+            here = pathlib.Path(p).read_bytes()
+        except OSError:
+            here = None
+        if r.returncode or here != r.stdout:
+            return (f"a re-run judges HEAD: {rel} is not HEAD's -- commit it "
+                    "(it is missing from HEAD or differs from it)")
+    return None
+
+
 def unclean(root):
     """Why a re-run cannot start here, or None. A re-run judges HEAD, so the
     working tree must be HEAD: with an uncommitted or untracked file, what it
@@ -872,6 +890,8 @@ def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rer
     if rerun and (why := unclean(root)):
         return [why]
     reqfiles = reqfiles or default_requirements(root)
+    if rerun and (why := at_head(root, *[rf for rf in reqfiles if rf.is_file()])):
+        return [why]
     if rerun:
         for rf in reqfiles:
             tree.want_dir(evidence or rf.parent / "evidence")
