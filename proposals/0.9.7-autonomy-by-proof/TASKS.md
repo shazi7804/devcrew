@@ -4,14 +4,12 @@ Gate: 🔴 ship — awaiting CEO
 ## Done
 - [x] R1 TASKS.md defined as the only ledger
 - [x] R2 every requirement ID exactly once
-- [x] R3 Done only with live + formal evidence
 - [x] R4 check_tasks.py, the drift halt as code
 - [x] R5 every host uses TASKS.md
 - [x] R6 three batches, every former gate mapped
 - [x] R7 five interrupts, each raised by a machine; a judgment is a Cn
 - [x] R8 pre-authorized actions; anything else decided and recorded
 - [x] R9 Property · Formal · Conformance
-- [x] R10 check_formal.py
 - [x] R11 vacuity runs
 - [x] R12 the protocol models, checked in CI
 - [x] R13 boot.py trace-validated; sets in sync
@@ -25,6 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
+- [~] R3 Done only with live + formal evidence — blocked on loop-bound · qa · 5/5 stalled 0/3 · next: CEO rules the probe threat model (QA rounds 2-9 failed 8 times; the bound was passed unrecorded)
+- [~] R10 check_formal.py — blocked on loop-bound · qa · 5/5 stalled 0/3 · next: CEO rules the probe threat model (with R3)
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
