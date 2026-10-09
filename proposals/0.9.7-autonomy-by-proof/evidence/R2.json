@@ -4,8 +4,8 @@
   "command": "python3 framework/tools/check_tasks.py --self-test",
   "target": "python3 + git in the devcrew repo checkout",
   "expect": "self-test ok \\(\\d+ cases\\)",
-  "observed": "self-test ok (52 cases)",
+  "observed": "self-test ok (54 cases)",
   "result": "pass",
-  "sha": "767ef1e887d4a639b13cc8670fe7a0aa87f52fb7",
-  "at": "2026-10-09T14:14:55+00:00"
+  "sha": "f50e477e544a90c6c95aefc0724462f00c9b7408",
+  "at": "2026-10-09T14:59:23+00:00"
 }
