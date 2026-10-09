@@ -23,7 +23,7 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — blocked on loop-bound · reviewer · 5/5 stalled 0/3 · next: the CEO decides; the final cross-vendor review REJECTed with 6 blockers (an unreadable claim taken as free in boot.py, no HEAD check at the end of formal/TASKS re-runs, TLA+ ASSUME not an escape hatch, the template not signing design.md, .tla outside the neutrality scan, no audit at the final tree)
+- [~] R3 Done only with live + formal evidence — blocked on loop-bound · reviewer · 5/5 stalled 0/3 · next: the CEO decides; the final cross-vendor review REJECTed with 6 blockers (an unreadable claim taken as free in boot.py, no HEAD check at the end of formal/TASKS re-runs, TLA+ ASSUME/AXIOM not an escape hatch, the template not signing design.md, .tla outside the neutrality scan; the final-tree audit is now PASS-WITH-DEBT)
 - [~] R10 check_formal.py — blocked on loop-bound · reviewer · 5/5 stalled 0/3 · next: the CEO decides, with R3
 
 ## Todo
@@ -61,3 +61,5 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D20 CI actions are pinned by tag, not commit sha (security, low)
 - [ ] D21 formal evidence is not secret-scanned (security, low)
 - [ ] D22 a failed probe's output is printed unredacted (120 chars): pass it through the secret pattern first (security, low)
+- [ ] D23 drifted() is not memoized: 100 of 102 git calls in a plain check_tasks (audit, medium)
+- [ ] D24 the code scan runs twice per gate; check_formal repeats the clean-tree guards; unused imports (audit, low)
