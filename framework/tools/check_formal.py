@@ -152,9 +152,25 @@ def pattern(tag, what, block, hits):
     return rx
 
 
+def sources(reqfile, evidence=None, only=None):
+    """Every source the formal evidence names: what a re-run reads at HEAD,
+    named up front so it is read before any probe runs."""
+    found = []
+    for f in sorted(pathlib.Path(evidence or reqfile.parent / "formal").glob("*.json")):
+        try:
+            e = json.loads(f.read_text(encoding="utf-8"))
+            if only and e.get("id") not in only:
+                continue
+            s = e.get("sources", [])
+            found += [str(x) for x in (s if isinstance(s, list) else [s])]
+        except (ValueError, AttributeError, OSError):
+            pass
+    return found
+
+
 def check(root, reqfile, evidence=None, only=None, rerun=False, tree=None):
     own = tree is None
-    tree = tree or check_live.HeadTree(root)
+    tree = tree or check_live.HeadTree(root, sources(reqfile, evidence, only))
     try:
         return _check(root, reqfile, evidence, only, rerun, tree)
     finally:
@@ -243,12 +259,11 @@ def _check(root, reqfile, evidence, only, rerun, tree):
             c.get("command") else None
         texts = {}
         # a re-run proves HEAD: its sources are read from HEAD's objects too
-        blobs = tree.files() if rerun else None
         for src in sources:
             try:
-                texts[src] = (blobs[str(src)].decode("utf-8", "replace") if rerun else
+                texts[src] = (tree.blob(src).decode("utf-8", "replace") if rerun else
                               (root / src).read_text(encoding="utf-8", errors="replace"))
-            except (OSError, KeyError):
+            except (OSError, AttributeError):
                 pass
         word = str(e["tool"]).split()[0].lower() if str(e["tool"]).split() else ""
         code = [ln for t in texts.values() for ln in t.lower().splitlines()

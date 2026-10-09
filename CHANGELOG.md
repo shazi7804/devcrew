@@ -66,8 +66,9 @@ so the bounds became code first.
   no uncommitted, untracked or ignored file, and nothing an earlier probe
   wrote, committed or set up (index flags, sparse patterns, hooks) can take
   part in it. The no-fake scan and the escape-hatch scan read HEAD's blobs
-  from the object store, so nothing a probe does to a checkout changes what
-  they see. What no reset undoes is stated: a probe runs with the user's
+  from the object store -- only the code, symlink targets and the files a
+  check names, streamed, before the first probe -- so nothing a probe does
+  to a checkout changes what they see, and a large tree costs only its code. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,

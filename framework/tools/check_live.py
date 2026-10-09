@@ -224,8 +224,9 @@ class HeadTree:
     shared refs, config, hooks and object store -- what a later probe runs can
     differ, though what the scan reads was read before the first probe. The sensor cannot sandbox a command; a
     reviewer reads the probe commands in the diff."""
-    def __init__(self, root):
+    def __init__(self, root, want=()):
         self.root, self.path, self.tmp, self.sha, self.blobs = root, None, None, None, None
+        self.want = set(map(str, want))     # files a check will read beyond the code
 
     def head(self):
         if self.sha is None:
@@ -234,43 +235,66 @@ class HeadTree:
                 raise SystemExit(f"cannot read HEAD of {self.root}")
         return self.sha
 
+    def _cat(self, oids):
+        """[bytes] of these objects, streamed one at a time (no filter, no
+        replace object); a missing one is a message, not a traceback."""
+        with tempfile.TemporaryFile() as ids:
+            ids.write("".join(f"{o}\n" for o in oids).encode())
+            ids.seek(0)
+            cat = subprocess.Popen(["git", "-C", str(self.root), *QUIET_GIT, "cat-file",
+                                    "--batch"], stdin=ids, stdout=subprocess.PIPE)
+            got = []
+            for _ in oids:
+                head = cat.stdout.readline().split()
+                if len(head) != 3:
+                    cat.kill()
+                    raise SystemExit(f"cannot read HEAD's objects in {self.root} -- "
+                                     "the repository is incomplete")
+                got.append(cat.stdout.read(int(head[2]) + 1)[:-1])
+            cat.wait()
+        return got
+
     def files(self):
-        """{path: bytes} of every file at the pinned commit. A symlink that
-        resolves inside the tree reads as its target (what runs is the
-        target); one that does not resolve is left out, as a dangling link is
-        by the plain scan. Read before the first probe runs, so no probe can
-        rewrite an object under it."""
+        """{path: bytes} at the pinned commit: what a check reads -- the code
+        (CODE suffixes, .env*), each symlink as the in-tree file it resolves
+        to (what runs is the target; a dangling one is left out, as by the
+        plain scan) and the files named in `want`. Read before the first
+        probe, and only that, so no probe can rewrite an object under the
+        scan and a large tree costs only its code."""
         if self.blobs is None:
             ls = git(self.root, *QUIET_GIT, "ls-tree", "-r", "-z", "--full-tree", self.head())
-            names = ls.stdout.decode("utf-8", "surrogateescape")
-            ents = [(meta.split()[0], meta.split()[2], rel) for meta, rel in
-                    (e.split("\t", 1) for e in names.split("\0") if "\t" in e)
-                    if meta.split()[0] in ("100644", "100755", "120000")]
-            cat = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "cat-file", "--batch"],
-                                 input="".join(f"{oid}\n" for _, oid, _ in ents).encode(),
-                                 capture_output=True)
-            raw, data, at = {}, cat.stdout, 0
-            try:
-                for mode, _, rel in ents:
-                    nl = data.index(b"\n", at)
-                    size = int(data[at:nl].split()[2])
-                    raw[rel] = (mode, data[nl + 1:nl + 1 + size])
-                    at = nl + 2 + size
-            except (ValueError, IndexError):
-                raise SystemExit(f"cannot read HEAD's objects in {self.root} -- "
-                                 "the repository is incomplete") from None
-            if ls.returncode or cat.returncode:
+            if ls.returncode:
                 raise SystemExit(f"cannot read HEAD's tree in {self.root}")
+            names = ls.stdout.decode("utf-8", "surrogateescape")
+            ents = {rel: (meta.split()[0], meta.split()[2]) for meta, rel in
+                    (e.split("\t", 1) for e in names.split("\0") if "\t" in e)
+                    if meta.split()[0] in ("100644", "100755", "120000")}
+            links = [r for r, (m, _) in ents.items() if m == "120000"]
+            dest = dict(zip(links, (b.decode("utf-8", "surrogateescape")
+                                    for b in self._cat([ents[r][1] for r in links]))))
 
-            def target(rel, hops=0):
-                mode, body = raw[rel]
-                if mode != "120000":
-                    return body
-                dest = os.path.normpath(os.path.join(os.path.dirname(rel),
-                                                     body.decode("utf-8", "surrogateescape")))
-                return target(dest, hops + 1) if dest in raw and hops < 40 else None
-            self.blobs = {rel: b for rel in raw if (b := target(rel)) is not None}
+            def resolve(rel, hops=0):
+                while rel in dest and hops < 40:
+                    rel, hops = os.path.normpath(os.path.join(os.path.dirname(rel),
+                                                              dest[rel])), hops + 1
+                return rel if rel in ents and rel not in dest else None
+            read = {r: resolve(r) for r in ents if is_code(r) or r in self.want or r in dest}
+            need = sorted({t for t in read.values() if t})
+            body = dict(zip(need, self._cat([ents[t][1] for t in need])))
+            self.blobs = {r: body[t] for r, t in read.items() if t}
         return self.blobs
+
+    def blob(self, rel):
+        """One file at the pinned commit, or None; one no check named up front
+        is read now, after any probe (the stated limit above)."""
+        rel = str(rel)
+        if rel not in self.files():
+            r = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "cat-file", "blob",
+                                f"{self.head()}:{rel}"], capture_output=True)
+            if r.returncode:
+                return None
+            self.blobs[rel] = r.stdout
+        return self.blobs[rel]
 
     def get(self):
         if self.path is None:
@@ -571,12 +595,17 @@ def scan(root, tree, rerun, src, tests, allow):
     allow file too); otherwise over this checkout's tracked files."""
     if not rerun:
         return check_code(root, src, tests, allowed(allow))
-    blobs = tree.files()
     rel = os.path.relpath(allow, root) if allow else None
-    if rel and rel not in blobs:
+    text = tree.blob(rel) if rel else None
+    if rel and text is None:
         raise SystemExit(f"--allow {rel}: not in HEAD")
-    rules = allowed(allow, blobs[rel].decode("utf-8", "replace")) if rel else []
-    return check_code(root, src, tests, rules, blobs)
+    rules = allowed(allow, text.decode("utf-8", "replace")) if rel else []
+    return check_code(root, src, tests, rules, tree.files())
+
+
+def is_code(rel):
+    p = pathlib.PurePosixPath(rel)
+    return p.suffix in CODE or p.name.startswith(".env")
 
 
 def check_code(root, src, tests, rules, blobs=None):
@@ -593,8 +622,7 @@ def check_code(root, src, tests, rules, blobs=None):
     hits = []
     for rel in names:
         p = root / rel
-        is_code = p.suffix in CODE or p.name.startswith(".env")
-        if not rel or not is_code or TEST_DIR.search(rel) or TEST_FILE.search(rel) \
+        if not rel or not is_code(rel) or TEST_DIR.search(rel) or TEST_FILE.search(rel) \
                 or NOT_CODE.search(rel) or any(fnmatch.fnmatch(rel, g) for g in tests) \
                 or (blobs is None and not p.is_file()):
             continue
@@ -622,7 +650,7 @@ def default_requirements(root):
 
 def run(root, reqfiles=None, evidence=None, only=None, env=None, live_hosts=(),
         src=None, tests=(), allow=None, rerun=False, record=False, deployed=None):
-    tree = HeadTree(root)
+    tree = HeadTree(root, [os.path.relpath(allow, root)] if allow else ())
     try:
         return _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow,
                     rerun, record, deployed, tree)
@@ -991,10 +1019,16 @@ def self_test():
     # with no index flag, sparse pattern, worktree config or hook carried over.
     with tempfile.TemporaryDirectory() as d:
         root = pathlib.Path(d)
-        commit(d, {"fail.sh": "exit 3\n", "src/app.js": "x()\n"})
+        commit(d, {"fail.sh": "exit 3\n", "src/app.js": "x()\n", "assets/big.bin": "0" * 4096,
+                   "spec/M.tla": "a\n"})
         hook = "$(git rev-parse --git-common-dir)/hooks/post-checkout"
-        tree = HeadTree(root)
+        tree = HeadTree(root, ["spec/M.tla"])
         try:
+            got = tree.files()
+            if not check("HEAD's blobs: the code and the named files, not the rest",
+                         [] if set(got) == {"fail.sh", "src/app.js", "spec/M.tla"}
+                         else [f"read {sorted(got)}"], None):
+                return 1
             for name, trick, then in (
                     ("skip-worktree", "git update-index --skip-worktree fail.sh && "
                                       "echo 'echo ok' > fail.sh", "sh fail.sh"),
