@@ -6,6 +6,6 @@
   "expect": "(?s)accepted.*repo: ok",
   "observed": "boot.py (real) scripted trace, 52 steps: accepted\nrepo: ok",
   "result": "pass",
-  "sha": "816e23718366f5e7974bd0c67c9c0f22c22e1357",
-  "at": "2026-10-09T07:07:27+00:00"
+  "sha": "fe38c4c0be6cd09d1e956765b0a17c4dcb3cfe7c",
+  "at": "2026-10-09T07:56:06+00:00"
 }
