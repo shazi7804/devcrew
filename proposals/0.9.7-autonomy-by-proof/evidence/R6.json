@@ -6,6 +6,6 @@
   "expect": "\\| Former 🔴 gate",
   "observed": "799:| Former 🔴 gate | Now |",
   "result": "pass",
-  "sha": "7483bbd6b008baadc32e76acea71f4e9189217af",
-  "at": "2026-10-09T11:01:31+00:00"
+  "sha": "b572f8f4d2879f1ca0de94794a7eee6a2b52edb4",
+  "at": "2026-10-09T11:32:27+00:00"
 }
