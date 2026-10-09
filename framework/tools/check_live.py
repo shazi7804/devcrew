@@ -201,9 +201,10 @@ def requirements(path):
 
 
 class HeadTree:
-    """A throwaway checkout of HEAD (a detached worktree), made on first use:
-    a probe re-run there ran on what is committed -- no uncommitted change and
-    no untracked or ignored file beside it."""
+    """A throwaway checkout of HEAD (a detached worktree), made on first use
+    and reset before every probe: a re-run there ran on what is committed --
+    no uncommitted change, no untracked or ignored file, nothing an earlier
+    probe wrote."""
     def __init__(self, root):
         self.root, self.path, self.tmp = root, None, None
 
@@ -215,6 +216,9 @@ class HeadTree:
                    "HEAD").returncode:
                 raise SystemExit(f"cannot check out HEAD of {self.root} for a re-run")
             self.path = tree
+        elif git(self.path, "reset", "-q", "--hard").returncode or \
+                git(self.path, "clean", "-qfdx").returncode:
+            raise SystemExit(f"cannot reset the checkout of HEAD at {self.path}")
         return self.path
 
     def close(self):
@@ -243,8 +247,8 @@ def drifted(root, sha, *evidence):
 
 def contract(root, reqfile):
     """The feature's contract dir (requirements, design, verdicts, evidence):
-    signed by hash, so a change there is drift, never staleness. A
-    requirements.md at the root is only itself."""
+    its signed files are checked by hash (drift), the rest is the run's
+    record, not code. A requirements.md at the root is only itself."""
     d = reqfile.parent
     return reqfile if d.resolve() == pathlib.Path(root).resolve() else d
 
@@ -584,7 +588,10 @@ def self_test():
              "result": "pass", "sha": head, "at": "2026-10-06T00:00:00Z", **kw}
         write(d, {f"{where}/{rid}.json": json.dumps(e)})
 
+    ran = []
+
     def check(label, got, want):
+        ran.append(label)
         if (not got) if want is None else any(want in h for h in got):
             return True
         print(f"self-test FAILED: {label}: expected "
@@ -766,6 +773,15 @@ def self_test():
                          "re-run exited"):
                 return 1
             (root / f).unlink()
+        tree = HeadTree(root)
+        try:
+            probe("echo 'echo temp: 21' > planted.sh", tree.get())
+            planted = probe("sh planted.sh", tree.get())[0]
+        finally:
+            tree.close()
+        if not check("a probe that runs what an earlier probe planted",
+                     [] if planted else ["the planted file took part"], None):
+            return 1
         write(d, {"src/app.js": "export const temp = 3;\n"})
         ev(d, sha, verify="local", target="this checkout", command="cat src/app.js",
            expect=r"temp = 3", observed="temp = 3")
@@ -839,7 +855,7 @@ def self_test():
         if not check("a squashed history, re-run on HEAD",
                      attempt(root, env="pre", rerun=True, **on_head), None):
             return 1
-    print(f"self-test ok ({len(cases) + 22} cases)")
+    print(f"self-test ok ({len(ran)} cases)")
     return 0
 
 
