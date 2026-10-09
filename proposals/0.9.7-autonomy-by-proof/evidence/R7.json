@@ -4,8 +4,8 @@
   "command": "grep -n '^interrupts:' framework/skills/aidlc/SKILL.md && grep -c 'Cn' framework/agents/orchestrator.md && python3 framework/tools/check_tasks.py --self-test",
   "target": "python3 + git in the devcrew repo checkout",
   "expect": "(?s)interrupts: drift cross-design loop-bound missing-service model-fail\\n[1-9]\\d*\\n.*self-test ok",
-  "observed": "838:interrupts: drift cross-design loop-bound missing-service model-fail\n4\nself-test ok (38 cases)",
+  "observed": "838:interrupts: drift cross-design loop-bound missing-service model-fail\n4\nself-test ok (42 cases)",
   "result": "pass",
-  "sha": "a2855371a92318e85d9005bb7a9e9109a9b89cb8",
-  "at": "2026-10-09T04:58:59+00:00"
+  "sha": "b91e2985daecc99bf34eda1b60b69073f57aef0b",
+  "at": "2026-10-09T05:14:00+00:00"
 }

@@ -4,8 +4,8 @@
   "command": "grep -n 'Pre-authorized actions' framework/skills/aidlc/contracts/requirements.template.md && grep -n '^JudgmentRecorded ==' framework/formal/Aidlc.tla && grep -n 'JudgmentRecorded' framework/formal/Aidlc.cfg && python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --holds Aidlc:Aidlc",
   "target": "python3 + git + TLC in the devcrew repo checkout",
   "expect": "(?s)Pre-authorized actions.*JudgmentRecorded ==.*INVARIANT.*JudgmentRecorded.*holds",
-  "observed": "117:## Pre-authorized actions (what the run may do on its own)\n185:JudgmentRecorded ==\n10:INVARIANT TypeOK NoPhasePastUnsignedBatch DoneHasEvidence AsksOnlyForBatchOrInterrupt JudgmentRecorded\nAidlc/Aidlc: holds",
+  "observed": "117:## Pre-authorized actions (what the run may do on its own)\n186:JudgmentRecorded ==\n11:INVARIANT TypeOK NoPhasePastUnsignedBatch DoneHasEvidence AsksOnlyForBatchOrInterrupt JudgmentRecorded\nAidlc/Aidlc: holds",
   "result": "pass",
-  "sha": "a2855371a92318e85d9005bb7a9e9109a9b89cb8",
-  "at": "2026-10-09T04:59:04+00:00"
+  "sha": "b91e2985daecc99bf34eda1b60b69073f57aef0b",
+  "at": "2026-10-09T05:14:02+00:00"
 }
