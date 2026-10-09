@@ -221,7 +221,8 @@ class HeadTree:
 
     What no reset undoes: a probe runs with the user's shell, so it can write
     outside the checkout (an absolute path, $HOME) and into the repository's
-    shared refs, config and hooks. The sensor cannot sandbox a command; a
+    shared refs, config, hooks and object store -- what a later probe runs can
+    differ, though what the scan reads was read before the first probe. The sensor cannot sandbox a command; a
     reviewer reads the probe commands in the diff."""
     def __init__(self, root):
         self.root, self.path, self.tmp, self.sha, self.blobs = root, None, None, None, None
@@ -234,27 +235,46 @@ class HeadTree:
         return self.sha
 
     def files(self):
-        """{path: bytes} of every regular file at the pinned commit."""
+        """{path: bytes} of every file at the pinned commit. A symlink that
+        resolves inside the tree reads as its target (what runs is the
+        target); one that does not resolve is left out, as a dangling link is
+        by the plain scan. Read before the first probe runs, so no probe can
+        rewrite an object under it."""
         if self.blobs is None:
             ls = git(self.root, *QUIET_GIT, "ls-tree", "-r", "-z", "--full-tree", self.head())
-            ents = [e.split("\t", 1) for e in out(ls).split("\0") if "\t" in e]
-            ents = [(meta.split()[2], rel) for meta, rel in ents
-                    if meta.split()[0] in ("100644", "100755")]
+            names = ls.stdout.decode("utf-8", "surrogateescape")
+            ents = [(meta.split()[0], meta.split()[2], rel) for meta, rel in
+                    (e.split("\t", 1) for e in names.split("\0") if "\t" in e)
+                    if meta.split()[0] in ("100644", "100755", "120000")]
             cat = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "cat-file", "--batch"],
-                                 input="".join(f"{oid}\n" for oid, _ in ents).encode(),
+                                 input="".join(f"{oid}\n" for _, oid, _ in ents).encode(),
                                  capture_output=True)
+            raw, data, at = {}, cat.stdout, 0
+            try:
+                for mode, _, rel in ents:
+                    nl = data.index(b"\n", at)
+                    size = int(data[at:nl].split()[2])
+                    raw[rel] = (mode, data[nl + 1:nl + 1 + size])
+                    at = nl + 2 + size
+            except (ValueError, IndexError):
+                raise SystemExit(f"cannot read HEAD's objects in {self.root} -- "
+                                 "the repository is incomplete") from None
             if ls.returncode or cat.returncode:
                 raise SystemExit(f"cannot read HEAD's tree in {self.root}")
-            data, at, self.blobs = cat.stdout, 0, {}
-            for _, rel in ents:
-                nl = data.index(b"\n", at)
-                size = int(data[at:nl].split()[2])
-                self.blobs[rel] = data[nl + 1:nl + 1 + size]
-                at = nl + 2 + size
+
+            def target(rel, hops=0):
+                mode, body = raw[rel]
+                if mode != "120000":
+                    return body
+                dest = os.path.normpath(os.path.join(os.path.dirname(rel),
+                                                     body.decode("utf-8", "surrogateescape")))
+                return target(dest, hops + 1) if dest in raw and hops < 40 else None
+            self.blobs = {rel: b for rel in raw if (b := target(rel)) is not None}
         return self.blobs
 
     def get(self):
         if self.path is None:
+            self.files()
             self.tmp = tempfile.mkdtemp()
             tree = pathlib.Path(self.tmp) / "head"
             if git(self.root, *QUIET_GIT, "worktree", "add", "--detach", "--quiet",
@@ -950,6 +970,15 @@ def self_test():
                                "git config filter.qq.clean cat && echo '*.js filter=qq' > "
                                "\"$(git rev-parse --git-common-dir)/info/attributes\" && "
                                "echo x >> src/app.js"}
+        os.symlink("../tests/fixture.js", root / "src/link.js")
+        write(d, {"tests/fixture.js": "export const t = mockTemp();\n"})
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "link")
+        for rr in (False, True):
+            if not check(f"a production symlink to a fixture{' on a re-run' if rr else ''}",
+                         run(root, rf, rerun=rr), "src/link.js:1"):
+                return 1
+        git(d, *quiet, "reset", "-q", "--hard", "HEAD~1")
         for name, trick in tricks.items():
             ev(d, sha, where=f"{f}/evidence", verify="local", target="this checkout",
                command=f"{trick}; echo 'temp: 21'", expect=r"temp: \d+", observed="temp: 21")
