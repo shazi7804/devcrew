@@ -92,7 +92,11 @@ so the bounds became code first.
   sensors' own bytecode is the environment), each probe gets a TMPDIR of
   its own, a formal command gets a probe's environment, one HEAD is pinned
   for the whole re-run (`--record` stamps nothing if HEAD moved), and `--deployed`
-  runs in HEAD's checkout. What no reset undoes is stated: a probe runs with the user's
+  runs in HEAD's checkout. The checkout's git dir must be our own worktree's, or the
+  re-run stops before it can remove anything; the self-tests' git never
+  reaches the caller's repository. Every prompt and adapter now names the three
+  batches only: Phase 0.5 signs with the intent, mobile signing and submission
+  with the ship batch, and a spent budget is a `Cn`, not a stop. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,

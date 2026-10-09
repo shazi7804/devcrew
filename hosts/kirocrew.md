@@ -10,7 +10,7 @@ arrow crossing a gap is either an install artifact or a host primitive.
 
 ```
 ┌─ L3 · devcrew — the AIDLC flow ─────────── source: <repo>/framework ───┐
-│  P0 ─🔴▶ P0.5 ─🔴▶ P1 ─▶ P2 ─🔴▶ ┌ frontend ┐▶┌ qa       ┐▶ P5 ─▶ P6   │
+│  P0 ───▶ P0.5 ─🔴▶ P1 ─▶ P2 ─🔴▶ ┌ frontend ┐▶┌ qa       ┐▶ P5 ─▶ P6 🔴│
 │  intent  market     arch  design └ backend  ┘ ├ security ┤  deploy     │
 │                                               └ auditor* ┘  release 🔴 │
 │  12 roles   framework/agents/<role>.md        (*big diffs only)        │

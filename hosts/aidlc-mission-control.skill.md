@@ -180,7 +180,8 @@ bounded by task end; the **self-evolution loop** is one review pass per proposal
 **Budgets.** `daemon-config.json` holds them: `execution.maxTurns`,
 `timeoutMinutes`, `retries`, `maxTaskContinuations`,
 `concurrency.maxParallelAgents`. State the budget when a run starts. A run that
-blows it STOPS and reports rather than pressing on. Serialize instead of a wide
+blows it is a judgment, not a stop: decide (go on, or pause) and record a `Cn`.
+Serialize instead of a wide
 parallel wave when the machine is tight.
 
 **CEO-batch suspension.** A 🔴 batch or an interrupt is a hard stop for

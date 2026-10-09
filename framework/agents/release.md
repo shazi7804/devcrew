@@ -50,7 +50,8 @@ gate failure. If the standard is wrong, get it re-signed — do not ship past it
    target:
    - **iOS**: a signed `.ipa` with the right provisioning profile + distribution
      certificate. Signing material is the CEO's Apple Developer account — you do
-     NOT hold private keys; treat missing signing material as a 🔴 CEO gate
+     NOT hold private keys; treat missing signing material as the `missing-service` interrupt (the
+     signing material itself is signed in the 🔴 ship batch)
      (see the signing gate in the skill).
    - **Android**: a signed `.aab`/`.apk` with the release keystore. Same rule —
      the keystore is the CEO's; never generate a throwaway one for a real

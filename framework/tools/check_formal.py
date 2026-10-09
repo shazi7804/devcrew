@@ -89,14 +89,14 @@ FALSE = re.compile(r"\s*(false|exit\s+[1-9]\d*|!\s*true)\s*$")
 ANY = [r"\bassume\s*\(\s*(false|False)\s*\)"]
 HATCHES = {
     ".lean": [r"\bsorry\b", r"\badmit\b",
-              r"^\s*(@\[[^\]]*\]\s*)?((private|protected|noncomputable)\s+)*axiom\b",
+              r"\baxiom\b",                 # anywhere on a line, not only first
               r"\bnative_decide\b"],
-    ".v": [r"\bAdmitted\b", r"\badmit\b", r"^\s*(Local\s+|Global\s+)?(Axiom|Axioms|Parameter|Parameters|Hypothesis|Hypotheses|Conjecture)\b"],
+    ".v": [r"\bAdmitted\b", r"\badmit\b", r"\b(Axiom|Axioms|Parameter|Parameters|Hypothesis|Hypotheses|Conjecture)\b"],
     ".dfy": [r"\bassume\b", r"\{:axiom\}", r"\{:verify\s+false\}"],
     ".rs": [r"\bassume\s*\(", r"\badmit\s*\(", r"verifier::external_body",
             r"verifier\(external_body\)"],
     # AXIOM, ASSUME and ASSUMPTION state an unproved fact a proof may use
-    ".tla": [r"\bOMITTED\b", r"^\s*(AXIOM|ASSUME|ASSUMPTION)\b"],
+    ".tla": [r"\bOMITTED\b", r"\b(AXIOM|ASSUME|ASSUMPTION)\b"],
     ".thy": [r"\bsorry\b", r"\boops\b", r"\baxiomatization\b"],
     ".fst": [r"\badmit\b", r"\bassume\b"],
     ".fsti": [r"\badmit\b", r"\bassume\b"],
@@ -429,6 +429,9 @@ def self_test():
                       (".tla", "THEOREM T == Spec => Inv PROOF OMITTED"), (".thy", "  sorry"),
                       (".tla", "AXIOM Cheat == GoodProp"), (".tla", "ASSUME FALSE"),
                       (".tla", "ASSUMPTION A == TRUE"),
+                      (".tla", "CONSTANT N  ASSUME N = 1"), (".tla", "VARIABLE x  AXIOM C == TRUE"),
+                      (".v", "Lemma l : True. Axiom a : False."),
+                      (".lean", "theorem t : True := trivial; axiom bad : False"),
                       (".py", "assume(False)")]:
         cases.append((f"escape hatch {line!r}", {"sources": [f"spec/P{ext}"]},
                       {f"spec/P{ext}": line + "\n"}, "escape hatch", False))

@@ -17,7 +17,7 @@ this doc is the map.
 │   Everything wrapped around the model calls:                  │
 │   • intent contract + version lock                            │
 │   • per-gate verification                                     │
-│   • loop bounds + budgets (stop conditions)                   │
+│   • loop bounds (a stop) + budgets (a judgment, a Cn)         │
 │   • three CEO batches + five interrupts (the only stops)      │
 │   • TASKS.md, the only ledger, checked every step             │
 │   • formal models of the protocol, checked in CI — §10        │
@@ -179,7 +179,7 @@ a counter:
 | **B. Reflection** | end of every task, and on the meta-review | each role writes a retro; repeated failure modes become a self-improvement proposal | the task ending. The meta-review is a scheduled `cron`, not an open loop |
 | **C. Self-evolution** | a retro yields a framework change | `proposals/<slug>/requirements.md` (🔴 intent batch) → PR → CI → qa ∥ cross-vendor reviewer → 🔴 ship batch: CEO merge | one pass per proposal; the verdict is terminal for that round |
 
-## 4. Budgets (the other stop condition)
+## 4. Budgets (a judgment, not a stop)
 
 Every run carries ceilings, checked by the orchestrator before each heavy step
 (a host resource check first on a memory-tight host):
@@ -187,8 +187,9 @@ Every run carries ceilings, checked by the orchestrator before each heavy step
 - **Step/attempt budget**: Loop A's 3/5 rule above.
 - **Fan-out cap**: never more parallel role agents than the host can hold
   (serialize on a tight host; a wide wave only when resources are ample).
-- **Token/time budget**: a run that blows its budget STOPS and reports to the
-  CEO rather than pressing on. State the budget when a run starts.
+- **Token/time budget**: a run that blows its budget does not stop for the CEO:
+  the orchestrator decides (go on, or pause) and records it as a `Cn` for the
+  next batch. State the budget when a run starts.
 - **Cost awareness**: on a host that bills for compute, a long-idle run should be
   paused, not left spinning.
 

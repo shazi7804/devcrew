@@ -9,8 +9,9 @@ triggers: mobile release, code signing, provisioning profile, keystore, fastlane
 The mobile counterpart to `deploy-web`. A web release is a deploy to a host you
 control; a **mobile release goes through Apple/Google**, needs *their* signing
 material and *their* review, and is not "done" until *they* approve it. This is
-the hardest, most external part of a mobile pipeline — treat every 🔴 below as a
-hard stop.
+the hardest, most external part of a mobile pipeline. Every 🔴 below is part of
+the **ship batch** (signing material, store submission, production release) or
+an action the intent batch pre-authorized; nothing here adds a stop of its own.
 
 Unlike every other phase, this one is a **state machine with an external actor in
 it**, so the terminal state is not yours to declare:
@@ -34,8 +35,8 @@ it**, so the terminal state is not yours to declare:
                               Play Closed/Open
         │
         ▼
-  🔴 SUBMISSION GATE — state what goes out, to whom, and the rollback. Then WAIT
-     (promoting a staged rollout past its FIRST phase is a 🔴 of its own)
+  🔴 SHIP BATCH — state what goes out, to whom, and the rollback, in its SITREP
+     (promoting a staged rollout past its FIRST phase: pre-authorized, or a Cn)
         │
         ▼
   STORE REVIEW ── an EXTERNAL actor decides. "submitted" ≠ "released".
@@ -69,8 +70,8 @@ You (the agent) do NOT hold signing material. A real release needs:
 
 If any is missing, **SUSPEND and tell the CEO exactly what to provide**. Never
 generate a throwaway certificate/keystore for a real release — a mismatched
-signing identity locks you out of future updates. This is a CEO gate, not
-something the agent works around.
+signing identity locks you out of future updates. Missing material is the
+`missing-service` interrupt, not something the agent works around.
 
 ## Signing & build automation
 Prefer **fastlane** (cross-platform, scriptable, the industry default) over
@@ -103,8 +104,10 @@ Before submitting, assemble and verify:
 - **IAP / subscriptions** configured and in the right state if the app monetizes
   (a paid app submitted with unconfigured IAP is rejected).
 
-Submitting to a store, and promoting a staged rollout past its first phase, is a
-🔴 CEO decision — state what goes out, to whom, and the rollback, then wait.
+Submitting to a store is signed in the 🔴 ship batch -- state what goes out, to
+whom, and the rollback. Promoting a staged rollout past its first phase is done
+only if the intent batch pre-authorized it; otherwise the role decides and
+records it as a `Cn` for the next batch.
 
 ## Staged rollout & rollback
 - Use **Play staged rollout** (start small %, ramp) and **App Store phased

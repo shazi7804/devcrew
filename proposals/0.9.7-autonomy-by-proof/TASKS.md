@@ -23,8 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 1/5 stalled 0/3 · next: the final review's 5 blockers fixed test-first (C18); one context-free QA + Security + auditor + reviewer round
-- [~] R10 check_formal.py — verifying · qa · 1/5 stalled 0/3 · next: with R3 (C18)
+- [~] R3 Done only with live + formal evidence — verifying · qa · 2/5 stalled 0/3 · next: round 1's blockers fixed (old gates and budget stops left in prompts and adapters; a git dir that is not ours is never removed; the self-test's git is scrubbed; escape hatches matched mid-line); round 2 adds a second reviewer on another model family
+- [~] R10 check_formal.py — verifying · qa · 2/5 stalled 0/3 · next: with R3
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -62,5 +62,7 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D20 CI actions are pinned by tag, not commit sha (security, low)
 - [ ] D21 formal evidence is not secret-scanned (security, low)
 - [ ] D22 a failed probe's output is printed unredacted (120 chars): pass it through the secret pattern first (security, low)
-- [ ] D23 drifted() is not memoized: 100 of 102 git calls in a plain check_tasks (audit, medium)
+- [ ] D23 drifted() is not memoized: 100 of 102 git calls in a plain check_tasks (audit, medium); and its second pathspec (the state tools) is already covered by the first
 - [ ] D24 the code scan runs twice per gate; check_formal repeats the clean-tree guards; unused imports (audit, low)
+- [ ] D25 escape-hatch kin not yet matched: Lean sorryAx, Coq Admit Obligations, Dafny {:extern}, Verus assume_specification, Agda postulate, Quint assume (security, QA)
+- [ ] D26 check_tasks has no --live-host; --record writes through an in-tree symlink; a setsid daemon outlives its probe; boot.py's int() of DEVCREW_*_SECONDS at import (security)

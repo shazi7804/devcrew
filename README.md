@@ -82,16 +82,16 @@ line tells you whether anything is waiting on you.
    ▼
  PHASE       ROLE(S)                   PRODUCES                  GATE
  ─────       ───────                   ────────                  ────
- 0   Intent  orchestrator              requirements.md 🔒        🔴 CEO
- 0.5 Market  analyst (commercial)      GO / PIVOT / NO-GO        🔴 CEO
+ 0   Intent  orchestrator              requirements.md 🔒        ·
+ 0.5 Market  analyst (commercial)      GO / PIVOT / NO-GO        🔴 intent
  1   Arch.   architect                 design.md + ADRs
-                                       standards.md 🔒           🔴 CEO
+                                       standards.md 🔒           ·
  2   Design  designer (if UI)          design system + prototype
-                                       (award-grade loop)        🔴 CEO
+                                       (award-grade loop)        🔴 design
  3   Build   frontend ∥ backend        code + PRs + tests        tests green
  4   Verify  qa ∥ security ∥ auditor*  three verdicts            all pass
  5   Deploy  devops (if service)       running system + smoke    smoke green
- 6   Release release (if shipped)      signed artifact → users   🔴 CEO
+ 6   Release release (if shipped)      signed artifact → users   🔴 ship
  ∞   Evolve  proposal → qa ∥ reviewer  signed proposal + PR      🔴 CEO merge
 
  🔒 = hash-locked. Every later gate re-checks the hash. A change without a new
@@ -102,7 +102,7 @@ line tells you whether anything is waiting on you.
 
  LOOPS
    A  fix       a gate fails ──▶ back to the phase that owns the fix (never P0)
-                3 attempts, up to 5 while failures keep dropping, then 🔴 CEO
+                3 attempts, up to 5 while failures keep dropping, then 🔴 bound
    B  reflect   every task ends with a 3-line retro ──▶ framework/memory/
    C  evolve    a retro suggests a framework change ──▶ signed proposal
                 requirements 🔴 ──▶ PR ──▶ CI ──▶ qa ∥ reviewer (another

@@ -472,7 +472,19 @@ class HeadTree:
         # its git dir, read now, before any probe: later the checkout's own
         # answer is not trusted -- without its .git, git would find the
         # repository around the temp dir and reset that one
-        self.gitdir = pathlib.Path(out(git(tree, "rev-parse", "--absolute-git-dir")).strip())
+        r = git(tree, "rev-parse", "--absolute-git-dir")
+        c = git(self.root, "rev-parse", "--git-common-dir")
+        gitdir = pathlib.Path(out(r).strip()) if not r.returncode and out(r).strip() else None
+        common = (pathlib.Path(self.root) / out(c).strip()).resolve() if not c.returncode else None
+        # the only git dir we may ever reset or remove is our own worktree's,
+        # under <common>/worktrees/ -- anything else (an empty answer is '.',
+        # the user's repository) stops the re-run before it can do harm
+        if gitdir is None or common is None or \
+                (common / "worktrees") not in gitdir.resolve().parents:
+            git(self.root, "worktree", "remove", "--force", str(tree))
+            raise SystemExit(f"cannot name the git dir of the checkout of HEAD at {tree} "
+                             "-- the re-run stops rather than touch another repository")
+        self.gitdir = gitdir.resolve()
         self.dotgit = (tree / ".git").read_bytes()
 
     def get(self):
@@ -490,6 +502,8 @@ class HeadTree:
         # when the probe took its .git
         if dotgit.is_symlink() or not dotgit.is_file() or dotgit.read_bytes() != self.dotgit \
                 or any(os.path.lexists(self.path / g / ".git") for g in self.gitlinks):
+            if pathlib.Path(self.tmp).resolve() not in self.path.resolve().parents:
+                raise SystemExit(f"refusing to remove {self.path}: not our checkout")
             shutil.rmtree(self.path, ignore_errors=True)          # make it again; drop
             shutil.rmtree(self.gitdir, ignore_errors=True)        # only our own entry
             self._add()
@@ -1560,6 +1574,30 @@ def self_test():
         git(d, *quiet, "commit", "-qm", "data")
         if not check("a data file in a case clash, on a re-run", run(root, rerun=True),
                      clash("data/value.txt: data/value.txt collides")):
+            return 1
+    # Security final 8: a git that cannot name the checkout's git dir stops the
+    # re-run -- it never turns a later re-make into a delete of the user's repo
+    with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as shim:
+        root = pathlib.Path(d)
+        commit(d, {"src/app.js": "x()\n"})
+        real = shutil.which("git")
+        pathlib.Path(shim, "git").write_text(
+            f'#!/bin/sh\ncase "$*" in *--absolute-git-dir*) exit 1;; esac\nexec {real} "$@"\n')
+        os.chmod(pathlib.Path(shim, "git"), 0o755)
+        before = os.environ["PATH"]
+        os.environ["PATH"] = f"{shim}{os.pathsep}{before}"
+        tree = HeadTree(root)
+        try:
+            tree.get()
+            refused = False
+        except SystemExit:
+            refused = True
+        finally:
+            os.environ["PATH"] = before
+            tree.close()
+        if not check("a git that cannot name the checkout's git dir",
+                     [] if refused and (root / "src/app.js").exists() and (root / ".git").exists()
+                     else ["the re-run went on, or the user's repository was touched"], None):
             return 1
     # A sensor run from a git hook inherits GIT_DIR / GIT_INDEX_FILE: its own
     # git calls must not touch the user's index, HEAD or other worktrees.

@@ -39,7 +39,7 @@ and the weakest durability — both visible below.
 │   who dispatches ▶ hooks + a link(2) CAS claim. NOT a prompt rule: two│
 │                    windows both believing they are the orchestrator   │
 │                    is the default here (§ Multi-session governance)   │
-│   🔴 CEO gate    ▶ ask, then END THE TURN. The CEO is already in the  │
+│   🔴 CEO batch   ▶ ask, then END THE TURN. The CEO is already in the  │
 │                    conversation, so this is the most reliable gate    │
 │                    of the three hosts.                                │
 │   council        ▶ delegate to 2+ subagents on DIFFERENT models       │

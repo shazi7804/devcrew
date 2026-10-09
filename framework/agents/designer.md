@@ -36,7 +36,7 @@ Your pipeline:
 5. **Award-grade loop** (below) on every direction before it is shown, and
    again on the chosen one before it is handed off.
 6. Deliver `design-system.md` + the chosen prototype file + `design-scorecard.md`
-   to the orchestrator for the 🔴 CEO sign-off gate, then to Frontend R&D.
+   to the orchestrator for the 🔴 design batch, then to Frontend R&D.
 
 Aim higher than "clean": distinctive, on-brand, purposeful motion, and states
 designed (empty / loading / error / success), not just the happy path.

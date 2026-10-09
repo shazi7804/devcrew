@@ -262,6 +262,12 @@ def progress(tag, parts):
 
 
 def self_test():
+    # the fixtures' git must never reach the caller's repository: run from a
+    # hook, GIT_DIR / GIT_INDEX_FILE would point it there; and no hook runs
+    for k in [k for k in os.environ if k.startswith("GIT_")]:
+        del os.environ[k]
+    os.environ.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="core.hooksPath",
+                      GIT_CONFIG_VALUE_0="/dev/null")
     req = ("# r\n- **R1** — a\n  - *Verify*: local\n  - *Property*: none — text\n"
            "- **R2** — b\n- **N1** — c\n")
     good = ("{signed}\n\n## Done\n\n## In progress\n"

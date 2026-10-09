@@ -104,7 +104,7 @@ magnitude floor fires (see below).
   implementing role.
 - **Gate order is sensors → semantic → 🔴 human.** Deterministic sensors
   (lint/typecheck/test/build, dep+secret scan) run and go green FIRST; only then
-  the role's semantic judgment; only then any CEO gate.
+  the role's semantic judgment; only then a batch or an interrupt.
 - **Gates are decided from the verdict block**, not prose: parse the structured
   YAML each gate-feeding role returns (`contracts/verdicts.template.md`); a
   missing/malformed block fails the gate.

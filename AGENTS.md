@@ -130,7 +130,7 @@ Open the adapter guide for your host and follow it. In short:
   `skills-library.json`, and install the role files + skill + memory into the repo
   the roles actually run in. On this host the neutral `spawn` tool does not exist:
   work is handed over by writing tasks with `assignedTo` + `blockedBy`, and a 🔴
-  CEO gate is a **pending row in `decisions.json`** — nothing dispatches a task
+  CEO batch is a **pending row in `decisions.json`** — nothing dispatches a task
   that has one. If the data dir lives inside another product repo, install in
   **board mode** (the adapter explains why the daemon must not run the roles).
 - **Claude Code** (`hosts/claude-code.md`): copy each

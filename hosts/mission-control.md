@@ -6,7 +6,7 @@ this when `AGENTS.md` Step 1 resolved to Mission Control.
 
 Mission Control is a different KIND of host from KiroCrew and Claude Code. There,
 an agent dispatches. Here, **JSON files are the bus** and a background daemon
-spawns `claude -p` per task. So the neutral `spawn` tool and the 🔴 CEO gate are
+spawns `claude -p` per task. So the neutral `spawn` tool and the 🔴 CEO batch are
 realized as *data*, not as tool calls.
 
 **Read Step 0 before writing anything.** The most expensive mistake on this host
@@ -72,7 +72,7 @@ convention that mc's own functions then enforce for free.
 ```text
 ┌─ L3 · devcrew — the AIDLC flow ───────────────────── source: ~/Github/devcrew┐
 │                                                                              │
-│  P0 ─🔴→ P0.5 ─🔴→ P1 ─→ P2 ─🔴→ ┌ frontend ┐→┌ qa       ┐→ P5 ─→ P6 ─🔴→ P∞ │
+│  P0 ───→ P0.5 ─🔴→ P1 ─→ P2 ─🔴→ ┌ frontend ┐→┌ qa       ┐→ P5 ─→ P6 ─🔴→ P∞ │
 │  intent  market    arch  design  └ backend  ┘ ├ security ┤  deploy  release  │
 │                                               └ auditor* ┘  (*big diffs only)│
 │                                                                              │
