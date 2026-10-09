@@ -480,7 +480,7 @@ class HeadTree:
             self.files()
             self.tmp = tempfile.mkdtemp()
             self._add()
-            return self.path
+            return self._scratch()
         for p in pathlib.Path(self.tmp).iterdir():
             if p != self.path:
                 shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink()
@@ -493,7 +493,7 @@ class HeadTree:
             shutil.rmtree(self.path, ignore_errors=True)          # make it again; drop
             shutil.rmtree(self.gitdir, ignore_errors=True)        # only our own entry
             self._add()
-            return self.path
+            return self._scratch()
         for f in ("index", "info/sparse-checkout", "config.worktree"):
             if (self.gitdir / f).exists():
                 (self.gitdir / f).unlink()
@@ -503,9 +503,19 @@ class HeadTree:
                 ("checkout", "-q", "--detach", "-f", self.sha),
                 ("reset", "-q", "--hard", self.sha), ("clean", "-qffdx"))):
             raise SystemExit(f"cannot reset the checkout of HEAD at {self.path}")
+        return self._scratch()
+
+    def _scratch(self):
+        """A fresh TMPDIR beside the checkout for the next probe (the old one
+        went with the other siblings of the checkout)."""
+        scratch = pathlib.Path(self.tmp) / "scratch"
+        shutil.rmtree(scratch, ignore_errors=True)
+        scratch.mkdir()
+        SCRATCH[str(self.path)] = str(scratch)
         return self.path
 
     def close(self):
+        SCRATCH.pop(str(self.path), None)
         if self.path is not None:
             git(self.root, "worktree", "remove", "--force", str(self.path))
         for d in (self.tmp, self.index):
@@ -632,10 +642,18 @@ def not_live(target, live_hosts):
     return None
 
 
+SCRATCH = {}        # a HeadTree checkout -> the fresh TMPDIR its next probe gets
+
+
 def run_shell(cmd, cwd, timeout, env=None):
     """(exit code, output) of a shell command in its own process group, which
     is killed when the command ends: nothing it left running in the
-    background takes part in the next one. Raises TimeoutExpired."""
+    background takes part in the next one. In a HeadTree checkout it also
+    gets a TMPDIR of its own, emptied before the next probe. Raises
+    TimeoutExpired."""
+    if (scratch := SCRATCH.get(str(cwd))):
+        env = {**(os.environ if env is None else env), "TMPDIR": scratch, "TMP": scratch,
+               "TEMP": scratch}
     p = subprocess.Popen(cmd, shell=True, cwd=cwd, env=env, start_new_session=True,
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     try:
@@ -1653,6 +1671,8 @@ def self_test():
         before, tempfile.tempdir = tempfile.tempdir, str(root / ".tmp")
         tree = HeadTree(root)
         try:
+            probe("echo 'echo temp: 21' > \"$TMPDIR/cache.sh\"", tree.get())
+            cached = probe("sh \"$TMPDIR/cache.sh\"", tree.get())[0]
             probe("(while :; do echo 'echo temp: 21' > planted.sh; sleep 0.1; done)"
                   " >/dev/null 2>&1 &", tree.get())
             bg = probe("sleep 0.5; sh planted.sh", tree.get())[0]
@@ -1662,6 +1682,9 @@ def self_test():
         finally:
             tree.close()
             tempfile.tempdir = before
+        if not check("a file an earlier probe left in its TMPDIR",
+                     [] if cached else ["it took part"], None):
+            return 1
         if not check("a process an earlier probe left running",
                      [] if bg else ["it took part"], None):
             return 1

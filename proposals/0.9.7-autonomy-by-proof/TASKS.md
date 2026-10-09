@@ -1,4 +1,4 @@
-Signed: requirements.md sha256:7b665be99e78 · design.md sha256:7b44072f92d2
+Signed: requirements.md sha256:8b6ddde1efc9 · design.md sha256:7b44072f92d2
 Gate: 🔴 ship — awaiting CEO
 
 ## Done
@@ -23,7 +23,7 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 3/5 stalled 0/3 · next: Security's state-dir staleness blocker fixed test-first; QA's round at f21b821 is still judging
+- [~] R3 Done only with live + formal evidence — verifying · qa · 3/5 stalled 0/3 · next: round 3's blockers fixed test-first (state-dir staleness, per-probe TMPDIR; the virtualenv ruled environment, C17); round 4 next
 - [~] R10 check_formal.py — verifying · qa · 3/5 stalled 0/3 · next: with R3 (C16)
 
 ## Todo
@@ -42,6 +42,7 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] C14 the context-free reviewer found ElectedAfterGone covers only a session that is starting; added ElectedOnceGone (a worker whose holder crashed is elected, or none is left alive) to Election.tla, ElectionLive.cfg and R12's Property, with ElectionOnceBroken.cfg (0.9.6's start-only takeover) failing it -- re-signed -- undo: drop the property and its cfg
 - [ ] C15 the reviewer's R3 blocker (a probe that runs a tool outside the repository) is ruled the environment, not the tree, under the CEO's threat model; R3 now says so -- re-signed -- undo: revert that sentence
 - [ ] C16 the CEO ruled on the second loop-bound (2026-10-09, 「A」): close the whole class -- a re-run refuses a working tree with any uncommitted or untracked file, and --deployed runs in HEAD's checkout -- and restart Loop A for R3/R10 at 1/5 -- undo: revert the commit that adds the clean-tree rule
+- [ ] C17 QA's blocker "an ignored in-repo virtualenv on PATH decides a probe" ruled the environment, not the tree, under C15 and the CEO's threat model; R3 now says so, and each probe gets its own TMPDIR -- re-signed -- undo: revert that sentence and re-sign
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer

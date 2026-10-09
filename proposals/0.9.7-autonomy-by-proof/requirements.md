@@ -75,9 +75,11 @@ changes, one idea:
     a name two filesystems spell differently. On a re-run they SHALL never
     pass what the plain run fails. A probe that sets out to fool the sensor
     (rewriting git's objects, config or refs) is out of scope, stated in
-    HeadTree's docstring. A tool outside the repository -- on PATH or named
-    by an environment variable the command uses -- is the environment the
-    probe runs in, not the tree; the reviewer reads it in the command.
+    HeadTree's docstring. A tool on PATH or named by an environment variable
+    the command uses -- wherever it lives, a virtualenv in an ignored
+    directory included -- is the environment the probe runs in, not the
+    tree; the reviewer reads it in the command. Each probe gets a TMPDIR of
+    its own.
   - *Acceptance*: the TASKS sensor fails a `[x]` whose `check_live.py --only <ID>`
     or `check_formal.py --only <ID>` fails, and fails a `[x]` line that still
     carries a status.
