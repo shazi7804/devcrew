@@ -6,6 +6,6 @@
   "expect": "self-test ok \\(\\d+ cases\\)",
   "observed": "self-test ok (45 cases)",
   "result": "pass",
-  "sha": "912fe8992f72dbb118713e2b70d27cbdd9f03b2d",
-  "at": "2026-10-09T08:36:38+00:00"
+  "sha": "666999fa4af173c130c47e668e83eb071a4ff16b",
+  "at": "2026-10-09T09:34:45+00:00"
 }

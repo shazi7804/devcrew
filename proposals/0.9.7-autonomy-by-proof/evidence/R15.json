@@ -6,6 +6,6 @@
   "expect": "(?s)AtMostOneActing.*\\n4\\s*$",
   "observed": "ElectionV096/ElectionV096: AtMostOneActing\n4",
   "result": "pass",
-  "sha": "912fe8992f72dbb118713e2b70d27cbdd9f03b2d",
-  "at": "2026-10-09T08:37:10+00:00"
+  "sha": "666999fa4af173c130c47e668e83eb071a4ff16b",
+  "at": "2026-10-09T09:35:19+00:00"
 }
