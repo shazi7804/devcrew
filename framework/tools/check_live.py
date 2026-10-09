@@ -205,21 +205,29 @@ class HeadTree:
     """A throwaway checkout of HEAD (a detached worktree), made on first use,
     one per invocation, reset every time it is handed out: a re-run there ran
     on what is committed, and a scan there read it -- no uncommitted change,
-    no untracked or ignored file, nothing an earlier probe wrote (`clean -ffdx`
-    removes a nested repository too)."""
+    no untracked or ignored file, nothing an earlier probe wrote: the commit
+    is pinned, so a probe that commits or switches branch there is undone,
+    `clean -ffdx` removes a nested repository too, and whatever a probe put
+    beside the checkout goes."""
     def __init__(self, root):
-        self.root, self.path, self.tmp = root, None, None
+        self.root, self.path, self.tmp, self.sha = root, None, None, None
 
     def get(self):
         if self.path is None:
+            self.sha = out(git(self.root, "rev-parse", "HEAD")).strip()
             self.tmp = tempfile.mkdtemp()
             tree = pathlib.Path(self.tmp) / "head"
-            if git(self.root, "worktree", "add", "--detach", "--quiet", str(tree),
-                   "HEAD").returncode:
+            if not self.sha or git(self.root, "worktree", "add", "--detach", "--quiet",
+                                   str(tree), self.sha).returncode:
                 raise SystemExit(f"cannot check out HEAD of {self.root} for a re-run")
             self.path = tree
-        elif git(self.path, "reset", "-q", "--hard").returncode or \
-                git(self.path, "clean", "-qffdx").returncode:
+            return tree
+        for p in pathlib.Path(self.tmp).iterdir():
+            if p != self.path:
+                shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink()
+        if any(git(self.path, *c).returncode for c in (
+                ("checkout", "-q", "--detach", "-f", self.sha),
+                ("reset", "-q", "--hard", self.sha), ("clean", "-qffdx"))):
             raise SystemExit(f"cannot reset the checkout of HEAD at {self.path}")
         return self.path
 
@@ -803,6 +811,11 @@ def self_test():
             planted = probe("sh planted.sh", tree.get())[0]
             probe("git init -q nested && echo 'echo temp: 21' > nested/p.sh", tree.get())
             nested = probe("sh nested/p.sh", tree.get())[0]
+            probe("git checkout -q -b evil && echo 'echo temp: 21' > c.sh && git add c.sh && "
+                  "git -c user.email=a@b -c user.name=a commit -qm c", tree.get())
+            committed = probe("sh c.sh", tree.get())[0]
+            probe("echo 'echo temp: 21' > ../b.sh", tree.get())
+            beside = probe("sh ../b.sh", tree.get())[0]
         finally:
             tree.close()
         if not check("a probe that runs what an earlier probe planted",
@@ -810,6 +823,12 @@ def self_test():
             return 1
         if not check("a probe that runs what an earlier probe planted in a nested repo",
                      [] if nested else ["the nested repo took part"], None):
+            return 1
+        if not check("a probe that runs what an earlier probe committed on a branch",
+                     [] if committed else ["the commit took part"], None):
+            return 1
+        if not check("a probe that runs what an earlier probe put beside the checkout",
+                     [] if beside else ["the file beside it took part"], None):
             return 1
         write(d, {"src/app.js": "export const temp = 3;\n"})
         ev(d, sha, verify="local", target="this checkout", command="cat src/app.js",

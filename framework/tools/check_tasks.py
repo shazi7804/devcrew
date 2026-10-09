@@ -12,6 +12,9 @@
                                        the Ship batch, run this)
     check_tasks.py --self-test         prove every rule fails on a known bad file
     options: --root DIR  --env NAME (whose live evidence proves Done)
+             --src PATH...  --test GLOB...  --allow FILE (check_live's code
+             scan, from standards.md: a Done item is `check_live --only <ID>`
+             green, and that includes its code scan)
              --no-evidence (format, IDs and signatures only)
 
 Reference implementation of the TASKS.md rule in the aidlc skill. Host-neutral,
@@ -57,6 +60,8 @@ RED WHEN
 """
 import argparse
 import hashlib
+import json
+import os
 import pathlib
 import re
 import subprocess
@@ -132,7 +137,8 @@ def parse(text):
     return signed, gate, sections, hits
 
 
-def check(root, tasks, evidence=True, env=None, rerun=False):
+def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
+          allow=None):
     if not tasks.is_file():
         return [f"no TASKS.md at {tasks} -- the run has no ledger"]
     signed, gate, sections, hits = parse(tasks.read_text(encoding="utf-8"))
@@ -195,6 +201,11 @@ def check(root, tasks, evidence=True, env=None, rerun=False):
             live = check_live.check_evidence(root, reqfile, ev / env if env else ev, done,
                                              (), rerun, False, False, tree)
             hits += [f"Done but not live: {h}" for h in live]
+            # check_live --only <ID> also runs the code scan over what ships
+            base = tree.get() if rerun else root
+            rules = check_live.allowed(base / os.path.relpath(allow, root) if allow else None)
+            hits += [f"Done but not live: {h}"
+                     for h in check_live.check_code(base, src, tests, rules)]
             hits += [f"Done but not formal: {h}" for h in
                      check_formal.check(root, reqfile, only=done, rerun=rerun, tree=tree)]
         finally:
@@ -359,7 +370,39 @@ def self_test():
             if not any(want in h for h in got):
                 print(f"self-test FAILED: {label}: got {got or 'clean'}")
                 return 1
-    print(f"self-test ok ({len(cases) + len(drift)} cases)")
+    # A Done item is `check_live --only <ID>` green, and that runs the code scan:
+    # a mock shipped in the code fails it, unless the allow file names it.
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        files = {"req/requirements.md": "# r\n- **R1** — a\n  - *Verify*: local\n"
+                                        "  - *Property*: none — text\n",
+                 "src/app.js": "export const t = mockTemp();\n",
+                 "allow.txt": "src/app.js mockTemp -- the self-test's seeded hit\n"}
+        for rel, text in files.items():
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_text(text, encoding="utf-8")
+        q = ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+        subprocess.run(["git", "-C", d, "init", "-q"], check=True)
+        subprocess.run(["git", "-C", d, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", d, *q, "commit", "-qm", "x"], check=True)
+        sha = check_live.out(check_live.git(root, "rev-parse", "HEAD")).strip()
+        (root / "req/evidence").mkdir()
+        (root / "req/evidence/R1.json").write_text(json.dumps(
+            {"id": "R1", "verify": "local", "target": "this checkout", "command": "echo ok",
+             "expect": "ok", "observed": "ok", "result": "pass", "sha": sha,
+             "at": "2026-10-09T00:00:00Z"}), encoding="utf-8")
+        tasks = root / "req/TASKS.md"
+        tasks.write_text(sign(tasks, ["requirements.md"]) + "\n\n## Done\n- [x] R1 a\n"
+                         "\n## In progress\n\n## Todo\n", encoding="utf-8")
+        for label, kw, want in (("a Done item with a mock in the code", {}, True),
+                                ("...on a re-run", {"rerun": True}, True),
+                                ("...that the allow file names", {"allow": root / "allow.txt"},
+                                 False)):
+            got = check(root, tasks, **kw)
+            if any("src/app.js:1" in h for h in got) != want:
+                print(f"self-test FAILED: {label}: got {got or 'clean'}")
+                return 1
+    print(f"self-test ok ({len(cases) + len(drift) + 3} cases)")
     return 0
 
 
@@ -374,13 +417,17 @@ def main(argv):
     ap.add_argument("--env")
     ap.add_argument("--rerun", action="store_true")
     ap.add_argument("--no-evidence", action="store_true")
+    ap.add_argument("--src", nargs="+")
+    ap.add_argument("--test", nargs="+", default=[])
+    ap.add_argument("--allow")
     a = ap.parse_args(argv)
     root = pathlib.Path(a.root).resolve()
     tasks = root / a.tasks
     if a.sign:
         print(sign(tasks, a.sign))
         return 0
-    hits = check(root, tasks, evidence=not a.no_evidence, env=a.env, rerun=a.rerun)
+    hits = check(root, tasks, evidence=not a.no_evidence, env=a.env, rerun=a.rerun,
+                 src=a.src, tests=a.test, allow=root / a.allow if a.allow else None)
     for h in hits:
         print(h)
     if hits:

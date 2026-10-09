@@ -1,0 +1,5 @@
+# check_live's code-scan exemptions for devcrew's own tree (pass as --allow).
+# The sensors name the fakes they hunt; nothing here is delivered data.
+framework/tools/check_live.py \S -- the no-fake sensor: it names every fake it looks for
+framework/tools/check_formal.py make a lazy fake fail -- prose on what stored evidence cannot prove
+framework/tools/check_tasks.py fake-requirements\.md|mockTemp|a mock -- self-test decoys: a misnamed requirements file, a seeded mock
