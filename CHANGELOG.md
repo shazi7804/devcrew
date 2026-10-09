@@ -67,8 +67,11 @@ so the bounds became code first.
   wrote, committed or set up (index flags, sparse patterns, hooks) can take
   part in it. The no-fake scan and the escape-hatch scan read HEAD's blobs
   from the object store -- only the code, symlink targets and the files a
-  check names, streamed, before the first probe -- so nothing a probe does
-  to a checkout changes what they see, and a large tree costs only its code. What no reset undoes is stated: a probe runs with the user's
+  check names, streamed, once, before any command runs -- so nothing a probe
+  does to a checkout or the object store changes what they see, and a large
+  tree costs only its code. A symlink resolves as the kernel does; one that
+  leaves the tree, or two names that differ only in case, are reported, not
+  guessed. `--src` is read as git reads a pathspec, in both modes. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,

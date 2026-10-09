@@ -94,12 +94,14 @@ import ipaddress
 import json
 import os
 import pathlib
+import posixpath
 import re
 import shutil
 import socket
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import urllib.parse
 
 STATE = ".aidlc"
@@ -210,9 +212,11 @@ QUIET_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.sparseCheckout=false"
 class HeadTree:
     """HEAD, pinned at first use, one per invocation. Two ways to read it:
 
-    - files(): HEAD's blobs straight from the object store -- what a scan
-      reads, so no checkout state, hook, filter or attribute a probe set can
-      change what it sees;
+    - files(): HEAD's blobs straight from the object store, read once before
+      any command runs (a probe, --deployed) and never after -- what a scan
+      reads, so no checkout state, hook, filter, attribute or rewritten
+      object a probe leaves can change what it sees; ls() reads --src as
+      git does, over HEAD;
     - get(): a throwaway checkout (a detached worktree) to run a probe in,
       reset every time it is handed out -- the commit is pinned, the index,
       sparse patterns and worktree config are dropped, `clean -ffdx` removes
@@ -226,7 +230,7 @@ class HeadTree:
     reviewer reads the probe commands in the diff."""
     def __init__(self, root, want=()):
         self.root, self.path, self.tmp, self.sha, self.blobs = root, None, None, None, None
-        self.want = set(map(str, want))     # files a check will read beyond the code
+        self.want = {canon(w) for w in want}  # files a check will read beyond the code
 
     def head(self):
         if self.sha is None:
@@ -297,27 +301,47 @@ class HeadTree:
                     done.append(c)
                 at = "/".join(done)
                 return at if at in ents and at not in dest else None
+            # two names a case-insensitive or normalizing filesystem folds into
+            # one: which of them runs depends on the checkout, so neither is read
+            fold = {}
+            for r in ents:
+                fold.setdefault(unicodedata.normalize("NFD", r).casefold(), []).append(r)
+            clash = {r for group in fold.values() if len(group) > 1 for r in group}
             read = {r: resolve(r) if r in dest else r for r in ents
                     if is_code(r) or r in self.want or r in dest}
-            need = sorted({t for t in read.values() if t})
+            need = sorted({t for t in read.values() if t and t not in clash})
             body = dict(zip(need, self._cat([ents[t][1] for t in need])))
-            self.blobs = {r: body[t] if t else None for r, t in read.items()
-                          if t or is_code(r)}
+            self.blobs = {}
+            for r, t in read.items():
+                if t in clash or r in clash:
+                    self.blobs[r] = (f"{t or r} collides with another name of HEAD's tree "
+                                     "on a case-insensitive filesystem -- which runs depends "
+                                     "on the checkout")
+                elif t:
+                    self.blobs[r] = body[t]
+                elif is_code(r) or r in self.want:
+                    self.blobs[r] = ("a symlink that does not resolve to a file of HEAD's "
+                                     "tree -- what it runs cannot be scanned")
         return self.blobs
 
+    def ls(self, src):
+        """The names `src` selects at the pinned commit, as git reads the
+        pathspec (magic, `..`) -- the plain scan's ls-files, over HEAD."""
+        with tempfile.TemporaryDirectory() as d:
+            env = {**os.environ, "GIT_INDEX_FILE": os.path.join(d, "index")}
+            git_ = ["git", "-C", str(self.root), *QUIET_GIT]
+            rt = subprocess.run([*git_, "read-tree", self.head()], env=env, capture_output=True)
+            ls = subprocess.run([*git_, "ls-files", "-z", "--", *(src or ["."])], env=env,
+                                capture_output=True)
+        if rt.returncode or ls.returncode:
+            raise SystemExit(f"--src {' '.join(src or [])}: git cannot read it over HEAD")
+        return ls.stdout.decode("utf-8", "surrogateescape").split("\0")
+
     def blob(self, rel):
-        """One file at the pinned commit, or None; one no check named up front
-        is read now, after any probe (the stated limit above)."""
-        rel = str(rel)
-        if rel in self.files() and self.blobs[rel] is None:
-            return None
-        if rel not in self.blobs:
-            r = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "cat-file", "blob",
-                                f"{self.head()}:{rel}"], capture_output=True)
-            if r.returncode:
-                return None
-            self.blobs[rel] = r.stdout
-        return self.blobs[rel]
+        """One file read up front, or None: a name no check registered is not
+        read at all -- after a probe the object store is not to be trusted."""
+        got = self.files().get(canon(rel))
+        return got if isinstance(got, bytes) else None
 
     def get(self):
         if self.path is None:
@@ -623,7 +647,12 @@ def scan(root, tree, rerun, src, tests, allow):
     if rel and text is None:
         raise SystemExit(f"--allow {rel}: not in HEAD")
     rules = allowed(allow, text.decode("utf-8", "replace")) if rel else []
-    return check_code(root, src, tests, rules, tree.files())
+    return check_code(root, src, tests, rules, tree)
+
+
+def canon(rel):
+    """A repo-relative name as HEAD's tree spells it: no `./`, no `a/..`."""
+    return posixpath.normpath(str(rel).replace(os.sep, "/")).removeprefix("./")
 
 
 def is_code(rel):
@@ -631,17 +660,16 @@ def is_code(rel):
     return p.suffix in CODE or p.name.startswith(".env")
 
 
-def check_code(root, src, tests, rules, blobs=None):
-    """blobs: {path: bytes} to scan instead of this checkout (HEAD's, on a re-run)."""
+def check_code(root, src, tests, rules, tree=None):
+    """tree: scan HEAD's blobs (a HeadTree) instead of this checkout, on a re-run."""
+    blobs = tree.files() if tree else None
     if blobs is None:
         ls = git(root, "ls-files", "-z", "--", *(src or ["."]))
         if ls.returncode:
             return [f"not a git repo: {root}"]
         names = out(ls).split("\0")
     else:
-        pre = [s.strip("/").removeprefix("./") for s in src or ["."]]
-        names = [r for r in blobs if any(p in ("", ".") or r == p or r.startswith(p + "/")
-                                         or fnmatch.fnmatch(r, p) for p in pre)]
+        names = [r for r in tree.ls(src) if r in blobs]
     hits = []
     for rel in names:
         p = root / rel
@@ -650,9 +678,8 @@ def check_code(root, src, tests, rules, blobs=None):
                 or (blobs is None and not p.is_file()):
             continue
         data = p.read_bytes() if blobs is None else blobs[rel]
-        if data is None:
-            hits.append(f"{rel}: a symlink that does not resolve to a file of HEAD's tree "
-                        "-- what it runs cannot be scanned")
+        if isinstance(data, str):
+            hits.append(f"{rel}: {data}")       # read up front as unscannable
             continue
         if b"\0" in data[:8192]:
             continue
@@ -688,6 +715,8 @@ def run(root, reqfiles=None, evidence=None, only=None, env=None, live_hosts=(),
 def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rerun,
          record, deployed, tree):
     reqfiles = reqfiles or default_requirements(root)
+    if rerun:
+        tree.files()        # HEAD's blobs before any command runs, --deployed's too
     if (only or evidence) and len(reqfiles) != 1:
         raise SystemExit("--only / --evidence apply to one feature: pass "
                          "--requirements <its requirements.md>")
@@ -1015,6 +1044,30 @@ def self_test():
         if not check("a re-run scans HEAD, not an edit that hides a fake",
                      run(root, rf, rerun=True), "src/app.js:1"):
             return 1
+        # --src is read as git reads a pathspec, over HEAD, as the plain scan does
+        for spec in (":!lib", ":(glob)src/**/*.js", "src/x/.."):
+            if not check(f"--src {spec!r} on a re-run", run(root, rf, rerun=True, src=[spec]),
+                         "src/app.js:1"):
+                return 1
+        # a probe -- --deployed's too -- that rewrites HEAD's object for app.js
+        # changes nothing the scan reads: the blobs were read before it ran
+        write(d, {"rewrite.py": "import os, subprocess, sys, zlib\n"
+                                "oid = subprocess.run(['git', 'rev-parse', 'HEAD:src/app.js'],"
+                                " capture_output=True, text=True).stdout.strip()\n"
+                                "p = f'.git/objects/{oid[:2]}/{oid[2:]}'\n"
+                                "os.chmod(p, 0o644)\n"
+                                "body = sys.argv[1].encode() + b'\\n'\n"
+                                "open(p, 'wb').write(zlib.compress(b'blob %d\\0' % len(body)"
+                                " + body))\n"})
+        head_now = out(git(d, "rev-parse", "HEAD")).strip()
+        deployed = [f"echo https://api.prod.acme.io/version {head_now} && "
+                    f"python3 {root}/rewrite.py 'export const t = 3;'"]
+        if not check("a --deployed probe that rewrites HEAD's object",
+                     run(root, rf, rerun=True, deployed=deployed), "src/app.js:1"):
+            return 1
+        probe("python3 rewrite.py 'export const temp = mockTemp();'", root)   # put it back
+        (root / "rewrite.py").unlink()
+        git(d, *quiet, "reset", "-q", "--hard")
         # A probe that alters the checkout -- index flags, sparse patterns, a
         # hook, a smudge filter -- changes nothing the scan reads: it reads blobs.
         tricks = {
@@ -1056,6 +1109,18 @@ def self_test():
                          if why != unread else f"{link}: a symlink that {why}"):
                 return 1
         git(d, *quiet, "reset", "-q", "--hard", "HEAD~1")
+        for rel, text in (("tests/X.js", "x()\n"), ("tests/x.js", "export const t = mockTemp();\n")):
+            oid = subprocess.run(["git", "-C", d, "hash-object", "-w", "--stdin"],
+                                 input=text.encode(), capture_output=True).stdout.decode().strip()
+            git(d, "update-index", "--add", "--cacheinfo", f"100644,{oid},{rel}")
+        oid = subprocess.run(["git", "-C", d, "hash-object", "-w", "--stdin"],
+                             input=b"../tests/X.js", capture_output=True).stdout.decode().strip()
+        git(d, "update-index", "--add", "--cacheinfo", f"120000,{oid},src/g.js")
+        git(d, *quiet, "commit", "-qm", "case")
+        if not check("a symlink into two names that differ only in case, on a re-run",
+                     run(root, rf, rerun=True), "src/g.js: tests/X.js collides"):
+            return 1
+        git(d, *quiet, "reset", "-q", "--hard", "HEAD~1")
         for name, trick in tricks.items():
             ev(d, sha, where=f"{f}/evidence", verify="local", target="this checkout",
                command=f"{trick}; echo 'temp: 21'", expect=r"temp: \d+", observed="temp: 21")
@@ -1071,12 +1136,16 @@ def self_test():
         commit(d, {"fail.sh": "exit 3\n", "src/app.js": "x()\n", "assets/big.bin": "0" * 4096,
                    "spec/M.tla": "a\n"})
         hook = "$(git rev-parse --git-common-dir)/hooks/post-checkout"
-        tree = HeadTree(root, ["spec/M.tla"])
+        tree = HeadTree(root, ["./spec/x/../M.tla"])
         try:
             got = tree.files()
             if not check("HEAD's blobs: the code and the named files, not the rest",
                          [] if set(got) == {"fail.sh", "src/app.js", "spec/M.tla"}
                          else [f"read {sorted(got)}"], None):
+                return 1
+            if not check("a name read up front, however spelled; nothing read later",
+                         [] if tree.blob("./spec/M.tla") == b"a\n" and
+                         tree.blob("assets/big.bin") is None else ["blob() read late"], None):
                 return 1
             for name, trick, then in (
                     ("skip-worktree", "git update-index --skip-worktree fail.sh && "
