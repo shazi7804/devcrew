@@ -667,11 +667,25 @@ def run_shell(cmd, cwd, timeout, env=None):
         p.wait()
 
 
-def probe(cmd, root):
+def probe_env(cmd):
+    """A probe's environment: PATH, HOME, the locale, TMPDIR, and only the
+    variables its command names."""
     keep = {"PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "SYSTEMROOT"}
     keep |= set(re.findall(r"\$\{?([A-Za-z_]\w*)", cmd))
-    env = {k: v for k, v in os.environ.items() if k in keep}
-    return run_shell(cmd, root, 300, env)
+    return {k: v for k, v in os.environ.items() if k in keep}
+
+
+def probe(cmd, root):
+    return run_shell(cmd, root, 300, probe_env(cmd))
+
+
+def moved(root, tree):
+    """Why HEAD is no longer the commit this re-run pinned and proved, or None."""
+    now = out(git(root, "rev-parse", "HEAD")).strip()
+    if tree.sha and now != tree.sha:
+        return (f"HEAD moved during the re-run ({tree.sha[:12]} -> {now[:12]}): it proved "
+                "the pinned commit, not this one -- nothing recorded; re-run")
+    return None
 
 
 def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, proven,
@@ -698,7 +712,7 @@ def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pr
         if unknown:
             return [f"{reqfile}: --only names {', '.join(unknown)}, not in the requirements"]
         req = {k: v for k, v in req.items() if k in only}
-    head = out(git(root, "rev-parse", "HEAD")).strip()
+    head = tree.head()          # the one HEAD this re-run pins, probes and stamps
     hits = []
     for rid, level in req.items():
         tag, n0 = f"{os.path.relpath(reqfile, root)} {rid}", len(hits)
@@ -788,7 +802,8 @@ def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pr
             hint = ("; the re-run passed, but nothing proves the environment runs HEAD "
                     "(--deployed)" if excerpt and not proven else "; re-run the probe")
             hits.append(f"{tag}: {why}{hint}")
-        if record and fresh and len(hits) == n0 and not SECRET.search(excerpt):
+        if record and fresh and len(hits) == n0 and not SECRET.search(excerpt) and \
+                not moved(root, tree):
             now = datetime.datetime.now(datetime.timezone.utc)
             f.write_text(json.dumps({**e, "observed": excerpt, "sha": head,
                                      "at": now.isoformat(timespec="seconds"),
@@ -934,7 +949,7 @@ def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rer
     proven = False
     if rerun and deployed:
         # One version probe per service; each must ask a live host and print HEAD.
-        head, n0 = out(git(root, "rev-parse", "HEAD")).strip(), len(hits)
+        head, n0 = tree.head(), len(hits)
         for cmd in deployed:
             urls = list(dict.fromkeys(URL.findall(code(cmd))))
             if not urls:
@@ -961,7 +976,10 @@ def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rer
         hits += check_evidence(root, rf, ev / env if env else ev, only, live_hosts,
                                rerun, record, proven, tree)
     # A re-run proves HEAD, so the scan reads HEAD too, not this checkout.
-    return hits + scan(root, tree, rerun, src, tests, allow)
+    hits += scan(root, tree, rerun, src, tests, allow)
+    if rerun and (why := moved(root, tree)):
+        hits.append(why)
+    return hits
 
 
 def self_test():
@@ -1596,6 +1614,20 @@ def self_test():
         write(d, {f"{STATE}/tools/__pycache__/check_live.cpython-3.pyc": "x"})
         if not check("a re-run beside the sensors' own bytecode",
                      attempt(root, rerun=True), "!commit or stash"):
+            return 1
+    # Security final 6: a re-run proves the HEAD it pinned -- a commit made
+    # while it runs is neither probed nor stamped by --record
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        sha = commit(d, base)
+        ev(d, sha, command="echo https://api.prod.acme.io/v1/weather '\"temp\": 21'")
+        pinned = out(git(d, "rev-parse", "HEAD")).strip()
+        dep = [f"echo https://api.prod.acme.io/version {pinned} && git -C {root} -c user.name=t "
+               f"-c user.email=t@t commit -q --allow-empty -m moved"]
+        got = attempt(root, rerun=True, record=True, deployed=dep)
+        kept = json.loads((root / STATE / "evidence/R1.json").read_text())["sha"] == sha
+        if not check("HEAD moved during a re-run", got, "HEAD moved") or \
+                not check("...and --record stamped nothing", [] if kept else ["stamped"], None):
             return 1
     # QA final 2: --src narrows the scan, not the reports of what the checkout
     # holds; a submodule a probe initialised is gone before the next probe

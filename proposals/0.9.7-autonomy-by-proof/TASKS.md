@@ -23,8 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 3/5 stalled 0/3 · next: round 3's blockers fixed test-first (state-dir staleness, per-probe TMPDIR; the virtualenv ruled environment, C17); round 4 next
-- [~] R10 check_formal.py — verifying · qa · 3/5 stalled 0/3 · next: with R3 (C16)
+- [~] R3 Done only with live + formal evidence — verifying · qa · 4/5 stalled 0/3 · next: Security round 4's blockers fixed test-first (one pinned HEAD, formal commands get the probe environment); QA round 4 still judging
+- [~] R10 check_formal.py — verifying · qa · 4/5 stalled 0/3 · next: with R3 (C16)
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -54,10 +54,10 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D13 the per-probe reset drops the index every time, so checkout rewrites the whole tree per probe (2.3-3.1 s on a 124 MB tree): drop it only when ls-files -v shows a flag, once Security rules that is as sound; Security's ruling: sound only with an allow-list of `H` tags, trustctime/checkStat/ignoreStat pinned, sparse and worktree config still dropped, and a same-size mtime-restored self-test
 - [ ] D14 HeadTree.files() reads a non-code symlink's target that no check reads: drop `or r in dest` from its read filter
 - [ ] D15 check_live and check_formal each load evidence, filter --only and compile `expect`: one helper in check_live (audit, medium)
-- [ ] D16 small duplications: the self-test git fixture (4 copies), Aidlc.cfg and AidlcLive.cfg exploring one state space twice, rev-parse HEAD beside tree.head(), a repeated check_tasks case (audit, low)
+- [ ] D16 small duplications: the self-test git fixture (4 copies), Aidlc.cfg and AidlcLive.cfg exploring one state space twice, a repeated check_tasks case (audit, low)
 - [ ] D17 boot.py writes its session hint into the shared temp dir following symlinks: use a per-user 0700 dir and O_NOFOLLOW (security)
 - [ ] D18 the evidence secret pattern misses common credential shapes (Stripe, JWT, Google keys, Basic auth, Slack webhooks, cookies): widen it or redact by default (security)
 - [ ] D19 role permissions: on KiroCrew every role, reviewer and auditor included, may spawn and write memory; on Claude Code the auditor keeps Bash -- deny those in the adapters (security)
 - [ ] D20 CI actions are pinned by tag, not commit sha (security, low)
-- [ ] D21 formal evidence is not secret-scanned, and its commands run with the full environment (security, low)
+- [ ] D21 formal evidence is not secret-scanned (security, low)
 - [ ] D22 a failed probe's output is printed unredacted (120 chars): pass it through the secret pattern first (security, low)

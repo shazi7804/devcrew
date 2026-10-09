@@ -66,6 +66,7 @@ requires both before an item is Done).
 """
 import argparse
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -132,7 +133,7 @@ def hatches(path, text):
 def run_cmd(cmd, root):
     """(exit code or None on timeout, output)"""
     try:
-        return check_live.run_shell(cmd, root, 3600, check_live.git_env())
+        return check_live.run_shell(cmd, root, 3600, check_live.probe_env(cmd))
     except subprocess.TimeoutExpired:
         return None, ""
 
@@ -482,7 +483,20 @@ def self_test():
         if not any("commit or stash" in h for h in got):
             print(f"self-test FAILED: a re-run beside an untracked file: got {got or 'clean'}")
             return 1
-    print(f"self-test ok ({len(cases) + len(more) + 2} cases)")
+    # a formal command gets the probe's environment: PATH, HOME, the locale and
+    # the variables it names -- a PYTHONPATH it never names is not passed
+    with tempfile.TemporaryDirectory() as d:
+        before = os.environ.get("PYTHONPATH")
+        os.environ["PYTHONPATH"] = d
+        try:
+            rc, _ = run_cmd("env | grep -q '^PYTHONPATH=' && exit 1; exit 0", d)
+        finally:
+            os.environ.pop("PYTHONPATH") if before is None else os.environ.__setitem__(
+                "PYTHONPATH", before)
+        if rc != 0:
+            print("self-test FAILED: a formal command inherits a PYTHONPATH it never names")
+            return 1
+    print(f"self-test ok ({len(cases) + len(more) + 3} cases)")
     return 0
 
 
