@@ -57,14 +57,17 @@ changes, one idea:
 - **R2** — Every requirement ID (`Rn`, `Nn`) of the signed requirements SHALL
   appear in TASKS.md exactly once, and an ID SHALL NOT appear that the
   requirements do not define, except `Dn` tech-debt items (the Phase-4
-  audit's medium/low findings), which live in `## Todo`.
+  audit's medium/low findings), which live in `## Todo`, and `Cn` judgment
+  records (R7), which live in `## Todo` or `## Done`.
   - *Acceptance*: the TASKS sensor (R4) fails on a missing, duplicated or
-    unknown ID, and passes `Dn`.
+    unknown ID, and passes `Dn` and `Cn`.
   - *Verify*: local
   - *Property*: none — the acceptance is the sensor's self-test: example cases, each asserting the reason it fails; sampling, not a formal method
 - **R3** — An item SHALL move to `## Done` only when its live evidence (R2 of
   0.9.6) and its formal evidence (R10) are fresh at HEAD; on moving, its status
-  line SHALL be dropped.
+  line SHALL be dropped. A `Cn` is a recorded judgment, not a requirement:
+  it carries no evidence, and moves to `## Done` when it is resolved or the
+  CEO ticks it.
   - *Acceptance*: the TASKS sensor fails a `[x]` whose `check_live.py --only <ID>`
     or `check_formal.py --only <ID>` fails, and fails a `[x]` line that still
     carries a status.
@@ -197,9 +200,10 @@ changes, one idea:
   - *Formal*: checked
   - *Conformance*: none
 - **R13** — The model and the code SHALL NOT drift. `boot.py` SHALL be
-  trace-validated: real concurrent runs log every step that touches the
-  claim, and the model checker SHALL accept each trace as a behaviour of the
-  model. The phases, batches and interrupts in the AIDLC model SHALL equal the
+  trace-validated: sampled real concurrent runs log every step that touches
+  the claim, and the model checker SHALL accept each sampled trace as a
+  behaviour of the model -- a sample, not every run; exhaustiveness is the
+  model's (R12). The phases, batches and interrupts in the AIDLC model SHALL equal the
   sets in SKILL.md.
   - *Acceptance*: CI runs N concurrent `boot.py` elections and takeovers with
     tracing on and checks every trace against the model; a CI step proves it
@@ -207,7 +211,7 @@ changes, one idea:
     rejection; `tools/check_repo.py` compares the two sets and fails on a
     difference.
   - *Verify*: local
-  - *Property*: every trace of boot.py run with DEVCREW_TRACE is a behaviour of Election.tla
+  - *Property*: every trace of the boot.py runs CI samples with DEVCREW_TRACE (scripted, stampede, seeded concurrent crowds) is a behaviour of Election.tla
   - *Formal*: checked
   - *Conformance*: trace
 - **R14** — Autonomy SHALL be an invariant: AGENTS.md SHALL state that the run

@@ -1,6 +1,6 @@
 {
   "id": "R13",
-  "property": "every trace of boot.py run with DEVCREW_TRACE is a behaviour of Election.tla",
+  "property": "every trace of the boot.py runs CI samples with DEVCREW_TRACE (scripted, stampede, seeded concurrent crowds) is a behaviour of Election.tla",
   "level": "checked",
   "conformance": "trace",
   "tool": "TLC 2.19 (tla2tools 1.7.4)",

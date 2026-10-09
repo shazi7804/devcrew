@@ -49,7 +49,8 @@ THE EVIDENCE SIDE (<dir>/formal/<ID>.json, written after the code is committed)
     `assume(false)` ...); the sha not a full commit in HEAD's history, or the
     shipped tree changed since it (stale, same rule as check_live).
     With --rerun the check and the conformance check must exit 0 and the
-    vacuity run must exit non-zero, now, each printing what its `expect` says.
+    vacuity run must exit non-zero, now, each printing what its `expect` says
+    -- run in a throwaway checkout of HEAD, as check_live's re-runs are.
 
 WHAT THIS CANNOT DO
     Stored evidence is its writer's claim: an agent that can write the file
@@ -153,6 +154,14 @@ def pattern(tag, what, block, hits):
 
 
 def check(root, reqfile, evidence=None, only=None, rerun=False):
+    tree = check_live.HeadTree(root)
+    try:
+        return _check(root, reqfile, evidence, only, rerun, tree)
+    finally:
+        tree.close()
+
+
+def _check(root, reqfile, evidence, only, rerun, tree):
     req = signed(reqfile)
     if not req:
         return [f"{reqfile}: no Rn/Nn items -- nothing is verified"]
@@ -257,27 +266,27 @@ def check(root, reqfile, evidence=None, only=None, rerun=False):
             for h in hatches(p):
                 hits.append(f"{tag}: escape hatch in {h} -- a proof that is not a proof")
         why = check_live.drifted(root, str(e["sha"]).lower(), evidence,
-                                 reqfile.parent / "evidence")
+                                 check_live.contract(root, reqfile))
         if why:
             hits.append(f"{tag}: sha {str(e['sha'])[:12]} " + {
                 "bad": "is not a full commit id",
                 "orphan": "is not in HEAD's history",
                 "stale": "is stale -- the code changed since; re-run the check"}[why])
         if rerun:
-            rc, text = run_cmd(e["command"], root)
+            rc, text = run_cmd(e["command"], tree.get())
             if rc != 0:
                 hits.append(f"{tag}: re-run of the check exited {rc}")
             elif ex and not ex.search(text):
                 hits.append(f"{tag}: re-run of the check does not print its expect")
             if v.get("command"):
-                rc, text = run_cmd(v["command"], root)
+                rc, text = run_cmd(v["command"], tree.get())
                 if rc in (0, None):
                     hits.append(f"{tag}: re-run of the vacuity run did not fail")
                 elif vx and not vx.search(text):
                     hits.append(f"{tag}: re-run of the vacuity run failed for another "
                                 "reason than its expect")
             if cx:
-                rc, text = run_cmd(c["command"], root)
+                rc, text = run_cmd(c["command"], tree.get())
                 if rc != 0 or not cx.search(text):
                     hits.append(f"{tag}: re-run of the conformance check failed")
     return hits

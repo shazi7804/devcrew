@@ -5,8 +5,9 @@
 
    What it abstracts: a stage is one step; the work inside it is the agents'.
    Items are the requirement IDs of TASKS.md. A "trouble" is anything a sensor
-   raises (check_tasks, check_live, check_formal, the model check, the
-   pre-authorized list); the environment may cause one at any moment.
+   raises (check_tasks, check_live, check_formal, the model check); the
+   environment may cause one at any moment. A judgment is no trouble: the
+   role decides it and records a Cn (JudgmentRecorded).
 
    Conformance: the orchestrator is a model, not a program, so there is no
    trace to validate. What ties this model to the protocol is that its
@@ -160,7 +161,7 @@ AtBoundNoProgress ==
        (item' = item /\ live' = live /\ formal' = formal)]_vars
 
 \* the CEO is only ever asked for a batch or an interrupt, and an interrupt is
-\* only ever one of R7's six
+\* only ever one of R7's five
 AsksOnlyForBatchOrInterrupt ==
   /\ run = "batch" => waiting \in Batches
   /\ run = "interrupted" => waiting \in Interrupts

@@ -59,6 +59,12 @@ so the bounds became code first.
   - has no `expect`, or output (stored or re-run) that doesn't match it.
 
   37 self-test cases. Formal adds to live and never replaces it.
+- **A re-run proves HEAD, and a prompt is code** (review round 4). Every
+  `--rerun` probe and formal check now runs in a throwaway checkout of HEAD,
+  so no uncommitted, untracked or ignored file can take part in it. Evidence
+  goes stale on any change outside the evidence, the feature's contract dir
+  and TASKS.md: a Markdown file is no longer exempt, since a prompt is what
+  this framework ships.
 - **The framework's own protocols, model-checked** (R12–R13, TLA+ / TLC 1.7.4
   in CI):
   - `framework/formal/Election.tla` checks the orchestrator election: safety

@@ -52,8 +52,9 @@ CHECK 1 -- EVIDENCE (every Rn/Nn in each requirements file)
     names a mock -- or, with --live-host, is not a host of the environment
     under test; a target names a mock at any level; the command (outside a
     shell comment) never names the target's host; the sha is not a full commit
-    in HEAD's history; the working tree changed outside the evidence and docs
-    since the sha (stale -- verify what ships); the evidence holds what looks
+    in HEAD's history; the tree changed since the sha outside the evidence,
+    the feature's own contract dir and TASKS.md -- a prompt or a doc is
+    code here (stale -- verify what ships); the evidence holds what looks
     like a secret (credentials come from the environment, never the file).
     With --rerun each probe runs again, with only PATH/HOME/LANG and the
     variables its command names, and must exit 0 and match `expect`; its host
@@ -63,9 +64,10 @@ CHECK 1 -- EVIDENCE (every Rn/Nn in each requirements file)
     contain HEAD's sha. Only then is a passing
     re-run fresh proof -- a stale or rewritten-history sha is not a hit -- and
     only then may --record write it back (sha = HEAD), for an item with no
-    other hit. A `local` probe runs on this checkout, not on a deployed
-    service, so its re-run is HEAD's proof when the tracked tree is HEAD's
-    (no uncommitted change) -- it needs no --deployed.
+    other hit. Every re-run runs in a throwaway checkout of HEAD, so no
+    uncommitted, untracked or ignored file can take part in it; a `local`
+    probe touches no service, so its re-run there is HEAD's proof -- it
+    needs no --deployed.
 
 CHECK 2 -- NO FAKES IN PRODUCTION CODE
     Scans tracked files outside test paths and lockfiles for: an identifier
@@ -92,6 +94,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -197,30 +200,53 @@ def requirements(path):
             for i, f in fields(path).items()}
 
 
-def clean_head(root, *evidence):
-    """The checkout is HEAD's tree: no change to a tracked file and no
-    untracked file, outside the evidence dirs, the state and docs -- so a
-    local probe that ran here ran on what is committed."""
-    keep = [f":!{os.path.relpath(e if e.is_dir() else e.parent, root)}" for e in evidence]
-    st = git(root, "status", "--porcelain", "--untracked-files=all", "--", ".",
-             *keep, f":!{STATE}", ":!*.md")
-    return st.returncode == 0 and not out(st).strip()
+class HeadTree:
+    """A throwaway checkout of HEAD (a detached worktree), made on first use:
+    a probe re-run there ran on what is committed -- no uncommitted change and
+    no untracked or ignored file beside it."""
+    def __init__(self, root):
+        self.root, self.path, self.tmp = root, None, None
+
+    def get(self):
+        if self.path is None:
+            self.tmp = tempfile.mkdtemp()
+            tree = pathlib.Path(self.tmp) / "head"
+            if git(self.root, "worktree", "add", "--detach", "--quiet", str(tree),
+                   "HEAD").returncode:
+                raise SystemExit(f"cannot check out HEAD of {self.root} for a re-run")
+            self.path = tree
+        return self.path
+
+    def close(self):
+        if self.path is not None:
+            git(self.root, "worktree", "remove", "--force", str(self.path))
+        if self.tmp:
+            shutil.rmtree(self.tmp, ignore_errors=True)
 
 
 def drifted(root, sha, *evidence):
     """Why evidence recorded at `sha` does not prove what ships now, or None:
     'bad' (not a full commit id), 'orphan' (not in HEAD's history), 'stale'
-    (the tree changed outside the evidence dirs, the state and docs since)."""
+    (the tree changed since outside the evidence dirs, the state and the
+    ledger -- a Markdown prompt is code, so no suffix is exempt)."""
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         return "bad"
     if git(root, "merge-base", "--is-ancestor", sha, "HEAD").returncode:
         return "orphan"
     if git(root, "diff", "--quiet", sha, "--", ".",
            *(f":!{os.path.relpath(e, root)}" for e in evidence), f":!{STATE}",
-           ":!*.md").returncode or \
+           ":!TASKS.md").returncode or \
             git(root, "diff", "--quiet", sha, "--", f"{STATE}/tools").returncode:
         return "stale"
     return None
+
+
+def contract(root, reqfile):
+    """The feature's contract dir (requirements, design, verdicts, evidence):
+    signed by hash, so a change there is drift, never staleness. A
+    requirements.md at the root is only itself."""
+    d = reqfile.parent
+    return reqfile if d.resolve() == pathlib.Path(root).resolve() else d
 
 
 def hostname(target):
@@ -312,6 +338,16 @@ def probe(cmd, root):
 
 
 def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, proven):
+    tree = HeadTree(root)
+    try:
+        return _check_evidence(root, reqfile, evidence, only, live_hosts, rerun,
+                               record, proven, tree)
+    finally:
+        tree.close()
+
+
+def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, proven,
+                    tree):
     req = requirements(reqfile)
     if not req:
         return [f"{reqfile}: no Rn/Nn items -- nothing is verified"]
@@ -377,7 +413,7 @@ def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pro
         if h and h not in cmd.lower():
             hits.append(f"{tag}: the probe command never names {h}")
         sha = e["sha"].lower()
-        why = drifted(root, sha, evidence, reqfile.parent / "formal")
+        why = drifted(root, sha, evidence, contract(root, reqfile))
         if why == "bad":
             hits.append(f"{tag}: sha {sha!r} is not a full commit id")
         stale, orphan = why == "stale", why == "orphan"
@@ -388,7 +424,7 @@ def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pro
             if bad:
                 hits.append(f"{tag}: {bad} -- not live")
             try:
-                rc, text = probe(e["command"], root)
+                rc, text = probe(e["command"], tree.get())
                 if rc:
                     hits.append(f"{tag}: re-run exited {rc}: {text.strip()[:120]}")
                 elif not (m := expect.search(text)):
@@ -396,8 +432,8 @@ def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pro
                 elif not bad:
                     # The service answered -- it is HEAD's proof only if the
                     # environment is proven to run HEAD (--deployed). A local
-                    # probe ran on this checkout: proof if it is HEAD's tree.
-                    fresh = proven or (not live and clean_head(root, evidence, reqfile))
+                    # probe ran on a checkout of HEAD: it is HEAD's proof.
+                    fresh = proven or not live
                     excerpt = text[max(0, m.start() - 80):m.end() + 80].strip()
             except subprocess.TimeoutExpired:
                 hits.append(f"{tag}: re-run timed out after 300s")
@@ -709,25 +745,43 @@ def self_test():
         if not check("a re-run that never reached the service", run(root, rerun=True),
                      "re-run output does not match"):
             return 1
-    # A local item: a re-run on a clean checkout of HEAD refreshes it; on a
-    # dirty tree it does not (the probe ran on code nobody committed).
+    # A local item: a re-run refreshes it, because it runs on a checkout of
+    # HEAD -- an untracked, ignored or uncommitted file beside it takes no part.
     with tempfile.TemporaryDirectory() as d:
         root = pathlib.Path(d)
         lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
-        sha = commit(d, {**base, **lreq})
+        sha = commit(d, {**base, **lreq, ".gitignore": "out/\n"})
         ev(d, sha, verify="local", target="this checkout", command="echo 'temp: 21'",
            expect=r"temp: \d+", observed="temp: 21")
         write(d, {"src/app.js": "export const temp = 2;\n"})
         git(d, "add", "-A")
         git(d, *quiet, "commit", "-qm", "y")
-        if not check("a local re-run on a clean HEAD", run(root, rerun=True), None):
+        if not check("a local re-run on HEAD", run(root, rerun=True), None):
             return 1
-        write(d, {"src/helper.sh": "echo 'temp: 21'\n"})
-        if not check("a local re-run beside an untracked file", run(root, rerun=True), "stale"):
-            return 1
-        (root / "src/helper.sh").unlink()
+        for name, f in (("an untracked", "src/helper.sh"), ("an ignored", "out/helper.sh")):
+            write(d, {f: "echo 'temp: 21'\n"})
+            ev(d, sha, verify="local", target="this checkout", command=f"sh {f}",
+               expect=r"temp: \d+", observed="temp: 21")
+            if not check(f"a local probe that needs {name} file", run(root, rerun=True),
+                         "re-run exited"):
+                return 1
+            (root / f).unlink()
         write(d, {"src/app.js": "export const temp = 3;\n"})
-        if not check("a local re-run on a dirty tree", run(root, rerun=True), "stale"):
+        ev(d, sha, verify="local", target="this checkout", command="cat src/app.js",
+           expect=r"temp = 3", observed="temp = 3")
+        if not check("a local probe that needs an uncommitted edit", run(root, rerun=True),
+                     "re-run output does not match"):
+            return 1
+        write(d, {"src/app.js": "export const temp = 2;\n"})
+        ev(d, out(git(d, "rev-parse", "HEAD")).strip(), verify="local",
+           target="this checkout", command="echo 'temp: 21'", expect=r"temp: \d+",
+           observed="temp: 21")
+        if not check("evidence at HEAD", run(root), None):
+            return 1
+        write(d, {"AGENTS.md": "a prompt is code\n"})
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "prompt")
+        if not check("evidence older than a changed Markdown prompt", run(root), "stale"):
             return 1
     # Two features: one PR's run, staleness after another feature lands, a
     # re-run that refreshes it, and environments that do not overwrite each other.
