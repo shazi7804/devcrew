@@ -6,6 +6,6 @@
   "expect": "(?s)## Formal verification.*\\n[1-9]\\d*\\s*$",
   "observed": "85:## Formal verification\n8",
   "result": "pass",
-  "sha": "6eda50bcefc755126d90eb60e547b6dc868f5910",
-  "at": "2026-10-09T08:25:05+00:00"
+  "sha": "912fe8992f72dbb118713e2b70d27cbdd9f03b2d",
+  "at": "2026-10-09T08:37:28+00:00"
 }
