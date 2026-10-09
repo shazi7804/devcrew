@@ -131,8 +131,7 @@ def hatches(path, text):
 def run_cmd(cmd, root):
     """(exit code or None on timeout, output)"""
     try:
-        r = subprocess.run(cmd, shell=True, cwd=root, capture_output=True, timeout=3600)
-        return r.returncode, (r.stdout + r.stderr).decode("utf-8", "replace")
+        return check_live.run_shell(cmd, root, 3600)
     except subprocess.TimeoutExpired:
         return None, ""
 
@@ -171,6 +170,8 @@ def sources(reqfile, evidence=None, only=None):
 def check(root, reqfile, evidence=None, only=None, rerun=False, tree=None):
     own = tree is None
     tree = tree or check_live.HeadTree(root, sources(reqfile, evidence, only))
+    if own and rerun:
+        tree.want_dir(evidence or reqfile.parent / "formal")
     try:
         return _check(root, reqfile, evidence, only, rerun, tree)
     finally:
@@ -207,11 +208,13 @@ def _check(root, reqfile, evidence, only, rerun, tree):
             hits.append(f"{tag}: Conformance `{conf}` is not one of {' | '.join(CONFORMANCE)}")
             continue
         f = evidence / f"{rid}.json"
-        if not f.is_file():
+        got = (tree.blob(check_live.rel_to(root, f)) if rerun else
+               (f.read_bytes() if f.is_file() else None))
+        if got is None:
             hits.append(f"{tag}: no formal evidence ({f.name}) -- unchecked")
             continue
         try:
-            e = json.loads(f.read_text(encoding="utf-8"))
+            e = json.loads(got.decode("utf-8"))
             assert isinstance(e, dict)
         except (ValueError, AssertionError):
             hits.append(f"{tag}: formal evidence is not a JSON object")
@@ -362,6 +365,8 @@ def self_test():
         p = pathlib.Path(d, "req/formal/R1.json")
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(json.dumps(e), encoding="utf-8")
+        git(d, "add", "req/formal/R1.json")    # a re-run proves HEAD's record
+        git(d, *quiet, "commit", "-qm", "evidence", "--", "req/formal/R1.json")
 
     cases = [
         ("a clean set", {}, {}, None, False),

@@ -97,6 +97,7 @@ import pathlib
 import posixpath
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -228,10 +229,18 @@ class HeadTree:
     shared refs, config, hooks and object store -- what a later probe runs can
     differ, though what the scan reads was read before the first probe. The sensor cannot sandbox a command; a
     reviewer reads the probe commands in the diff."""
+    def want_dir(self, d):
+        """Read every file under `d` (an evidence dir) up front as well."""
+        if self.blobs is not None:
+            raise SystemExit("HeadTree: a directory named after HEAD was read")
+        if (name := canon(rel_to(self.root, d))):
+            self.dirs.add(name)
+
     def __init__(self, root, want=()):
         self.root, self.path, self.tmp, self.sha, self.blobs = root, None, None, None, None
         self.index = None
         self.want = {canon(w) for w in want} - {None}  # read beyond the code
+        self.dirs, self.gitdir, self.dotgit = set(), None, None
 
     def head(self):
         if self.sha is None:
@@ -240,9 +249,21 @@ class HeadTree:
                 raise SystemExit(f"cannot read HEAD of {self.root}")
         return self.sha
 
+    def _filtered(self, names):
+        """The names a clean/smudge filter applies to at the pinned commit (an
+        LFS file is a pointer in its blob and its content on disk)."""
+        r = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "check-attr", "-z",
+                            "--stdin", f"--source={self.head()}", "filter"],
+                           input="\0".join(names).encode("utf-8", "surrogateescape"),
+                           capture_output=True)
+        if r.returncode:
+            raise SystemExit(f"cannot read HEAD's attributes in {self.root}")
+        f = r.stdout.decode("utf-8", "surrogateescape").split("\0")
+        return {f[i] for i in range(0, len(f) - 2, 3) if f[i + 2] not in ("unspecified", "unset")}
+
     def _cat(self, oids):
-        """[bytes] of these objects, streamed one at a time (no filter, no
-        replace object); a missing one is a message, not a traceback."""
+        """[bytes] of these objects, streamed one at a time (no replace object);
+        a missing one is a message, not a traceback."""
         with tempfile.TemporaryFile() as ids:
             ids.write("".join(f"{o}\n" for o in oids).encode())
             ids.seek(0)
@@ -298,6 +319,9 @@ class HeadTree:
                     at = "/".join(parts[:i])
                     fold.setdefault(unicodedata.normalize("NFD", at).casefold(), set()).add(at)
             clash = {at for group in fold.values() if len(group) > 1 for at in group}
+            dirs = {r.rsplit("/", 1)[0] for r in ents if "/" in r}
+            dirs |= {d.rsplit("/", i)[0] for d in list(dirs) for i in range(d.count("/") + 1)}
+            DIR = object()
             hit = {}                                # name read -> the folded name it passed
 
             def passes(rel, at):
@@ -325,24 +349,41 @@ class HeadTree:
                         continue
                     done.append(c)
                 at = "/".join(done)
+                if at in dirs:
+                    return DIR                      # an in-tree directory: listed on its own
                 return at if at in ents and at not in dest else None
             read = {r: resolve(r) if r in dest else r for r in ents
-                    if is_code(r) or r in self.want or r in dest}
-            for r in read:
+                    if is_code(r) or r in self.want or r in dest
+                    or any(r.startswith(d + "/") for d in self.dirs)}
+            for r in ents:                          # every name, read or not
                 parts = r.split("/")
                 for i in range(1, len(parts) + 1):
                     passes(r, "/".join(parts[:i]))
-            need = sorted({t for r, t in read.items() if t and r not in hit})
+            need = sorted({t for r, t in read.items() if t and t is not DIR and r not in hit})
             body = dict(zip(need, self._cat([ents[t][1] for t in need])))
+            # a filtered file reads as the repository's own filter writes it to
+            # disk -- read now, before any probe, with the user's own config
+            for t in self._filtered(need):
+                r = subprocess.run(["git", "-C", str(self.root), *QUIET_GIT, "cat-file",
+                                    "--filters", f"{self.head()}:{t}"], capture_output=True)
+                if r.returncode:
+                    raise SystemExit(f"cannot read {t} through its filter at HEAD")
+                body[t] = r.stdout
             self.blobs = {}
+            for r in hit.keys() - read.keys():      # a data file a probe may read
+                self.blobs[r] = (f"{hit[r]} collides with another name of HEAD's tree "
+                                 "on a case-insensitive filesystem -- which one is on disk "
+                                 "depends on the checkout")
             for r, t in read.items():
+                if t is DIR:
+                    continue
                 if r in hit:
                     self.blobs[r] = (f"{hit[r]} collides with another name of HEAD's tree "
                                      "on a case-insensitive filesystem -- which runs depends "
                                      "on the checkout")
                 elif t:
                     self.blobs[r] = body[t]
-                elif is_code(r) or r in self.want:
+                else:                               # any link that leaves the tree
                     self.blobs[r] = ("a symlink that does not resolve to a file of HEAD's "
                                      "tree -- what it runs cannot be scanned")
         return self.blobs
@@ -365,24 +406,39 @@ class HeadTree:
         got = self.files().get(name) if name else None
         return got if isinstance(got, bytes) else None
 
+    def _add(self):
+        tree = pathlib.Path(self.tmp) / "head"
+        if git(self.root, *QUIET_GIT, "worktree", "add", "--detach", "--quiet",
+               str(tree), self.head()).returncode:
+            raise SystemExit(f"cannot check out HEAD of {self.root} for a re-run")
+        self.path = tree
+        # its git dir, read now, before any probe: later the checkout's own
+        # answer is not trusted -- without its .git, git would find the
+        # repository around the temp dir and reset that one
+        self.gitdir = pathlib.Path(out(git(tree, "rev-parse", "--absolute-git-dir")).strip())
+        self.dotgit = (tree / ".git").read_bytes()
+
     def get(self):
         if self.path is None:
             self.files()
             self.tmp = tempfile.mkdtemp()
-            tree = pathlib.Path(self.tmp) / "head"
-            if git(self.root, *QUIET_GIT, "worktree", "add", "--detach", "--quiet",
-                   str(tree), self.head()).returncode:
-                raise SystemExit(f"cannot check out HEAD of {self.root} for a re-run")
-            self.path = tree
-            return tree
+            self._add()
+            return self.path
         for p in pathlib.Path(self.tmp).iterdir():
             if p != self.path:
                 shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink()
-        gitdir = pathlib.Path(out(git(self.path, "rev-parse", "--absolute-git-dir")).strip())
+        dotgit = self.path / ".git"
+        if dotgit.is_symlink() or not dotgit.is_file() or dotgit.read_bytes() != self.dotgit:
+            shutil.rmtree(self.path, ignore_errors=True)          # make it again
+            git(self.root, "worktree", "prune")
+            self._add()
+            return self.path
         for f in ("index", "info/sparse-checkout", "config.worktree"):
-            if gitdir.name and (gitdir / f).exists():
-                (gitdir / f).unlink()
-        if any(git(self.path, *QUIET_GIT, *c).returncode for c in (
+            if (self.gitdir / f).exists():
+                (self.gitdir / f).unlink()
+        wt = ["git", f"--git-dir={self.gitdir}", f"--work-tree={self.path}", "-C",
+              str(self.path), *QUIET_GIT]
+        if any(subprocess.run([*wt, *c], capture_output=True).returncode for c in (
                 ("checkout", "-q", "--detach", "-f", self.sha),
                 ("reset", "-q", "--hard", self.sha), ("clean", "-qffdx"))):
             raise SystemExit(f"cannot reset the checkout of HEAD at {self.path}")
@@ -405,11 +461,14 @@ def drifted(root, sha, *evidence):
         return "bad"
     if git(root, "merge-base", "--is-ancestor", sha, "HEAD").returncode:
         return "orphan"
-    if git(root, "diff", "--quiet", sha, "--", ".",
-           # an evidence dir is exempt for its records only, not a helper put there
-           *(f":(exclude,glob){os.path.relpath(e, root)}" + ("/**/*.json" if e.is_dir() else "")
-             for e in evidence), f":!{STATE}", ":!TASKS.md").returncode or \
-            git(root, "diff", "--quiet", sha, "--", f"{STATE}/tools").returncode:
+    spec = ["--", ".",
+            # an evidence dir is exempt for its records only, not a helper put there
+            *(f":(exclude,glob){os.path.relpath(e, root)}" + ("/**/*.json" if e.is_dir() else "")
+              for e in evidence), f":!{STATE}", ":!TASKS.md"]
+    # against the working tree and against HEAD: an uncommitted edit that puts
+    # a file back as it was at `sha` does not make HEAD's change go away
+    if any(git(root, "diff", "--quiet", sha, *at, *s).returncode
+           for at in ((), ("HEAD",)) for s in (spec, ["--", f"{STATE}/tools"])):
         return "stale"
     return None
 
@@ -505,19 +564,36 @@ def not_live(target, live_hosts):
     return None
 
 
+def run_shell(cmd, cwd, timeout, env=None):
+    """(exit code, output) of a shell command in its own process group, which
+    is killed when the command ends: nothing it left running in the
+    background takes part in the next one. Raises TimeoutExpired."""
+    p = subprocess.Popen(cmd, shell=True, cwd=cwd, env=env, start_new_session=True,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
+        text, _ = p.communicate(timeout=timeout)
+        return p.returncode, text.decode("utf-8", "replace")
+    finally:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        p.wait()
+
+
 def probe(cmd, root):
     keep = {"PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "SYSTEMROOT"}
     keep |= set(re.findall(r"\$\{?([A-Za-z_]\w*)", cmd))
     env = {k: v for k, v in os.environ.items() if k in keep}
-    r = subprocess.run(cmd, shell=True, cwd=root, timeout=300, capture_output=True,
-                       env=env)
-    return r.returncode, (r.stdout + r.stderr).decode("utf-8", "replace")
+    return run_shell(cmd, root, 300, env)
 
 
 def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, proven,
                    tree=None):
     own = tree is None
     tree = tree or HeadTree(root)
+    if own and rerun:
+        tree.want_dir(evidence)
     try:
         return _check_evidence(root, reqfile, evidence, only, live_hosts, rerun,
                                record, proven, tree)
@@ -544,10 +620,13 @@ def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pr
             hits.append(f"{tag}: Verify `{level}` is not a level ({' | '.join(LEVELS)})")
             continue
         f = evidence / f"{rid}.json"
-        if not f.is_file():
-            hits.append(f"{tag}: no evidence ({os.path.relpath(f, root)}) -- unverified")
+        # a re-run proves HEAD, so it runs HEAD's record of the probe
+        got = tree.blob(rel_to(root, f)) if rerun else (f.read_bytes() if f.is_file() else None)
+        if got is None:
+            hits.append(f"{tag}: no evidence ({os.path.relpath(f, root)})"
+                        f"{' at HEAD' if rerun else ''} -- unverified")
             continue
-        raw = f.read_text(encoding="utf-8", errors="replace")
+        raw = got.decode("utf-8", "replace")
         try:
             e = json.loads(raw)
             assert isinstance(e, dict)
@@ -708,14 +787,14 @@ def check_code(root, src, tests, rules, tree=None):
     hits = []
     for rel in names:
         p = root / rel
+        if blobs is not None and isinstance(blobs.get(rel), str):
+            hits.append(f"{rel}: {blobs[rel]}")   # read up front as unscannable
+            continue
         if not rel or not is_code(rel) or TEST_DIR.search(rel) or TEST_FILE.search(rel) \
                 or NOT_CODE.search(rel) or any(fnmatch.fnmatch(rel, g) for g in tests) \
                 or (blobs is None and not p.is_file()):
             continue
         data = p.read_bytes() if blobs is None else blobs[rel]
-        if isinstance(data, str):
-            hits.append(f"{rel}: {data}")       # read up front as unscannable
-            continue
         if b"\0" in data[:8192]:
             continue
         for n, line in enumerate(data.decode("utf-8", "replace").splitlines(), 1):
@@ -751,6 +830,8 @@ def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rer
          record, deployed, tree):
     reqfiles = reqfiles or default_requirements(root)
     if rerun:
+        for rf in reqfiles:
+            tree.want_dir(evidence or rf.parent / "evidence")
         tree.files()        # HEAD's blobs before any command runs, --deployed's too
     if (only or evidence) and len(reqfiles) != 1:
         raise SystemExit("--only / --evidence apply to one feature: pass "
@@ -813,12 +894,15 @@ def self_test():
         git(d, *quiet, "commit", "-qm", "x")
         return out(git(d, "rev-parse", "HEAD")).strip()
 
-    def ev(d, head, rid="R1", where=f"{STATE}/evidence", **kw):
+    def ev(d, head, rid="R1", where=f"{STATE}/evidence", commit=True, **kw):
         e = {"id": rid, "verify": "live", "target": "https://api.prod.acme.io/v1/weather",
              "command": "curl -fsS https://api.prod.acme.io/v1/weather",
              "expect": r'"temp":\s*-?\d+', "observed": '{"temp": 21}',
              "result": "pass", "sha": head, "at": "2026-10-06T00:00:00Z", **kw}
         write(d, {f"{where}/{rid}.json": json.dumps(e)})
+        if commit:      # a re-run proves HEAD's record of the probe, so commit it
+            git(d, "add", f"{where}/{rid}.json")
+            git(d, *quiet, "commit", "-qm", "evidence", "--", f"{where}/{rid}.json")
 
     ran = []
 
@@ -1283,6 +1367,92 @@ def self_test():
         ev(d, "0" * 40, where=f"{fa}/evidence/pre", command=offline)
         if not check("a squashed history, re-run on HEAD",
                      attempt(root, env="pre", rerun=True, **on_head), None):
+            return 1
+    # Security's accidents (R3's threat model), each a test before its fix.
+    # (1) evidence is stale against HEAD, whatever the working tree holds
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        sha = commit(d, base)
+        ev(d, sha, command="echo https://api.prod.acme.io/v1/weather '\"temp\": 21'")
+        write(d, {"src/app.js": "export const temp = 2;\n"})
+        git(d, "add", "src/app.js")
+        git(d, *quiet, "commit", "-qm", "v2")
+        write(d, {"src/app.js": base["src/app.js"]})            # uncommitted, back to A
+        if not check("evidence stale at HEAD, the working tree back at its sha",
+                     run(root, rerun=True), "stale"):
+            return 1
+    # (2) a repo's own clean/smudge filter (LFS-like): the re-run reads what is
+    # checked out, as the plain scan does
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        git(d, "init", "-q")
+        git(d, "config", "filter.fake.clean", "sed s/mockData/POINTER/")
+        git(d, "config", "filter.fake.smudge", "sed s/POINTER/mockData/")
+        lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
+        sha = commit(d, {**lreq, ".gitattributes": "*.js filter=fake\n",
+                         "src/app.js": "export const t = mockData;\n"})
+        ev(d, sha, verify="local", target="this checkout", command="echo 'temp: 21'",
+           expect=r"temp: \d+", observed="temp: 21")
+        for rr in (False, True):
+            if not check(f"a fake behind the repo's own filter{' on a re-run' if rr else ''}",
+                         run(root, rerun=rr), "src/app.js:1"):
+                return 1
+    # QA's: a re-run runs HEAD's record of the probe, not an uncommitted edit of
+    # it; a data file in a case clash, and a link that leaves the tree, are
+    # reported whatever their name
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
+        sha = commit(d, lreq)
+        ev(d, sha, verify="local", target="this checkout", command="exit 3",
+           expect=r"temp: \d+", observed="temp: 21")
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "evidence")
+        ev(d, sha, verify="local", target="this checkout", command="echo 'temp: 21'",
+           expect=r"temp: \d+", observed="temp: 21", commit=False)   # uncommitted edit
+        if not check("a re-run of an uncommitted edit of the evidence",
+                     run(root, rerun=True), "re-run exited 3"):
+            return 1
+        git(d, *quiet, "checkout", "-q", "--", ".")
+        for rel, mode, body in (("data/Value.txt", "100644", b"1\n"),
+                                ("data/value.txt", "100644", b"2\n"),
+                                ("data/hosts.txt", "120000", b"/etc/hosts")):
+            oid = subprocess.run(["git", "-C", d, "hash-object", "-w", "--stdin"],
+                                 input=body, capture_output=True).stdout.decode().strip()
+            git(d, "update-index", "--add", "--cacheinfo", f"{mode},{oid},{rel}")
+        git(d, *quiet, "commit", "-qm", "data")
+        got = run(root, rerun=True)
+        for name, want in (("a data file in a case clash", "data/value.txt: data/value.txt collides"),
+                           ("a data link that leaves the tree", "data/hosts.txt: a symlink")):
+            if not check(f"{name}, on a re-run", got, want):
+                return 1
+    # (3) a process a probe left running takes no part in the next probe;
+    # (4) a probe that removes its checkout's .git cannot turn the reset on the
+    # repository around the temp dir
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        commit(d, {".gitignore": ".tmp/\n", "src/app.js": "x()\n"})
+        write(d, {"src/app.js": "y()  // the user's uncommitted work\n"})
+        (root / ".tmp").mkdir()
+        before, tempfile.tempdir = tempfile.tempdir, str(root / ".tmp")
+        tree = HeadTree(root)
+        try:
+            probe("(while :; do echo 'echo temp: 21' > planted.sh; sleep 0.1; done)"
+                  " >/dev/null 2>&1 &", tree.get())
+            bg = probe("sleep 0.5; sh planted.sh", tree.get())[0]
+            probe("rm -rf .git", tree.get())
+            again = tree.get()
+            ok = (again / "src/app.js").read_text() == "x()\n"
+        finally:
+            tree.close()
+            tempfile.tempdir = before
+        if not check("a process an earlier probe left running",
+                     [] if bg else ["it took part"], None):
+            return 1
+        if not check("a probe that removes its checkout's .git",
+                     [] if ok and (root / "src/app.js").read_text().startswith("y()") and
+                     out(git(d, "symbolic-ref", "-q", "HEAD")).strip()
+                     else ["the user's repository was reset"], None):
             return 1
     print(f"self-test ok ({len(ran)} cases)")
     return 0

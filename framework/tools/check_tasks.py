@@ -199,6 +199,9 @@ def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
         # one HEAD for both re-runs, reading up front what the checks will read
         tree = check_live.HeadTree(root, check_formal.sources(reqfile, only=done) +
                                    ([check_live.rel_to(root, allow)] if allow else []))
+        if rerun:
+            tree.want_dir(ev / env if env else ev)
+            tree.want_dir(reqfile.parent / "formal")
         try:
             live = check_live.check_evidence(root, reqfile, ev / env if env else ev, done,
                                              (), rerun, False, False, tree)
@@ -391,6 +394,8 @@ def self_test():
             {"id": "R1", "verify": "local", "target": "this checkout", "command": "echo ok",
              "expect": "ok", "observed": "ok", "result": "pass", "sha": sha,
              "at": "2026-10-09T00:00:00Z"}), encoding="utf-8")
+        subprocess.run(["git", "-C", d, "add", "-A"], check=True)     # HEAD's record
+        subprocess.run(["git", "-C", d, *q, "commit", "-qm", "ev"], check=True)
         tasks = root / "req/TASKS.md"
         tasks.write_text(sign(tasks, ["requirements.md"]) + "\n\n## Done\n- [x] R1 a\n"
                          "\n## In progress\n\n## Todo\n", encoding="utf-8")

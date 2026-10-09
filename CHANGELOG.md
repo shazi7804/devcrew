@@ -71,7 +71,14 @@ so the bounds became code first.
   does to a checkout or the object store changes what they see, and a large
   tree costs only its code. A symlink resolves as the kernel does; one that
   leaves the tree, or two names that differ only in case, are reported, not
-  guessed. `--src` is read as git reads a pathspec, in both modes. What no reset undoes is stated: a probe runs with the user's
+  guessed. `--src` is read as git reads a pathspec, in both modes.
+  Found by a context-free QA and Security round and fixed test-first:
+  evidence is stale against HEAD as well as the working tree; a re-run runs
+  HEAD's record of the probe; a file behind the repository's own filter
+  (LFS) is read as checked out; a probe's background processes die with it;
+  the checkout's git dir is recorded before any probe, so a probe that
+  removes `.git` cannot turn the reset on the repository around it; every
+  case clash and every link that leaves the tree is reported. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,
