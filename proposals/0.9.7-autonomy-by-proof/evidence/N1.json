@@ -6,6 +6,6 @@
   "expect": "(?s)11 of 11 mapped.*glm-2-former-architecture-gate.*resolved: true.*recorded under",
   "observed": "7:former-gate map was checked row by row against 49d78dd: 11 of 11 mapped.\n131:  - id: glm-2-former-architecture-gate\n132-    resolved: true\n294:  is the signature, recorded under invariant 8. It waives nothing else: CI,\n297:- **CEO decisions (2026-10-08), recorded under invariant 8:**\n316:  這樣效率太差. 全部 commit and sign. 不要再問我簽不簽的問題」 — recorded under",
   "result": "pass",
-  "sha": "9131d0a0e08527e83476cd29d34a5f24e2ab6545",
-  "at": "2026-10-09T12:08:26+00:00"
+  "sha": "9283ba5fe3c4f7301c621724779faea190f920de",
+  "at": "2026-10-09T12:55:20+00:00"
 }
