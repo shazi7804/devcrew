@@ -415,7 +415,15 @@ def self_test():
         if not any("commit or stash" in h for h in check(root, tasks, rerun=True)):
             print("self-test FAILED: a re-run beside an untracked file is not refused")
             return 1
-    print(f"self-test ok ({len(cases) + len(drift) + 4} cases)")
+        (root / "untracked.txt").unlink()
+        subprocess.run(["git", "-C", d, "update-index", "--skip-worktree", "req/TASKS.md"],
+                       check=True)
+        tasks.write_text(tasks.read_text(encoding="utf-8").replace("## Done\n- [x] R1 a\n",
+                         "## Done\n"), encoding="utf-8")
+        if not any("commit or stash" in h for h in check(root, tasks, rerun=True)):
+            print("self-test FAILED: a re-run beside an edit hidden by --skip-worktree")
+            return 1
+    print(f"self-test ok ({len(cases) + len(drift) + 5} cases)")
     return 0
 
 

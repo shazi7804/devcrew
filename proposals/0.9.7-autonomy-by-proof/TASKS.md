@@ -23,8 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 1/5 stalled 0/3 · next: one context-free QA + Security round on the clean-tree rule (C16)
-- [~] R10 check_formal.py — verifying · qa · 1/5 stalled 0/3 · next: with R3 (C16)
+- [~] R3 Done only with live + formal evidence — verifying · qa · 2/5 stalled 0/3 · next: Security's index-flag blocker fixed test-first; QA's round on the clean-tree rule is still judging
+- [~] R10 check_formal.py — verifying · qa · 2/5 stalled 0/3 · next: with R3 (C16)
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows

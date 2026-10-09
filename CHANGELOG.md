@@ -85,7 +85,10 @@ so the bounds became code first.
   `--src`; a submodule a probe initialised makes the checkout be made again.
   Then the whole class closed at once (the CEO's ruling): a re-run refuses a
   working tree with any uncommitted or untracked file, so nothing in it can
-  decide what HEAD is judged against, and `--deployed` runs in HEAD's checkout. What no reset undoes is stated: a probe runs with the user's
+  decide what HEAD is judged against (git status runs with fsmonitor, ignoreStat
+  and the untracked cache off, and an index flag that hides an edit --
+  skip-worktree, assume-unchanged -- is itself unclean), and `--deployed`
+  runs in HEAD's checkout. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,

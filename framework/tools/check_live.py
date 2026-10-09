@@ -175,10 +175,18 @@ def unclean(root):
     working tree must be HEAD: with an uncommitted or untracked file, what it
     holds (a requirements file, an evidence record, a signed hash, a helper)
     could decide the verdict. Ignored files are the environment, not the tree."""
-    st = git(root, "status", "--porcelain", "--untracked-files=all")
-    if st.returncode:
+    # status without anything that lets git skip looking: no fsmonitor, no
+    # ignoreStat, no untracked cache; and an index flag that hides an edit
+    # from status (skip-worktree, assume-unchanged) is itself unclean
+    st = git(root, "-c", "core.fsmonitor=false", "-c", "core.ignoreStat=false",
+             "-c", "core.untrackedCache=false", "status", "--porcelain",
+             "--untracked-files=all", "--ignore-submodules=none")
+    ls = git(root, "ls-files", "-v")
+    if st.returncode or ls.returncode:
         return f"not a git repository: {root}"
     dirty = [ln[3:] for ln in out(st).splitlines() if ln.strip()]
+    dirty += [f"{ln[2:]} (flagged {ln[0]!r} in the index)" for ln in out(ls).splitlines()
+              if ln and not ln.startswith("H ")]
     if dirty:
         more = f" (+{len(dirty) - 3} more)" if len(dirty) > 3 else ""
         return (f"a re-run judges HEAD: commit or stash {', '.join(dirty[:3])}{more} first "
@@ -1565,6 +1573,14 @@ def self_test():
                 return 1
             git(d, *quiet, "checkout", "-q", "--", ".")
             (root / "helper.sh").unlink(missing_ok=True)
+        for flag in ("--skip-worktree", "--assume-unchanged"):     # an edit git status hides
+            write(d, {req: "- **R1** — x\n  - *Verify*: live\n"})
+            git(d, "update-index", flag, req)
+            if not check(f"a re-run beside an edit hidden by {flag}", attempt(root, rerun=True),
+                         "commit or stash"):
+                return 1
+            git(d, "update-index", flag.replace("--", "--no-"), req)
+            git(d, *quiet, "checkout", "-q", "--", ".")
         write(d, {"v.local.sh": f"echo {out(git(d, 'rev-parse', 'HEAD')).strip()}\n"})  # ignored
         dep = [f"echo https://api.prod.acme.io/version && sh v.local.sh"]
         if not check("a --deployed probe that needs a file HEAD does not have",
