@@ -28,7 +28,7 @@ so the bounds became code first.
   - a design-batch file (`design.md`, an ADR) that moved: `cross-design`.
 
   `--rerun` re-runs every Done item's live probes and formal checks: stored
-  evidence is its writer's claim, a re-run is the proof. 42 self-test cases.
+  evidence is its writer's claim, a re-run is the proof. 48 self-test cases.
   Every host uses it; a host primitive may mirror it.
 - **Three batch sign-offs: intent, design, ship** (R6–R8). Every item the CEO
   signed before is still signed, now grouped, and SKILL.md maps each former
@@ -58,14 +58,16 @@ so the bounds became code first.
   - has a command that names none of its sources or does nothing;
   - has no `expect`, or output (stored or re-run) that doesn't match it.
 
-  44 self-test cases. Formal adds to live and never replaces it.
+  45 self-test cases. Formal adds to live and never replaces it.
 - **A re-run proves HEAD, and a prompt is code** (review round 4). Every
-  `--rerun` probe and formal check now runs in a throwaway checkout of HEAD,
-  reset before each probe, so no uncommitted, untracked or ignored file,
-  and nothing an earlier probe wrote, can take part in it. Evidence
-  goes stale on any change outside the evidence, the feature's contract dir
-  and TASKS.md: a Markdown file is no longer exempt, since a prompt is what
-  this framework ships.
+  `--rerun` probe and formal check now runs in one throwaway checkout of
+  HEAD per invocation, reset before each probe, so no uncommitted, untracked
+  or ignored file, and nothing an earlier probe wrote, can take part in it;
+  the no-fake scan and the escape-hatch scan read that checkout too. Evidence
+  goes stale on any change outside the run's record (the signed contracts,
+  TASKS.md, verdicts, evidence JSON): a Markdown file is no longer exempt,
+  since a prompt is what this framework ships, and neither is a model or a
+  helper kept beside the requirements.
 - **The framework's own protocols, model-checked** (R12–R13, TLA+ / TLC 1.7.4
   in CI):
   - `framework/formal/Election.tla` checks the orchestrator election: safety

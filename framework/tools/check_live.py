@@ -64,8 +64,9 @@ CHECK 1 -- EVIDENCE (every Rn/Nn in each requirements file)
     contain HEAD's sha. Only then is a passing
     re-run fresh proof -- a stale or rewritten-history sha is not a hit -- and
     only then may --record write it back (sha = HEAD), for an item with no
-    other hit. Every re-run runs in a throwaway checkout of HEAD, so no
-    uncommitted, untracked or ignored file can take part in it; a `local`
+    other hit. Every re-run runs in a throwaway checkout of HEAD, reset
+    before each probe, and with --rerun the code scan below reads it too, so
+    no uncommitted, untracked or ignored file can take part; a `local`
     probe touches no service, so its re-run there is HEAD's proof -- it
     needs no --deployed.
 
@@ -201,10 +202,11 @@ def requirements(path):
 
 
 class HeadTree:
-    """A throwaway checkout of HEAD (a detached worktree), made on first use
-    and reset before every probe: a re-run there ran on what is committed --
-    no uncommitted change, no untracked or ignored file, nothing an earlier
-    probe wrote."""
+    """A throwaway checkout of HEAD (a detached worktree), made on first use,
+    one per invocation, reset every time it is handed out: a re-run there ran
+    on what is committed, and a scan there read it -- no uncommitted change,
+    no untracked or ignored file, nothing an earlier probe wrote (`clean -ffdx`
+    removes a nested repository too)."""
     def __init__(self, root):
         self.root, self.path, self.tmp = root, None, None
 
@@ -217,7 +219,7 @@ class HeadTree:
                 raise SystemExit(f"cannot check out HEAD of {self.root} for a re-run")
             self.path = tree
         elif git(self.path, "reset", "-q", "--hard").returncode or \
-                git(self.path, "clean", "-qfdx").returncode:
+                git(self.path, "clean", "-qffdx").returncode:
             raise SystemExit(f"cannot reset the checkout of HEAD at {self.path}")
         return self.path
 
@@ -238,19 +240,24 @@ def drifted(root, sha, *evidence):
     if git(root, "merge-base", "--is-ancestor", sha, "HEAD").returncode:
         return "orphan"
     if git(root, "diff", "--quiet", sha, "--", ".",
-           *(f":!{os.path.relpath(e, root)}" for e in evidence), f":!{STATE}",
-           ":!TASKS.md").returncode or \
+           # an evidence dir is exempt for its records only, not a helper put there
+           *(f":(exclude,glob){os.path.relpath(e, root)}" + ("/**/*.json" if e.is_dir() else "")
+             for e in evidence), f":!{STATE}", ":!TASKS.md").returncode or \
             git(root, "diff", "--quiet", sha, "--", f"{STATE}/tools").returncode:
         return "stale"
     return None
 
 
 def contract(root, reqfile):
-    """The feature's contract dir (requirements, design, verdicts, evidence):
-    its signed files are checked by hash (drift), the rest is the run's
-    record, not code. A requirements.md at the root is only itself."""
+    """The run's record beside the requirements, which is not code: the
+    hash-signed contracts (a change there is drift, not staleness), TASKS.md,
+    the verdicts and the evidence records. Anything else there -- a model, a
+    probe's helper -- is code like the rest."""
     d = reqfile.parent
-    return reqfile if d.resolve() == pathlib.Path(root).resolve() else d
+    paths = [reqfile] + [d / f for f in ("design.md", "standards.md", "TASKS.md")]
+    if d.resolve() != pathlib.Path(root).resolve():
+        paths += [d / "verdicts" / "**", d / "evidence", d / "formal"]
+    return paths
 
 
 def hostname(target):
@@ -341,13 +348,16 @@ def probe(cmd, root):
     return r.returncode, (r.stdout + r.stderr).decode("utf-8", "replace")
 
 
-def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, proven):
-    tree = HeadTree(root)
+def check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, proven,
+                   tree=None):
+    own = tree is None
+    tree = tree or HeadTree(root)
     try:
         return _check_evidence(root, reqfile, evidence, only, live_hosts, rerun,
                                record, proven, tree)
     finally:
-        tree.close()
+        if own:
+            tree.close()
 
 
 def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, proven,
@@ -417,7 +427,7 @@ def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pr
         if h and h not in cmd.lower():
             hits.append(f"{tag}: the probe command never names {h}")
         sha = e["sha"].lower()
-        why = drifted(root, sha, evidence, contract(root, reqfile))
+        why = drifted(root, sha, evidence, *contract(root, reqfile))
         if why == "bad":
             hits.append(f"{tag}: sha {sha!r} is not a full commit id")
         stale, orphan = why == "stale", why == "orphan"
@@ -520,6 +530,16 @@ def default_requirements(root):
 
 def run(root, reqfiles=None, evidence=None, only=None, env=None, live_hosts=(),
         src=None, tests=(), allow=None, rerun=False, record=False, deployed=None):
+    tree = HeadTree(root)
+    try:
+        return _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow,
+                    rerun, record, deployed, tree)
+    finally:
+        tree.close()
+
+
+def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rerun,
+         record, deployed, tree):
     reqfiles = reqfiles or default_requirements(root)
     if (only or evidence) and len(reqfiles) != 1:
         raise SystemExit("--only / --evidence apply to one feature: pass "
@@ -556,8 +576,12 @@ def run(root, reqfiles=None, evidence=None, only=None, env=None, live_hosts=(),
             continue
         ev = evidence or rf.parent / "evidence"
         hits += check_evidence(root, rf, ev / env if env else ev, only, live_hosts,
-                               rerun, record, proven)
-    return hits + check_code(root, src, tests, allowed(allow))
+                               rerun, record, proven, tree)
+    # A re-run proves HEAD, so the scan reads HEAD too, not this checkout.
+    base = tree.get() if rerun else root
+    if allow and rerun:
+        allow = base / os.path.relpath(allow, root)
+    return hits + check_code(base, src, tests, allowed(allow))
 
 
 def self_test():
@@ -777,10 +801,15 @@ def self_test():
         try:
             probe("echo 'echo temp: 21' > planted.sh", tree.get())
             planted = probe("sh planted.sh", tree.get())[0]
+            probe("git init -q nested && echo 'echo temp: 21' > nested/p.sh", tree.get())
+            nested = probe("sh nested/p.sh", tree.get())[0]
         finally:
             tree.close()
         if not check("a probe that runs what an earlier probe planted",
                      [] if planted else ["the planted file took part"], None):
+            return 1
+        if not check("a probe that runs what an earlier probe planted in a nested repo",
+                     [] if nested else ["the nested repo took part"], None):
             return 1
         write(d, {"src/app.js": "export const temp = 3;\n"})
         ev(d, sha, verify="local", target="this checkout", command="cat src/app.js",
@@ -798,6 +827,38 @@ def self_test():
         git(d, "add", "-A")
         git(d, *quiet, "commit", "-qm", "prompt")
         if not check("evidence older than a changed Markdown prompt", run(root), "stale"):
+            return 1
+    # Beside a feature's requirements, only the record is exempt from staleness:
+    # the signed contracts, TASKS.md, verdicts and evidence JSON -- not a model
+    # or a helper put there. And a re-run scans HEAD, not an edit that hides a fake.
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        f = "proposals/x"
+        rf = [root / f / "requirements.md"]
+        sha = commit(d, {f"{f}/requirements.md": "- **R1** — x\n  - *Verify*: local\n",
+                         "src/app.js": base["src/app.js"],
+                         f"{f}/model.tla": "a\n", f"{f}/evidence/helper.sh": "a\n"})
+        ev(d, sha, where=f"{f}/evidence", verify="local", target="this checkout",
+           command="echo 'temp: 21'", expect=r"temp: \d+", observed="temp: 21")
+        write(d, {f"{f}/TASKS.md": "x\n", f"{f}/design.md": "x\n", f"{f}/verdicts/qa.md": "x\n"})
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "record")
+        if not check("a change to the record beside the requirements", run(root, rf), None):
+            return 1
+        for name, path in (("a model", f"{f}/model.tla"),
+                           ("a helper in the evidence dir", f"{f}/evidence/helper.sh")):
+            write(d, {path: "b\n"})
+            git(d, "add", "-A")
+            git(d, *quiet, "commit", "-qm", name)
+            if not check(f"{name} beside the requirements changed", run(root, rf), "stale"):
+                return 1
+            git(d, *quiet, "reset", "-q", "--hard", "HEAD~1")
+        write(d, {"src/app.js": "export const temp = mockTemp();\n"})
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "fake")
+        write(d, {"src/app.js": base["src/app.js"]})
+        if not check("a re-run scans HEAD, not an edit that hides a fake",
+                     run(root, rf, rerun=True), "src/app.js:1"):
             return 1
     # Two features: one PR's run, staleness after another feature lands, a
     # re-run that refreshes it, and environments that do not overwrite each other.

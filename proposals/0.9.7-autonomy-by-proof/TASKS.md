@@ -34,7 +34,8 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] C5 dropped D6-D8 (mechanising the judgment stops): under the CEO's second ruling a judgment is a Cn, not a stop
 - [ ] C7 after review round 4, amended the signed requirements and re-signed them (sha256:e3a031f9da07): R2/R3 now state the Cn exception the sensor already made, R13's Property says sampled runs, not every run -- undo: revert those hunks of 7d7aff4 and re-sign
 - [ ] C8 a local re-run is now HEAD's proof by running in a throwaway checkout of HEAD, instead of refusing a tree with untracked or ignored files beside it -- undo: restore clean_head (7d7aff4)
-- [ ] C9 after QA round 3 (PASS at 1d76120), reset the HEAD checkout before every probe so one probe cannot plant a file for the next; checked by a new self-test case and reviewer round 5, not by another QA round -- undo: drop the reset in HeadTree.get
+- [ ] C9 after QA round 3, the HEAD checkout is reset before every probe (clean -ffdx, so a nested repo goes too) and shared by one invocation (D11 closed), and on --rerun the no-fake and escape-hatch scans read it -- QA round 4 and reviewer round 6 check it -- undo: revert the HeadTree commits after 1d76120
+- [ ] C10 narrowed what is exempt from staleness beside a feature's requirements to the run's record (signed contracts, TASKS.md, verdicts/, evidence and formal JSON); a model or helper kept there now makes evidence stale -- undo: contract() returns the whole dir
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer
@@ -42,5 +43,4 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] D5 the demotion rule is stated in three places
 - [ ] D9 check_tasks --rerun runs identical commands repeatedly: memoize per invocation
 - [ ] D10 boot.py beat: import subprocess lazily; write the hint files only on change
-- [ ] D11 one HeadTree per invocation, shared by check_live and check_formal (check_tasks --rerun makes two, check_live one per requirements file)
 - [ ] D12 a SIGTERM during a re-run leaves the HEAD checkout registered (finally does not run on a signal): prune stale devcrew worktrees on the next run

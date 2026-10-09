@@ -74,9 +74,11 @@ MAX_ATTEMPTS, MAX_STALLED = 5, 3
 FORM = (f"— <status> · <owner> · <n>/{MAX_ATTEMPTS} stalled <k>/{MAX_STALLED} · "
         "next: <step>")
 STATUS = re.compile(r"(building|verifying|fixing|blocked on \S.*)$")
-JOINT = r"(?:--|[-—–·:,])"
-DONE_STATUS = re.compile(rf"{JOINT}\s*(?:(?:building|verifying|fixing)\s*(?:$|{JOINT})|"
-                         rf"blocked on\b|\d+/\d+\b)|\bnext:")
+LEAD = r"(?:--|(?<!\w)-|[—–·:,(\[|])"   # what may join a status onto a title
+TAIL = r"(?:$|--|[-—–·:,)\].|])"
+DONE_STATUS = re.compile(rf"(?i){LEAD}\s*(?:(?:building|verifying|fixing|blocked)\s*{TAIL}|"
+                         rf"blocked on\b|(?:attempts?\s+)?\d+/\d+\b)|\bstalled\s+\d+/\d+|"
+                         rf"\bnext:")
 GATE = re.compile(r"🔴 (intent|design|ship) — awaiting CEO")
 DRIFT = ("requirements.md", "standards.md")      # anything else signed: cross-design
 ITEM = re.compile(r"- \[(.)\] ([RNDC]\d+) (\S.*)$")
@@ -188,11 +190,15 @@ def check(root, tasks, evidence=True, env=None, rerun=False):
     done = [rid for _, _, rid, _ in sections.get("Done", []) if rid in req]
     if evidence and done and reqfile.is_file():
         ev = reqfile.parent / "evidence"
-        live = check_live.check_evidence(root, reqfile, ev / env if env else ev, done,
-                                         (), rerun, False, False)
-        hits += [f"Done but not live: {h}" for h in live]
-        hits += [f"Done but not formal: {h}"
-                 for h in check_formal.check(root, reqfile, only=done, rerun=rerun)]
+        tree = check_live.HeadTree(root)   # one checkout of HEAD for both re-runs
+        try:
+            live = check_live.check_evidence(root, reqfile, ev / env if env else ev, done,
+                                             (), rerun, False, False, tree)
+            hits += [f"Done but not live: {h}" for h in live]
+            hits += [f"Done but not formal: {h}" for h in
+                     check_formal.check(root, reqfile, only=done, rerun=rerun, tree=tree)]
+        finally:
+            tree.close()
     return hits
 
 
@@ -299,6 +305,18 @@ def self_test():
             "## Done\n", "## Done\n- [x] N1 c · verifying · qa\n"), "carries no status"),
         ("a Done line with an attempt count", lambda t: t.replace("- [ ] N1 c\n", "").replace(
             "## Done\n", "## Done\n- [x] N1 c · qa · 2/5\n"), "carries no status"),
+        ("a Done line ending in a bare blocked", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 c · blocked\n"), "carries no status"),
+        ("a Done line with a bracketed status", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 c (verifying)\n"), "carries no status"),
+        ("a Done line with a capitalised status", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 c · Verifying · qa\n"), "carries no status"),
+        ("a Done line with a stalled count", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 c · stalled 1/3\n"), "carries no status"),
+        ("a Done line with an attempt count", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 c · attempt 2/5\n"), "carries no status"),
+        ("a Done title with a hyphenated word", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 support re-verifying\n"), "!carries no status"),
         ("a Done title with a status word in prose", lambda t: t.replace("- [ ] N1 c\n", "").replace(
             "## Done\n", "## Done\n- [x] N1 build - fixing the parser\n"), "!carries no status"),
         ("Done without evidence", lambda t: t.replace(

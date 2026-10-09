@@ -153,12 +153,14 @@ def pattern(tag, what, block, hits):
     return rx
 
 
-def check(root, reqfile, evidence=None, only=None, rerun=False):
-    tree = check_live.HeadTree(root)
+def check(root, reqfile, evidence=None, only=None, rerun=False, tree=None):
+    own = tree is None
+    tree = tree or check_live.HeadTree(root)
     try:
         return _check(root, reqfile, evidence, only, rerun, tree)
     finally:
-        tree.close()
+        if own:
+            tree.close()
 
 
 def _check(root, reqfile, evidence, only, rerun, tree):
@@ -241,9 +243,11 @@ def _check(root, reqfile, evidence, only, rerun, tree):
         cx = pattern(tag, "the conformance check", c, hits) if isinstance(c, dict) and \
             c.get("command") else None
         texts = {}
+        # a re-run proves HEAD: its sources are read from HEAD's checkout too
+        base = tree.get() if rerun else root
         for src in sources:
             try:
-                texts[src] = (root / src).read_text(encoding="utf-8", errors="replace")
+                texts[src] = (base / src).read_text(encoding="utf-8", errors="replace")
             except OSError:
                 pass
         word = str(e["tool"]).split()[0].lower() if str(e["tool"]).split() else ""
@@ -259,14 +263,14 @@ def _check(root, reqfile, evidence, only, rerun, tree):
                     hits.append(f"{tag}: the signed Property names {ident}, which no .tla "
                                 "source defines -- the checked property is not the signed one")
         for src in sources:
-            p = root / src
+            p = base / src
             if not p.is_file():
                 hits.append(f"{tag}: source {src} does not exist")
                 continue
             for h in hatches(p):
                 hits.append(f"{tag}: escape hatch in {h} -- a proof that is not a proof")
         why = check_live.drifted(root, str(e["sha"]).lower(), evidence,
-                                 check_live.contract(root, reqfile))
+                                 *check_live.contract(root, reqfile))
         if why:
             hits.append(f"{tag}: sha {str(e['sha'])[:12]} " + {
                 "bad": "is not a full commit id",
@@ -419,6 +423,7 @@ def self_test():
         ("stale evidence", "stale"),
         ("Property: none without a reason", "needs a reason"),
         ("no Property line", "no `Property:`"),
+        ("a re-run reads HEAD's sources, not an edit that hides a hatch", "escape hatch"),
     ]
     with tempfile.TemporaryDirectory() as d:
         head = tree(d)
@@ -438,6 +443,15 @@ def self_test():
             if not any(want in h for h in got):
                 print(f"self-test FAILED: {label}: got {got or 'clean'}")
                 return 1
+    with tempfile.TemporaryDirectory() as d:
+        hatch = "---- MODULE M ----\nTHEOREM T == Spec => Inv PROOF OMITTED\n====\n"
+        ev(d, tree(d, {"spec/M.tla": hatch}))
+        pathlib.Path(d, "spec/M.tla").write_text("---- MODULE M ----\n====\n")
+        got = check(pathlib.Path(d), pathlib.Path(d, "req/requirements.md"), only=["R1"],
+                    rerun=True)
+        if not any(more[3][1] in h for h in got):
+            print(f"self-test FAILED: {more[3][0]}: got {got or 'clean'}")
+            return 1
     print(f"self-test ok ({len(cases) + len(more) + 1} cases)")
     return 0
 
