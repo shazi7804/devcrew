@@ -168,6 +168,8 @@ def sources(reqfile, evidence=None, only=None):
 
 
 def check(root, reqfile, evidence=None, only=None, rerun=False, tree=None):
+    if rerun and (why := check_live.unclean(root)):
+        return [why]
     own = tree is None
     tree = tree or check_live.HeadTree(root, sources(reqfile, evidence, only))
     if own and rerun:
@@ -442,7 +444,7 @@ def self_test():
         ("stale evidence", "stale"),
         ("Property: none without a reason", "needs a reason"),
         ("no Property line", "no `Property:`"),
-        ("a re-run reads HEAD's sources, not an edit that hides a hatch", "escape hatch"),
+        ("a re-run never reads an edit that hides a hatch", "commit or stash"),
     ]
     with tempfile.TemporaryDirectory() as d:
         head = tree(d)
@@ -471,7 +473,15 @@ def self_test():
         if not any(more[3][1] in h for h in got):
             print(f"self-test FAILED: {more[3][0]}: got {got or 'clean'}")
             return 1
-    print(f"self-test ok ({len(cases) + len(more) + 1} cases)")
+    with tempfile.TemporaryDirectory() as d:
+        ev(d, tree(d))
+        pathlib.Path(d, "untracked.txt").write_text("x\n")
+        got = check(pathlib.Path(d), pathlib.Path(d, "req/requirements.md"), only=["R1"],
+                    rerun=True)
+        if not any("commit or stash" in h for h in got):
+            print(f"self-test FAILED: a re-run beside an untracked file: got {got or 'clean'}")
+            return 1
+    print(f"self-test ok ({len(cases) + len(more) + 2} cases)")
     return 0
 
 

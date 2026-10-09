@@ -139,6 +139,8 @@ def parse(text):
 
 def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
           allow=None):
+    if rerun and (why := check_live.unclean(root)):
+        return [why]
     if not tasks.is_file():
         return [f"no TASKS.md at {tasks} -- the run has no ledger"]
     signed, gate, sections, hits = parse(tasks.read_text(encoding="utf-8"))
@@ -399,6 +401,8 @@ def self_test():
         tasks = root / "req/TASKS.md"
         tasks.write_text(sign(tasks, ["requirements.md"]) + "\n\n## Done\n- [x] R1 a\n"
                          "\n## In progress\n\n## Todo\n", encoding="utf-8")
+        subprocess.run(["git", "-C", d, "add", "-A"], check=True)     # a re-run needs HEAD
+        subprocess.run(["git", "-C", d, *q, "commit", "-qm", "tasks"], check=True)
         for label, kw, want in (("a Done item with a mock in the code", {}, True),
                                 ("...on a re-run", {"rerun": True}, True),
                                 ("...that the allow file names", {"allow": root / "allow.txt"},
@@ -407,7 +411,11 @@ def self_test():
             if any("src/app.js:1" in h for h in got) != want:
                 print(f"self-test FAILED: {label}: got {got or 'clean'}")
                 return 1
-    print(f"self-test ok ({len(cases) + len(drift) + 3} cases)")
+        (root / "untracked.txt").write_text("x\n", encoding="utf-8")
+        if not any("commit or stash" in h for h in check(root, tasks, rerun=True)):
+            print("self-test FAILED: a re-run beside an untracked file is not refused")
+            return 1
+    print(f"self-test ok ({len(cases) + len(drift) + 4} cases)")
     return 0
 
 

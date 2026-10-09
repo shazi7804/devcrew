@@ -23,8 +23,8 @@ Gate: 🔴 ship — awaiting CEO
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — blocked on loop-bound · security · 5/5 stalled 0/3 · next: the CEO decides; Security final 3 found --deployed probes and check_tasks' signed hashes still read the working tree on a re-run
-- [~] R10 check_formal.py — blocked on loop-bound · security · 5/5 stalled 0/3 · next: the CEO decides, with R3
+- [~] R3 Done only with live + formal evidence — fixing · orchestrator · 1/5 stalled 0/3 · next: a re-run refuses an unclean working tree and runs --deployed in HEAD's checkout (C16), then one context-free QA + Security round
+- [~] R10 check_formal.py — fixing · orchestrator · 1/5 stalled 0/3 · next: with R3 (C16)
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -41,6 +41,7 @@ Gate: 🔴 ship — awaiting CEO
 - [ ] C13 the CEO ruled on the loop-bound (2026-10-09, 「依據你建議。該修就修」): threat model A -- a probe is trusted, the sensors keep accidents out and the re-run is never weaker than the plain run (R3, re-signed sha256:040a58119cd0); Loop A for R3/R10 restarts at 1/5; QA round 9's three blockers fixed test-first -- undo: revert R3's Threat model and re-sign
 - [ ] C14 the context-free reviewer found ElectedAfterGone covers only a session that is starting; added ElectedOnceGone (a worker whose holder crashed is elected, or none is left alive) to Election.tla, ElectionLive.cfg and R12's Property, with ElectionOnceBroken.cfg (0.9.6's start-only takeover) failing it -- re-signed -- undo: drop the property and its cfg
 - [ ] C15 the reviewer's R3 blocker (a probe that runs a tool outside the repository) is ruled the environment, not the tree, under the CEO's threat model; R3 now says so -- re-signed -- undo: revert that sentence
+- [ ] C16 the CEO ruled on the second loop-bound (2026-10-09, 「A」): close the whole class -- a re-run refuses a working tree with any uncommitted or untracked file, and --deployed runs in HEAD's checkout -- and restart Loop A for R3/R10 at 1/5 -- undo: revert the commit that adds the clean-tree rule
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer

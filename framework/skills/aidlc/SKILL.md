@@ -855,7 +855,8 @@ the signal to proceed. `hosts/<host>.md` names the primitive. While it is open,
 TASKS.md carries `Gate: 🔴 <batch> — awaiting CEO`; on the reply, write the
 `Signed:` line (`check_tasks.py --sign <files>`) and clear the Gate before
 advancing. Before presenting the **ship** batch, run `check_tasks.py --rerun`
-(with check_live's `--src` / `--test` / `--allow` from `standards.md`):
+(with check_live's `--src` / `--test` / `--allow` from `standards.md`), on a clean
+working tree -- a re-run judges HEAD and refuses an uncommitted or untracked file:
 stored evidence is its writer's claim, a re-run is the proof the CEO signs on. "The CEO signed" is only true when a CEO message says so. An
 interrupt is the same hard stop, with the interrupt named in the SITREP.
 
