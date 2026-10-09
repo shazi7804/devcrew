@@ -247,7 +247,7 @@ class HeadTree:
         self.root, self.path, self.tmp, self.sha, self.blobs = root, None, None, None, None
         self.index = None
         self.want = {canon(w) for w in want} - {None}  # read beyond the code
-        self.dirs, self.gitdir, self.dotgit = set(), None, None
+        self.dirs, self.gitdir, self.dotgit, self.gitlinks = set(), None, None, []
 
     def head(self):
         if self.sha is None:
@@ -312,6 +312,9 @@ class HeadTree:
             ents = {rel: (meta.split()[0], meta.split()[2]) for meta, rel in
                     (e.split("\t", 1) for e in names.split("\0") if "\t" in e)
                     if meta.split()[0] in ("100644", "100755", "120000")}
+            self.gitlinks = [rel for meta, rel in
+                             (e.split("\t", 1) for e in names.split("\0") if "\t" in e)
+                             if meta.split()[0] == "160000"]
             links = [r for r, (m, _) in ents.items() if m == "120000"]
             dest = dict(zip(links, (b.decode("utf-8", "surrogateescape")
                                     for b in self._cat([ents[r][1] for r in links]))))
@@ -437,7 +440,11 @@ class HeadTree:
             if p != self.path:
                 shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink()
         dotgit = self.path / ".git"
-        if dotgit.is_symlink() or not dotgit.is_file() or dotgit.read_bytes() != self.dotgit:
+        # a submodule a probe initialised is a repository of its own that no
+        # reset of ours reaches into: the checkout is made again, as it is
+        # when the probe took its .git
+        if dotgit.is_symlink() or not dotgit.is_file() or dotgit.read_bytes() != self.dotgit \
+                or any(os.path.lexists(self.path / g / ".git") for g in self.gitlinks):
             shutil.rmtree(self.path, ignore_errors=True)          # make it again; drop
             shutil.rmtree(self.gitdir, ignore_errors=True)        # only our own entry
             self._add()
@@ -793,11 +800,12 @@ def check_code(root, src, tests, rules, tree=None):
         names = out(ls).split("\0")
     else:
         names = [r for r in tree.ls(src) if r in blobs]
-    hits = []
+    # what the checkout holds but cannot be read as it runs is reported over
+    # all of HEAD: --src narrows the scan, not the tree a probe runs in
+    hits = [f"{r}: {v}" for r, v in sorted((blobs or {}).items()) if isinstance(v, str)]
     for rel in names:
         p = root / rel
         if blobs is not None and isinstance(blobs.get(rel), str):
-            hits.append(f"{rel}: {blobs[rel]}")   # read up front as unscannable
             continue
         if not rel or not is_code(rel) or TEST_DIR.search(rel) or TEST_FILE.search(rel) \
                 or NOT_CODE.search(rel) or any(fnmatch.fnmatch(rel, g) for g in tests) \
@@ -1467,6 +1475,36 @@ def self_test():
         if not check("a re-run from a git hook's environment", got, None) or \
                 not check("...leaves the user's index, HEAD and worktrees alone",
                           [] if kept else ["the user's repository changed"], None):
+            return 1
+    # QA final 2: --src narrows the scan, not the reports of what the checkout
+    # holds; a submodule a probe initialised is gone before the next probe
+    with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as sub:
+        root = pathlib.Path(d)
+        lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
+        sha = commit(d, {**lreq, "app/a.js": "x()\n"})
+        for rel, body in (("tools/Run.sh", b"exit 1\n"), ("tools/run.sh", b"echo ok\n")):
+            oid = subprocess.run(["git", "-C", d, "hash-object", "-w", "--stdin"],
+                                 input=body, capture_output=True).stdout.decode().strip()
+            git(d, "update-index", "--add", "--cacheinfo", f"100644,{oid},{rel}")
+        git(d, *quiet, "commit", "-qm", "clash")
+        ev(d, sha, verify="local", target="this checkout", command="echo 'temp: 21'",
+           expect=r"temp: \d+", observed="temp: 21")
+        if not check("a case clash outside --src, on a re-run",
+                     run(root, rerun=True, src=["app"]), "collides"):
+            return 1
+        git(d, *quiet, "reset", "-q", "--hard", "HEAD~2")
+        commit(sub, {"lib.txt": "x\n"})
+        git(d, "-c", "protocol.file.allow=always", "submodule", "add", "-q", sub, "vendor/lib")
+        git(d, *quiet, "commit", "-qm", "submodule")
+        tree = HeadTree(root)
+        try:
+            probe("git -c protocol.file.allow=always submodule update --init -q && "
+                  "echo left > vendor/lib/out.txt", tree.get())
+            left = probe("test ! -e vendor/lib/out.txt", tree.get())[0]
+        finally:
+            tree.close()
+        if not check("a file an earlier probe wrote inside a submodule",
+                     [] if left == 0 else ["it took part"], None):
             return 1
     # (3) a process a probe left running takes no part in the next probe;
     # (4) a probe that removes its checkout's .git cannot turn the reset on the
