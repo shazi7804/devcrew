@@ -6,6 +6,6 @@
   "expect": "(?s)claude-code\\.md.*kirocrew\\.md.*mission-control\\.md.*aidlc-mission-control\\.skill\\.md",
   "observed": "hosts/claude-code.md\nhosts/kirocrew.md\nhosts/mission-control.md\nhosts/aidlc-mission-control.skill.md",
   "result": "pass",
-  "sha": "94ab9e34b55eff8b5078c9677b9ac68f45e01e4a",
-  "at": "2026-10-09T06:21:49+00:00"
+  "sha": "816e23718366f5e7974bd0c67c9c0f22c22e1357",
+  "at": "2026-10-09T07:07:41+00:00"
 }
