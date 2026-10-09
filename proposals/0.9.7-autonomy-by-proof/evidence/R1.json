@@ -6,6 +6,6 @@
   "expect": "Keep TASKS\\.md — the run's only ledger",
   "observed": "1143:- **Keep TASKS.md — the run's only ledger.** Current state only: what is Done\n2",
   "result": "pass",
-  "sha": "ff1d41a7858d882b62896a5f0080c3fcab16717c",
-  "at": "2026-10-09T15:56:22+00:00"
+  "sha": "320fae85d5f7dd75c728924f107c6803a9c65398",
+  "at": "2026-10-09T16:47:54+00:00"
 }
