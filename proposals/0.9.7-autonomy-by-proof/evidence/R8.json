@@ -6,6 +6,6 @@
   "expect": "(?s)Pre-authorized actions.*JudgmentRecorded ==.*INVARIANT.*JudgmentRecorded.*holds",
   "observed": "117:## Pre-authorized actions (what the run may do on its own)\n186:JudgmentRecorded ==\n11:INVARIANT TypeOK NoPhasePastUnsignedBatch DoneHasEvidence AsksOnlyForBatchOrInterrupt JudgmentRecorded\nAidlc/Aidlc: holds",
   "result": "pass",
-  "sha": "79d199429a05b8799e1a68c0bd1733103fe6612f",
-  "at": "2026-10-10T01:56:17+00:00"
+  "sha": "1ae32b99676d7aec9c748f4dafe9105844bbf635",
+  "at": "2026-10-10T03:23:25+00:00"
 }

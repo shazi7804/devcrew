@@ -4,8 +4,8 @@
   "command": "git diff 49d78dd HEAD -- AGENTS.md | grep -c '^[-+]10\\. ' ; python3 framework/tools/check_tasks.py --self-test",
   "target": "python3 + git in the devcrew repo checkout",
   "expect": "(?s)^0\\s.*self-test ok",
-  "observed": "0\nself-test ok (59 cases)",
+  "observed": "0\nself-test ok (64 cases)",
   "result": "pass",
-  "sha": "79d199429a05b8799e1a68c0bd1733103fe6612f",
-  "at": "2026-10-10T01:53:07+00:00"
+  "sha": "1ae32b99676d7aec9c748f4dafe9105844bbf635",
+  "at": "2026-10-10T03:19:32+00:00"
 }
