@@ -6,6 +6,6 @@
   "expect": "(?s)interrupts: drift cross-design loop-bound missing-service model-fail\\n[1-9]\\d*\\n.*self-test ok",
   "observed": "838:interrupts: drift cross-design loop-bound missing-service model-fail\n4\nself-test ok (59 cases)",
   "result": "pass",
-  "sha": "b2e52122bf08c5e3c87ae67003cc6b80c67c5b10",
-  "at": "2026-10-10T00:02:19+00:00"
+  "sha": "79d199429a05b8799e1a68c0bd1733103fe6612f",
+  "at": "2026-10-10T01:56:14+00:00"
 }
