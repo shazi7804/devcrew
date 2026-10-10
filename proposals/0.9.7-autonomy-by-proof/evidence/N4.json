@@ -1,7 +1,7 @@
 {
   "id": "N4",
   "verify": "local",
-  "command": "grep -n '^verdict: PASS' proposals/0.9.7-autonomy-by-proof/verdicts/audit.md && ! grep -nE 'severity: (blocker|high)' proposals/0.9.7-autonomy-by-proof/verdicts/audit.md",
+  "command": "grep -n '^verdict: PASS' proposals/0.9.7-autonomy-by-proof/verdicts/audit-14-context-free.md && ! grep -nE 'severity: (blocker|high)' proposals/0.9.7-autonomy-by-proof/verdicts/audit-14-context-free.md",
   "target": "python3 + git in the devcrew repo checkout",
   "expect": "verdict: PASS-WITH-DEBT",
   "observed": "7:verdict: PASS-WITH-DEBT",

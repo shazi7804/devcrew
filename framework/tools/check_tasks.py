@@ -80,7 +80,7 @@ MAX_ATTEMPTS, MAX_STALLED = 5, 3
 FORM = (f"— <status> · <owner> · <n>/{MAX_ATTEMPTS} stalled <k>/{MAX_STALLED} · "
         "next: <step>")
 STATUS = re.compile(r"(building|verifying|fixing|blocked on \S.*)$")
-LEAD = r"(?:--|(?<!\w)-|[—–·:,(\[|])"   # what may join a status onto a title
+LEAD = r"(?:--|(?<!\w)-|[—–·:,;→=~(\[|])"   # what may join a status onto a title
 TAIL = r"(?:$|--|[-—–·:,)\].|])"
 DONE_STATUS = re.compile(rf"(?i){LEAD}\s*(?:(?:building|verifying|fixing|blocked)\s*{TAIL}|"
                          rf"blocked on\b|(?:attempts?\s+)?\d+/\d+\b)|\bstalled\s+\d+/\d+|"
@@ -191,6 +191,10 @@ def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
                 if sec == "In progress":
                     hits.append(f"{tag}: a decision for the CEO is open (Todo) or "
                                 "ticked (Done), never in progress")
+                # a ticked decision carries no status either; its ` — ` is the
+                # record's own (what was decided — why, and how to undo it)
+                if sec == "Done" and DONE_STATUS.search(rest):
+                    hits.append(f"{tag}: a Done line carries no status")
                 continue
             parts = DASH.split(rest, maxsplit=1)
             # a status, however it is joined (a dash, `--`, `·`, `:` or `,`): a
@@ -220,7 +224,7 @@ def check(root, tasks, evidence=True, env=None, rerun=False, src=None, tests=(),
             tree.want_dir(reqfile.parent / "formal")
         try:
             live = check_live.check_evidence(root, reqfile, ev / env if env else ev, done,
-                                             (), rerun, False, False, tree)
+                                             (), rerun, False, frozenset(), tree)
             hits += [f"Done but not live: {h}" for h in live]
             # check_live --only <ID> also runs the code scan over what ships
             hits += [f"Done but not live: {h}"
@@ -299,6 +303,9 @@ def self_test():
         ("an open decision for the CEO", lambda t: t + "- [ ] C1 shipped without the key — the CEO ticks it\n", None),
         ("a ticked decision", lambda t: t.replace("## In progress", "- [x] C1 shipped — ticked\n## In progress"),
          "!C1"),
+        ("a ticked decision that still carries a status", lambda t: t.replace(
+            "## In progress", "- [x] C1 resolved — verifying · qa · 1/5 stalled 0/3 · next: x\n"
+            "## In progress"), "carries no status"),
         ("a decision in progress", lambda t: t.replace(
             "## Todo", "- [~] C1 deciding — fixing · be · 1/5 stalled 0/3 · next: x\n## Todo"),
          "never in progress"),
@@ -357,6 +364,10 @@ def self_test():
             "## Done\n", "## Done\n- [x] N1 c · stalled 1/3\n"), "carries no status"),
         ("a Done line with an attempt count", lambda t: t.replace("- [ ] N1 c\n", "").replace(
             "## Done\n", "## Done\n- [x] N1 c · attempt 2/5\n"), "carries no status"),
+        ("a Done line with a status after a semicolon", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 login; verifying\n"), "carries no status"),
+        ("a Done line with a status after an arrow", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 login → fixing\n"), "carries no status"),
         ("a Done title with a hyphenated word", lambda t: t.replace("- [ ] N1 c\n", "").replace(
             "## Done\n", "## Done\n- [x] N1 support re-verifying\n"), "!carries no status"),
         ("a Done title with a status word in prose", lambda t: t.replace("- [ ] N1 c\n", "").replace(
@@ -488,7 +499,44 @@ def self_test():
             if not any(want in h for h in got):
                 print(f"self-test FAILED: expected {want!r}, got {got or 'clean'}")
                 return 1
-    print(f"self-test ok ({len(cases) + len(drift) + 8} cases)")
+    # a Done item that is live: --rerun judges it, it does not crash
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        (root / "req/evidence").mkdir(parents=True)
+        (root / "req/requirements.md").write_text("# r\n- **R1** — a\n  - *Property*: none — t\n",
+                                                  encoding="utf-8")
+        q = ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+        subprocess.run(["git", "-C", d, "init", "-q"], check=True)
+        subprocess.run(["git", "-C", d, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", d, *q, "commit", "-qm", "x"], check=True)
+        sha = check_live.out(check_live.git(root, "rev-parse", "HEAD")).strip()
+        (root / "req/evidence/R1.json").write_text(json.dumps(
+            {"id": "R1", "verify": "live", "target": "https://api.prod.acme.io/v1",
+             "command": "echo https://api.prod.acme.io/v1 '\"temp\": 21'", "expect": "temp",
+             "observed": "temp", "result": "pass", "sha": sha, "at": "2026-10-10T00:00:00Z"}),
+            encoding="utf-8")
+        tasks = root / "req/TASKS.md"
+        tasks.write_text(sign(tasks, ["requirements.md"]) + "\n\n## Done\n- [x] R1 a\n"
+                         "\n## In progress\n\n## Todo\n", encoding="utf-8")
+        subprocess.run(["git", "-C", d, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", d, *q, "commit", "-qm", "ledger"], check=True)
+        check_live.resolve = lambda h: {check_live.ipaddress.ip_address("8.8.8.8")}
+        try:
+            check(root, tasks, rerun=True)
+        except TypeError as err:
+            print(f"self-test FAILED: a live Done item crashes a re-run: {err}")
+            return 1
+        # a Done item whose live record holds but whose formal record is missing
+        (root / "req/requirements.md").write_text(
+            "# r\n- **R1** — a\n  - *Property*: always fine\n  - *Formal*: checked\n"
+            "  - *Conformance*: none\n", encoding="utf-8")
+        tasks.write_text(sign(tasks, ["requirements.md"]) + "\n\n## Done\n- [x] R1 a\n"
+                         "\n## In progress\n\n## Todo\n", encoding="utf-8")
+        got = check(root, tasks)
+        if not any(h.startswith("Done but not formal") for h in got):
+            print(f"self-test FAILED: a Done item without formal evidence: got {got or 'clean'}")
+            return 1
+    print(f"self-test ok ({len(cases) + len(drift) + 10} cases)")
     return 0
 
 

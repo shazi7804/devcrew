@@ -22,8 +22,8 @@ Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 1/5 stalled 0/3 · next: round 4's blockers fixed test-first (a re-run refuses the repository's own info/attributes; --deployed proves each host it asks, not every host; the clone has no remote and its config is put back before each reset; three vacuous self-test cases made real), C22; one context-free QA + Security + auditor + two-reviewer round
-- [~] R10 check_formal.py — verifying · qa · 1/5 stalled 0/3 · next: with R3 (C22)
+- [~] R3 Done only with live + formal evidence — verifying · qa · 2/5 stalled 0/3 · next: round 5's blockers fixed test-first (a re-run scans a filtered file both raw and filtered; check_tasks --rerun no longer crashes on a live Done item; the clone's config is put back without following a link; a ticked Cn carries no status); QA PASS; round 6
+- [~] R10 check_formal.py — verifying · qa · 2/5 stalled 0/3 · next: with R3
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows

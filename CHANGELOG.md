@@ -105,7 +105,9 @@ so the bounds became code first.
   reaches the user's repository, and nothing is registered in it. The clone has no
   remote and its config is put back before each reset; the repository's own
   `.git/info/attributes` makes a re-run refuse; `--deployed` proves the host
-  it asks, never every host at once. What no reset undoes is stated: a probe runs with the user's
+  it asks, never every host at once. A file a filter applies to is scanned both as
+  its raw blob and as its filtered read, so a filter set after checkout can
+  hide nothing. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,

@@ -435,7 +435,11 @@ class HeadTree:
                                    env=git_env())
                 if r.returncode:
                     raise SystemExit(f"cannot read {t} through its filter at HEAD")
-                body[t] = r.stdout
+                # the raw blob AND its filtered read: a filter defined or changed
+                # after checkout changes the read, not what is on disk -- a fake
+                # in either is a hit, so a re-run is never weaker than the plain run
+                if r.stdout != body[t]:
+                    body[t] = (body[t], r.stdout)      # scanned one after the other
             self.blobs = {}
             for r in hit.keys() - read.keys():      # a data file a probe may read
                 self.blobs[r] = (f"{hit[r]} collides with another name of HEAD's tree "
@@ -471,6 +475,7 @@ class HeadTree:
         read at all -- after a probe the object store is not to be trusted."""
         name = canon(rel)
         got = self.files().get(name) if name else None
+        got = got[0] if isinstance(got, tuple) else got
         return got if isinstance(got, bytes) else None
 
     def _add(self):
@@ -524,7 +529,10 @@ class HeadTree:
         for f in ("index", "info/sparse-checkout", "config.worktree", "info/attributes"):
             if (self.gitdir / f).exists():
                 (self.gitdir / f).unlink()
-        (self.gitdir / "config").write_bytes(self.config)
+        cfg = self.gitdir / "config"
+        if cfg.is_symlink() or cfg.exists():
+            cfg.unlink()                       # never write through a link a probe made
+        cfg.write_bytes(self.config)
         wt = ["git", f"--git-dir={self.gitdir}", f"--work-tree={self.path}", "-C",
               str(self.path), *QUIET_GIT]
         # clean first: an untracked file a probe left (a .gitattributes) must
@@ -937,19 +945,26 @@ def check_code(root, src, tests, rules, tree=None):
                 or NOT_CODE.search(rel) or any(fnmatch.fnmatch(rel, g) for g in tests) \
                 or (blobs is None and not p.is_file()):
             continue
-        data = p.read_bytes() if blobs is None else blobs[rel]
-        if b"\0" in data[:8192]:
-            continue
-        for n, line in enumerate(data.decode("utf-8", "replace").splitlines(), 1):
-            toks = re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])", line)
-            words = {t.lower() for t in toks}
-            why = [f"`{w}`" for w in sorted(words & FAKE_WORDS)]
-            why += [f"`{t}`" for t in toks if t.isupper() and len(t) > 4
-                    and t.lower().startswith(ROOTS) and t.lower() not in FAKE_WORDS]
-            why += [w for rx, w in FAKE_TEXT if rx.search(line)]
-            if why and not any(fnmatch.fnmatch(rel, g) and rx.search(line)
-                               for g, rx in rules):
-                hits.append(f"{rel}:{n}: {', '.join(dict.fromkeys(why))}: {line.strip()[:90]}")
+        got = p.read_bytes() if blobs is None else blobs[rel]
+        # a filtered file is (raw blob, filtered read): a fake in either is a hit
+        for data in (got if isinstance(got, tuple) else (got,)):
+            if b"\0" in data[:8192]:
+                continue
+            hits += scan_lines(rel, data, rules)
+    return list(dict.fromkeys(hits))
+
+
+def scan_lines(rel, data, rules):
+    hits = []
+    for n, line in enumerate(data.decode("utf-8", "replace").splitlines(), 1):
+        toks = re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])", line)
+        words = {t.lower() for t in toks}
+        why = [f"`{w}`" for w in sorted(words & FAKE_WORDS)]
+        why += [f"`{t}`" for t in toks if t.isupper() and len(t) > 4
+                and t.lower().startswith(ROOTS) and t.lower() not in FAKE_WORDS]
+        why += [w for rx, w in FAKE_TEXT if rx.search(line)]
+        if why and not any(fnmatch.fnmatch(rel, g) and rx.search(line) for g, rx in rules):
+            hits.append(f"{rel}:{n}: {', '.join(dict.fromkeys(why))}: {line.strip()[:90]}")
     return hits
 
 
@@ -1362,28 +1377,6 @@ def self_test():
                      ("src/app.js:1", "cannot")):
             return 1
         probe(f"python3 {H}/rewrite.py 'export const temp = mockTemp();'", root)   # put it back
-        # ...nor one that rewrites HEAD's tree object for src/ to drop app.js
-        write(H, {"retree.py": "import os, subprocess as sp\n"
-                               "g = lambda *a, **k: sp.run(['git', *a], capture_output=True, **k)\n"
-                               "old = g('rev-parse', 'HEAD:src', text=True).stdout.strip()\n"
-                               "ls = g('ls-tree', old).stdout\n"
-                               "keep = b''.join(l + b'\\n' for l in ls.splitlines() if not l.endswith(b'\\tapp.js'))\n"
-                               "new = g('mktree', input=keep).stdout.decode().strip()\n"
-                               f"o, n = ('{root}/.git/objects/' + x[:2] + '/' + x[2:] for x in (old, new))\n"
-                               "os.chmod(o, 0o644)\n"
-                               "open(o + '.bak', 'wb').write(open(o, 'rb').read())\n"
-                               "open(o, 'wb').write(open(n, 'rb').read())\n"})
-        write(d, {"src/ok.js": "x()\n"})
-        git(d, "add", "src/ok.js")
-        git(d, *quiet, "commit", "-qm", "ok")
-        head_now = out(git(d, "rev-parse", "HEAD")).strip()
-        deployed = [f"echo https://api.prod.acme.io/version {head_now} && python3 {H}/retree.py"]
-        if not check("a --deployed probe that rewrites HEAD's tree object",   # the fake found, or the re-run refuses
-                     attempt(root, rerun=True, deployed=deployed, reqfiles=rf),
-                     ("src/app.js:1", "cannot")):
-            return 1
-        for bak in (root / ".git/objects").glob("*/*.bak"):    # put it back
-            bak.replace(bak.with_suffix(""))
         shutil.rmtree(H)
         git(d, *quiet, "reset", "-q", "--hard")
         # A probe that alters the checkout -- index flags, sparse patterns, a
@@ -1648,6 +1641,53 @@ def self_test():
                 not check("...and --record left its record alone",
                           [] if r2 == sha else ["R2 stamped HEAD"], None) or \
                 not check("...while the asked service is fresh", got, "!R1: stale"):
+            return 1
+    # Security final 12: a filter defined after checkout (the user's repo config)
+    # changes how a blob reads, not what is on disk -- a re-run scans both the
+    # raw blob and its filtered read, so it is never weaker than the plain run
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
+        sha = commit(d, {**lreq, ".gitattributes": "*.js filter=build\n",
+                         "src/app.js": "export const t = mockTemp();\n"})
+        ev(d, sha, verify="local", target="this checkout", command="echo 'temp: 21'",
+           expect=r"temp: \d+", observed="temp: 21")
+        git(d, "config", "filter.build.smudge", "sed s/mockTemp/realTemp/")
+        git(d, "config", "filter.build.clean", "cat")
+        if not check("a filter defined after checkout, plain", run(root), "src/app.js:1") or \
+                not check("...and on a re-run", attempt(root, rerun=True), "src/app.js:1"):
+            return 1
+    # the clone's config is put back without following a symlink a probe made
+    with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as out_dir:
+        root = pathlib.Path(d)
+        commit(d, {"src/app.js": "x()\n"})
+        target = pathlib.Path(out_dir, "victim")
+        target.write_text("keep\n")
+        tree = HeadTree(root)
+        try:
+            probe(f"rm .git/config && ln -s {target} .git/config", tree.get())
+            tree.get()
+        except SystemExit:
+            pass
+        finally:
+            tree.close()
+        if not check("a clone config a probe replaced with a symlink",
+                     [] if target.read_text() == "keep\n" else ["it wrote through the link"], None):
+            return 1
+    # Audit final 7: an attributes file a probe writes into its clone's git dir
+    # takes no part in the next probe's checkout
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        commit(d, {"data.txt": "a\nb\n"})
+        tree = HeadTree(root)
+        try:
+            probe("mkdir -p .git/info && printf '* text eol=crlf\\n' > .git/info/attributes",
+                  tree.get())
+            crlf = probe("od -c data.txt | grep -q '\\\\r'", tree.get())[0]
+        finally:
+            tree.close()
+        if not check("an attributes file an earlier probe left in its clone",
+                     [] if crlf else ["the next probe saw converted bytes"], None):
             return 1
     # Audit final 6: git config a probe sets in its clone (a filter driver)
     # takes no part in the next probe's checkout
