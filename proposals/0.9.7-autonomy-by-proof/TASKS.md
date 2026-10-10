@@ -1,14 +1,17 @@
 Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
+Gate: 🔴 ship — awaiting CEO
 
 ## Done
 - [x] R1 TASKS.md defined as the only ledger
 - [x] R2 every requirement ID exactly once
+- [x] R3 Done only with live + formal evidence
 - [x] R4 check_tasks.py, the drift halt as code
 - [x] R5 every host uses TASKS.md
 - [x] R6 three batches, every former gate mapped
 - [x] R7 five interrupts, each raised by a machine; a judgment is a Cn
 - [x] R8 pre-authorized actions; anything else decided and recorded
 - [x] R9 Property · Formal · Conformance
+- [x] R10 check_formal.py
 - [x] R11 vacuity runs
 - [x] R12 the protocol models, checked in CI
 - [x] R13 boot.py trace-validated; sets in sync
@@ -22,8 +25,6 @@ Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 3/5 stalled 0/3 · next: round 6's blockers fixed test-first (every form of a filtered formal source is scanned; one --deployed probe proves one host, matched whole); QA round 6 still judging
-- [~] R10 check_formal.py — verifying · qa · 3/5 stalled 0/3 · next: with R3
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -47,6 +48,7 @@ Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
 - [ ] C20 R3's 'a re-run never passes what the plain run fails' now names its one intended exception: a stale record the re-run proves again at HEAD -- re-signed -- undo: revert that clause and keep the plain run's stale hit on a re-run
 - [ ] C21 open for the CEO: R8 and Aidlc.tla's JudgmentRecorded let a reversible production deploy that is not pre-authorized run as a Cn before the ship batch, while R6 lists 'production release' under ship; read here as R6 = a release to end users (a store, a public artifact), R8 = a reversible service deploy -- tick to keep, or rule that every production deploy waits for the ship batch
 - [ ] C22 the CEO ruled on the fourth loop-bound (2026-10-10, 「A」): apply round 4's fixes and run one more verification round; Loop A for R3/R10 restarts at 1/5 -- undo: revert the commit after 1d2011e
+- [ ] C23 the CEO ruled (2026-10-10, 「A」): stop the hardening loop and ship -- every blocker of round 6 is fixed (c278777, 10c75b2), R3/R10 Done on fresh evidence; what is left, and the health check's recommendations, go to 0.9.8/0.9.9 (D30, D31) -- undo: move R3/R10 back to In progress
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer
@@ -69,3 +71,5 @@ Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
 - [ ] D27 overlapping same-session beats can demote falsely; the escape-hatch scan does not follow imported modules (TLA+ EXTENDS); SKILL.md's Phase 5 row reads stricter than its paragraph (security, low)
 - [ ] D28 the self-test environment scrub is copied into three sensors; _drifted keeps a one-element loop (audit, low)
 - [ ] D29 the shared clone copies git's sample hooks (+88 KB a run): clone with an empty --template (audit, low)
+- [ ] D30 an evidence record a filter applies to is read raw on a re-run: read every form, or refuse when they differ (QA round 22)
+- [ ] D31 the 2026-10-10 health check (reports/, not tracked): simplify check_live's re-run isolation to a fresh clone per probe with the authoritative re-run in CI; make verification converge (a blocker cites a signed clause, a findings ledger between rounds, verifiers with no memory); split SKILL.md; make boot.py's trace validation deterministic (one seed-2 rejection seen)
