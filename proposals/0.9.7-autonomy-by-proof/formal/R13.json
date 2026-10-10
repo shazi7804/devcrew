@@ -15,8 +15,8 @@
   "expect": "(?s)skip-gen.*rejected.*touch-old.*rejected.*models: ok",
   "observed": "by the model\n  ok  boot.py mutant ('if mine:'): 54 steps rejected\n  ok  boot.py skip-gen ('if create(sid, n + 2, cwd) and verify(sid, n + 2):'): 54 steps rejected\n  ok  boot.py touch-old ('if touch(sid, n - 1) and verify(sid, n):'): 51 steps rejected\nmodels: ok",
   "result": "pass",
-  "sha": "97a8673de1d4744ac8d4c621afac22dafc84e72f",
-  "at": "2026-10-09T22:56:32+00:00",
+  "sha": "b2e52122bf08c5e3c87ae67003cc6b80c67c5b10",
+  "at": "2026-10-10T00:08:57+00:00",
   "vacuity": {
     "command": "python3 tools/check_models.py --jar \"$TLA2TOOLS_JAR\" --java \"$JAVA\" --accepts mutant; [ $? -ne 1 ]",
     "expect": "rejected",
