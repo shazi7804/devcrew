@@ -5,3 +5,6 @@ __pycache__/
 node_modules/
 ._*
 .DS_Store
+
+# local reports (health checks, audits) -- not part of the framework
+reports/
