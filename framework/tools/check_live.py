@@ -470,13 +470,20 @@ class HeadTree:
             raise SystemExit(f"--src {' '.join(src or [])}: git cannot read it over HEAD")
         return ls.stdout.decode("utf-8", "surrogateescape").split("\0")
 
-    def blob(self, rel):
-        """One file read up front, or None: a name no check registered is not
-        read at all -- after a probe the object store is not to be trusted."""
+    def reads(self, rel):
+        """Every form of one file read up front -- its raw blob, and its
+        filtered read when a filter applies -- or []: a name no check
+        registered is not read at all (after a probe the object store is not
+        to be trusted)."""
         name = canon(rel)
         got = self.files().get(name) if name else None
-        got = got[0] if isinstance(got, tuple) else got
-        return got if isinstance(got, bytes) else None
+        got = got if isinstance(got, tuple) else (got,)
+        return [g for g in got if isinstance(g, bytes)]
+
+    def blob(self, rel):
+        """The raw blob of one file read up front, or None."""
+        got = self.reads(rel)
+        return got[0] if got else None
 
     def _add(self):
         """A shared clone of HEAD: its objects borrowed read-only from the

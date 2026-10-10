@@ -368,6 +368,10 @@ def self_test():
             "## Done\n", "## Done\n- [x] N1 login; verifying\n"), "carries no status"),
         ("a Done line with a status after an arrow", lambda t: t.replace("- [ ] N1 c\n", "").replace(
             "## Done\n", "## Done\n- [x] N1 login → fixing\n"), "carries no status"),
+        ("a Done line with a status after an equals sign", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 login = verifying\n"), "carries no status"),
+        ("a Done line with a status after a tilde", lambda t: t.replace("- [ ] N1 c\n", "").replace(
+            "## Done\n", "## Done\n- [x] N1 login ~ building\n"), "carries no status"),
         ("a Done title with a hyphenated word", lambda t: t.replace("- [ ] N1 c\n", "").replace(
             "## Done\n", "## Done\n- [x] N1 support re-verifying\n"), "!carries no status"),
         ("a Done title with a status word in prose", lambda t: t.replace("- [ ] N1 c\n", "").replace(

@@ -275,12 +275,15 @@ def _check(root, reqfile, evidence, only, rerun, tree):
             c.get("command") else None
         texts = {}
         # a re-run proves HEAD: its sources are read from HEAD's objects too
+        forms = {}                  # src -> every form a hatch scan must read
         for src in sources:
             try:
-                texts[src] = (tree.blob(src).decode("utf-8", "replace") if rerun else
-                              (root / src).read_text(encoding="utf-8", errors="replace"))
-            except (OSError, AttributeError):
-                pass
+                got = ([b.decode("utf-8", "replace") for b in tree.reads(src)] if rerun else
+                       [(root / src).read_text(encoding="utf-8", errors="replace")])
+            except OSError:
+                got = []
+            if got:
+                texts[src], forms[src] = got[0], got
         word = str(e["tool"]).split()[0].lower() if str(e["tool"]).split() else ""
         code = [ln for t in texts.values() for ln in t.lower().splitlines()
                 if not re.match(r"\s*(#|//|--|\(\*|\*|\\\*)", ln)]
@@ -297,7 +300,9 @@ def _check(root, reqfile, evidence, only, rerun, tree):
             if src not in texts:
                 hits.append(f"{tag}: source {src} does not exist")
                 continue
-            for h in hatches(pathlib.PurePosixPath(str(src)), texts[src]):
+            # a filtered source: its raw blob and its filtered read, as checked out
+            for h in dict.fromkeys(h for t in forms[src]
+                                   for h in hatches(pathlib.PurePosixPath(str(src)), t)):
                 hits.append(f"{tag}: escape hatch in {h} -- a proof that is not a proof")
         why = check_live.drifted(root, str(e["sha"]).lower(), evidence,
                                  *check_live.contract(root, reqfile))
@@ -529,7 +534,24 @@ def self_test():
         if not any("HEAD moved" in h for h in got):
             print(f"self-test FAILED: HEAD moved during a formal re-run: got {got or 'clean'}")
             return 1
-    print(f"self-test ok ({len(cases) + len(more) + 4} cases)")
+    # a source a committed filter writes with an escape hatch at checkout: the
+    # plain scan reads the hatch on disk, so a re-run must read it too
+    with tempfile.TemporaryDirectory() as d:
+        git(d, "init", "-q")
+        git(d, "config", "filter.hide.clean", "sed s/OMITTED/PROVED/")
+        git(d, "config", "filter.hide.smudge", "sed s/PROVED/OMITTED/")
+        pathlib.Path(d, ".gitattributes").write_text("*.tla filter=hide\n")
+        hatch = "---- MODULE M ----\nTHEOREM T == TRUE PROOF OMITTED\n====\n"
+        head = tree(d, {"spec/M.tla": hatch})
+        ev(d, head)
+        for rr in (False, True):
+            got = check(pathlib.Path(d), pathlib.Path(d, "req/requirements.md"), only=["R1"],
+                        rerun=rr)
+            if not any("escape hatch" in h for h in got):
+                print(f"self-test FAILED: a hatch a filter writes at checkout"
+                      f"{' (re-run)' if rr else ''}: got {got or 'clean'}")
+                return 1
+    print(f"self-test ok ({len(cases) + len(more) + 6} cases)")
     return 0
 
 
