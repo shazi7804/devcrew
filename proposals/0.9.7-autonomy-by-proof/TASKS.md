@@ -22,8 +22,8 @@ Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — verifying · qa · 4/5 stalled 0/3 · next: round 3's blockers fixed test-first (the probe checkout is a shared clone with refs of its own, so a probe's stash pop cannot take the user's stash; the reset cleans before it checks out, so a probe's .gitattributes takes no part; R3 states the re-proved-record exception, C20); the ship batch opens only when this round passes
-- [~] R10 check_formal.py — verifying · qa · 4/5 stalled 0/3 · next: with R3
+- [~] R3 Done only with live + formal evidence — blocked on loop-bound · security · 5/5 stalled 0/3 · next: the CEO decides; round 4 -- QA PASS, glm-5 APPROVE, audit PASS-WITH-DEBT, gpt-5.6-sol REQUEST-CHANGES (the repository's own info/attributes), Security FAIL (--deployed proved every host at once) -- both fixed test-first, not yet applied
+- [~] R10 check_formal.py — blocked on loop-bound · security · 5/5 stalled 0/3 · next: the CEO decides, with R3
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
