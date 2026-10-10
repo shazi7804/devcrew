@@ -822,7 +822,8 @@ def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pr
                     hits.append(f"{tag}: {t!r} is not a live service: {why}")
         elif names_a_fake(e["target"]):
             hits.append(f"{tag}: target {e['target']!r} names a mock")
-        if h and h not in cmd.lower():
+        # the target's host named whole -- staging-api.acme.io is not api.acme.io
+        if h and not re.search(rf"(?<![\w.-]){re.escape(h)}(?![\w-])", cmd.lower()):
             hits.append(f"{tag}: the probe command never names {h}")
         sha = e["sha"].lower()
         why = drifted(root, sha, evidence, *contract(root, reqfile))
@@ -1018,6 +1019,10 @@ def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rer
             urls = list(dict.fromkeys(URL.findall(code(cmd))))
             if not urls:
                 hits.append(f"--deployed {cmd!r} asks no service -- it proves nothing")
+                continue
+            if len({hostname(t) for t in urls} - {""}) != 1:
+                hits.append(f"--deployed {cmd!r} names more than one host -- one version "
+                            "probe per service, so the build it prints is that host's")
                 continue
             why = [f"{t!r}: {w}" for t in urls if (w := not_live(t, live_hosts))]
             why += [w for t in urls if (h := hostname(t)) and (w := off_net(h))]
@@ -1695,6 +1700,26 @@ def self_test():
             tree.close()
         if not check("an attributes file an earlier probe left in its clone",
                      [] if crlf else ["the next probe saw converted bytes"], None):
+            return 1
+    # Security final 13: one version probe proves one host -- a command naming
+    # two hosts proves neither; and a host is matched whole, never by substring
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        sha = commit(d, {req: "- **R1** — a\n", "src/app.js": "x()\n"})
+        ev(d, sha, target="https://api.acme.io/v1/x",
+           command="echo https://api.acme.io/v1/x '\"temp\": 21'")
+        write(d, {"src/app.js": "y()\n"})
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "stale")
+        head_now = out(git(d, "rev-parse", "HEAD")).strip()
+        got = attempt(root, rerun=True, deployed=[
+            f"echo {head_now} https://api.acme.io/version https://auth.acme.io/health"])
+        if not check("a --deployed command that names two hosts", got, "R1: stale"):
+            return 1
+        ev(d, sha, target="https://api.acme.io/v1/x",
+           command="echo https://staging-api.acme.io/v1/x '\"temp\": 21'")
+        if not check("a probe that names a longer host than its target", run(root),
+                     "never names api.acme.io"):
             return 1
     # Audit final 6: git config a probe sets in its clone (a filter driver)
     # takes no part in the next probe's checkout
