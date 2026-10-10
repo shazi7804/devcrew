@@ -6,6 +6,6 @@
   "expect": "(?s)11\\. \\*\\*Autonomy is earned by proof.*invariants_checked: \\[1,2,3,4,5,6,7,8,9,10,11\\]",
   "observed": "238:11. **Autonomy is earned by proof** — the CEO signs in three batches (intent,\n104:invariants_checked: [1,2,3,4,5,6,7,8,9,10,11]",
   "result": "pass",
-  "sha": "1ae32b99676d7aec9c748f4dafe9105844bbf635",
-  "at": "2026-10-10T03:22:14+00:00"
+  "sha": "01c2ec86814b86e95f505040b3d630350e2c9879",
+  "at": "2026-10-10T05:10:44+00:00"
 }
