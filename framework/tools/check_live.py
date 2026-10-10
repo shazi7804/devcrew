@@ -202,6 +202,13 @@ def unclean(root):
     ls = git(root, "ls-files", "-v")
     if st.returncode or ls.returncode:
         return f"not a git repository: {root}"
+    # the repository's own attributes file: ignored, highest precedence, and
+    # able to change how a file reads after it was checked out
+    info = git(root, "rev-parse", "--git-path", "info/attributes")
+    attrs = pathlib.Path(root) / out(info).strip() if not info.returncode else None
+    if attrs and attrs.is_file() and attrs.read_text(errors="replace").strip():
+        return (f"a re-run judges HEAD: {os.path.relpath(attrs, root)} would change how "
+                "it reads files -- move it into a committed .gitattributes, or remove it")
     # bytecode Python writes beside a tracked module is regenerated from it and
     # never imported without it: the environment, not a file of the tree
     dirty = [ln[3:] for ln in out(st).splitlines()
@@ -479,6 +486,9 @@ class HeadTree:
                                 self.head()], capture_output=True, env=git_env()).returncode:
             raise SystemExit(f"cannot check out HEAD of {self.root} for a re-run")
         self.path = tree
+        # no remote: a probe's `git push` / `fetch` cannot reach the user's refs
+        subprocess.run(["git", "-C", str(tree), "remote", "remove", "origin"],
+                       capture_output=True, env=git_env())
         # the only git dir we ever reset or remove is the clone's own, inside
         # our temp dir -- named now, never asked of the checkout later
         gitdir = (tree / ".git").resolve()
@@ -487,6 +497,7 @@ class HeadTree:
             raise SystemExit(f"cannot name the git dir of the checkout of HEAD at {tree} "
                              "-- the re-run stops rather than touch another repository")
         self.gitdir = gitdir
+        self.config = (gitdir / "config").read_bytes()    # restored before every reset
 
     def get(self):
         if self.path is None:
@@ -508,9 +519,12 @@ class HeadTree:
             shutil.rmtree(self.path, ignore_errors=True)          # the clone, git dir and all
             self._add()
             return self._scratch()
-        for f in ("index", "info/sparse-checkout", "config.worktree"):
+        # git state a probe can leave in its clone: its index, sparse patterns,
+        # worktree config and attributes are dropped, its config put back
+        for f in ("index", "info/sparse-checkout", "config.worktree", "info/attributes"):
             if (self.gitdir / f).exists():
                 (self.gitdir / f).unlink()
+        (self.gitdir / "config").write_bytes(self.config)
         wt = ["git", f"--git-dir={self.gitdir}", f"--work-tree={self.path}", "-C",
               str(self.path), *QUIET_GIT]
         # clean first: an untracked file a probe left (a .gitattributes) must
@@ -813,10 +827,10 @@ def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pr
                 elif not (m := expect.search(text)):
                     hits.append(f"{tag}: re-run output does not match expect")
                 elif not bad:
-                    # The service answered -- it is HEAD's proof only if the
-                    # environment is proven to run HEAD (--deployed). A local
-                    # probe ran on a checkout of HEAD: it is HEAD's proof.
-                    fresh = proven or not live
+                    # The service answered -- it is HEAD's proof only if a
+                    # --deployed version probe showed THIS host runs HEAD. A
+                    # local probe ran on a checkout of HEAD: it is HEAD's proof.
+                    fresh = not live or (bool(h) and h in proven)
                     excerpt = text[max(0, m.start() - 80):m.end() + 80].strip()
             except subprocess.TimeoutExpired:
                 hits.append(f"{tag}: re-run timed out after 300s")
@@ -824,7 +838,7 @@ def _check_evidence(root, reqfile, evidence, only, live_hosts, rerun, record, pr
             why = (f"sha {sha[:12]} is not in HEAD's history" if orphan else
                    f"stale -- code changed since {sha[:12]}")
             hint = ("; the re-run passed, but nothing proves the environment runs HEAD "
-                    "(--deployed)" if excerpt and not proven else "; re-run the probe")
+                    "(--deployed)" if excerpt and h not in proven else "; re-run the probe")
             hits.append(f"{tag}: {why}{hint}")
         if record and f.is_symlink():
             hits.append(f"{tag}: {os.path.relpath(f, root)} is a symlink -- --record will not "
@@ -974,7 +988,7 @@ def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rer
         raise SystemExit("--record stamps HEAD: pass --deployed <the probe that prints "
                          "the build the environment runs>")
     hits = [] if reqfiles else [f"no requirements file under {root / STATE} -- nothing is verified"]
-    proven = False
+    proven = frozenset()        # the hosts a --deployed version probe showed run HEAD
     if rerun and deployed:
         # One version probe per service; each must ask a live host and print HEAD.
         head, n0 = tree.head(), len(hits)
@@ -995,7 +1009,8 @@ def _run(root, reqfiles, evidence, only, env, live_hosts, src, tests, allow, rer
             if rc or head[:12] not in text.lower():
                 hits.append(f"--deployed {cmd!r}: the environment does not run HEAD "
                             f"{head[:12]} ({text.strip()[:80]!r}) -- deploy it, then re-run")
-        proven = len(hits) == n0
+            else:
+                proven |= {h for t in urls if (h := hostname(t))}
     for rf in reqfiles:
         if not rf.is_file():
             hits.append(f"no requirements file at {rf} -- nothing is verified")
@@ -1334,9 +1349,7 @@ def self_test():
         write(H, {"rewrite.py": "import os, subprocess, sys, zlib\n"
                                 "oid = subprocess.run(['git', 'rev-parse', 'HEAD:src/app.js'],"
                                 " capture_output=True, text=True).stdout.strip()\n"
-                                "c = subprocess.run(['git', 'rev-parse', '--git-common-dir'],"
-                                " capture_output=True, text=True).stdout.strip()\n"
-                                "p = f'{c}/objects/{oid[:2]}/{oid[2:]}'\n"
+                                f"p = '{root}/.git/objects/' + oid[:2] + '/' + oid[2:]\n"
                                 "os.chmod(p, 0o644)\n"
                                 "body = sys.argv[1].encode() + b'\\n'\n"
                                 "open(p, 'wb').write(zlib.compress(b'blob %d\\0' % len(body)"
@@ -1344,8 +1357,9 @@ def self_test():
         head_now = out(git(d, "rev-parse", "HEAD")).strip()
         deployed = [f"echo https://api.prod.acme.io/version {head_now} && "
                     f"python3 {H}/rewrite.py 'export const t = 3;'"]
-        if not check("a --deployed probe that rewrites HEAD's object",
-                     run(root, rf, rerun=True, deployed=deployed), "src/app.js:1"):
+        if not check("a --deployed probe that rewrites HEAD's object",   # the fake found, or the re-run refuses
+                     attempt(root, rerun=True, deployed=deployed, reqfiles=rf),
+                     ("src/app.js:1", "cannot")):
             return 1
         probe(f"python3 {H}/rewrite.py 'export const temp = mockTemp();'", root)   # put it back
         # ...nor one that rewrites HEAD's tree object for src/ to drop app.js
@@ -1355,8 +1369,7 @@ def self_test():
                                "ls = g('ls-tree', old).stdout\n"
                                "keep = b''.join(l + b'\\n' for l in ls.splitlines() if not l.endswith(b'\\tapp.js'))\n"
                                "new = g('mktree', input=keep).stdout.decode().strip()\n"
-                               "c = g('rev-parse', '--git-common-dir', text=True).stdout.strip()\n"
-                               "o, n = (f'{c}/objects/{x[:2]}/{x[2:]}' for x in (old, new))\n"
+                               f"o, n = ('{root}/.git/objects/' + x[:2] + '/' + x[2:] for x in (old, new))\n"
                                "os.chmod(o, 0o644)\n"
                                "open(o + '.bak', 'wb').write(open(o, 'rb').read())\n"
                                "open(o, 'wb').write(open(n, 'rb').read())\n"})
@@ -1365,8 +1378,9 @@ def self_test():
         git(d, *quiet, "commit", "-qm", "ok")
         head_now = out(git(d, "rev-parse", "HEAD")).strip()
         deployed = [f"echo https://api.prod.acme.io/version {head_now} && python3 {H}/retree.py"]
-        if not check("a --deployed probe that rewrites HEAD's tree object",
-                     run(root, rf, rerun=True, deployed=deployed), "src/app.js:1"):
+        if not check("a --deployed probe that rewrites HEAD's tree object",   # the fake found, or the re-run refuses
+                     attempt(root, rerun=True, deployed=deployed, reqfiles=rf),
+                     ("src/app.js:1", "cannot")):
             return 1
         for bak in (root / ".git/objects").glob("*/*.bak"):    # put it back
             bak.replace(bak.with_suffix(""))
@@ -1514,7 +1528,7 @@ def self_test():
              ["echo http://localhost/version $(git rev-parse HEAD)"]}, "not a live service"),
             ("one service of two not on HEAD", {"env": "pre", "rerun": True, "deployed":
              on_head["deployed"] + ["echo https://web.prod.acme.io/version 0123456789ab"]},
-             "nothing proves the environment runs HEAD"),
+             "web.prod.acme.io/version 0123456789ab': the environment does not run HEAD"),
             ("--record without --deployed", {"env": "pre", "rerun": True, "record": True},
              "--record stamps HEAD"),
             ("a re-run on HEAD is fresh proof", {"env": "pre", "rerun": True, **on_head},
@@ -1614,6 +1628,56 @@ def self_test():
                      [] if (root / "src/real.json").read_bytes() == before and
                      any("symlink" in h for h in got) else [f"overwrote it, or no hit: {got}"], None):
             return 1
+    # Security final 11: --deployed proves a host, not the environment -- a
+    # stale record of a service no version probe asked stays stale
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        two = {req: "- **R1** — a\n- **R2** — b\n", "src/app.js": "x()\n"}
+        sha = commit(d, two)
+        for rid, host in (("R1", "api.a.acme.io"), ("R2", "api.b.acme.io")):
+            ev(d, sha, rid=rid, target=f"https://{host}/v1/x",
+               command=f"echo https://{host}/v1/x '\"temp\": 21'")
+        write(d, {"src/app.js": "y()\n"})
+        git(d, "add", "-A")
+        git(d, *quiet, "commit", "-qm", "both stale")
+        head_now = out(git(d, "rev-parse", "HEAD")).strip()
+        got = attempt(root, rerun=True, record=True,
+                      deployed=[f"echo https://api.a.acme.io/version {head_now}"])
+        r2 = json.loads((root / STATE / "evidence/R2.json").read_text())["sha"]
+        if not check("a service no version probe asked, on a re-run", got, "R2: stale") or \
+                not check("...and --record left its record alone",
+                          [] if r2 == sha else ["R2 stamped HEAD"], None) or \
+                not check("...while the asked service is fresh", got, "!R1: stale"):
+            return 1
+    # Audit final 6: git config a probe sets in its clone (a filter driver)
+    # takes no part in the next probe's checkout
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        commit(d, {".gitattributes": "*.txt filter=x\n", "data.txt": "a\n"})
+        tree = HeadTree(root)
+        try:
+            probe("git config filter.x.smudge 'sed s/a/b/' && git config filter.x.clean cat",
+                  tree.get())
+            kept = probe("grep -q a data.txt", tree.get())[0]
+        finally:
+            tree.close()
+        if not check("git config an earlier probe set in its clone",
+                     [] if kept == 0 else ["the next probe's checkout used it"], None):
+            return 1
+    # Reviewer final 11: the repository's own .git/info/attributes is ignored
+    # state with the highest precedence -- it could change how a re-run reads
+    # a file and not how the checkout was written, so a re-run refuses it
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
+        sha = commit(d, {**lreq, "src/app.js": "x()\n"})
+        ev(d, sha, verify="local", target="this checkout", command="echo 'temp: 21'",
+           expect=r"temp: \d+", observed="temp: 21")
+        (root / ".git/info").mkdir(exist_ok=True)
+        (root / ".git/info/attributes").write_text("*.js filter=fake\n")
+        if not check("a re-run beside the repository's own info/attributes",
+                     attempt(root, rerun=True), "info/attributes"):
+            return 1
     # QA final 10: an untracked .gitattributes an earlier probe left takes no
     # part in the reset -- it is cleaned before git checks anything out
     with tempfile.TemporaryDirectory() as d:
@@ -1636,40 +1700,17 @@ def self_test():
         lreq = {req: "- **R1** — x\n  - *Verify*: local\n"}
         sha = commit(d, {**lreq, "src/app.js": "x()\n"})
         ev(d, sha, verify="local", target="this checkout",
-           command="git stash -q; git checkout -q -b probe-branch; echo 'temp: 21'; "
+           command="git stash -q; git checkout -q -b probe-branch; "
+                   "git push -q origin HEAD:refs/heads/pushed 2>/dev/null; echo 'temp: 21'; "
                    "git stash pop -q", expect=r"temp: \d+", observed="temp: 21")
         write(d, {"src/app.js": "y()  // the user's work, stashed\n"})
         git(d, *quiet, "stash", "-q")
         stash = out(git(d, "stash", "list")).strip()
         run(root, rerun=True)
         kept = out(git(d, "stash", "list")).strip() == stash and stash and \
-            not out(git(d, "branch", "--list", "probe-branch")).strip()
+            not out(git(d, "branch", "--list", "probe-branch", "pushed")).strip()
         if not check("a probe that pops a stash or makes a branch",
                      [] if kept else ["the user's stash or branches changed"], None):
-            return 1
-    # Security final 8: a git that cannot name the checkout's git dir stops the
-    # re-run -- it never turns a later re-make into a delete of the user's repo
-    with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as shim:
-        root = pathlib.Path(d)
-        commit(d, {"src/app.js": "x()\n"})
-        real = shutil.which("git")
-        pathlib.Path(shim, "git").write_text(
-            f'#!/bin/sh\ncase "$*" in *--absolute-git-dir*) exit 1;; esac\nexec {real} "$@"\n')
-        os.chmod(pathlib.Path(shim, "git"), 0o755)
-        before = os.environ["PATH"]
-        os.environ["PATH"] = f"{shim}{os.pathsep}{before}"
-        tree = HeadTree(root)
-        try:
-            tree.get()
-            refused = False
-        except SystemExit:
-            refused = True
-        finally:
-            os.environ["PATH"] = before
-            tree.close()
-        if not check("a git that cannot name the checkout's git dir",
-                     [] if (root / "src/app.js").exists() and (root / ".git").exists()
-                     else ["the user's repository was touched"], None):
             return 1
     # A sensor run from a git hook inherits GIT_DIR / GIT_INDEX_FILE: its own
     # git calls must not touch the user's index, HEAD or other worktrees.

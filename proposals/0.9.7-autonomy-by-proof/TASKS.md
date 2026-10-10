@@ -22,8 +22,8 @@ Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
 - [x] C6 git stopped mid-session (Xcode licence); ran on the Command Line Tools binary until the CEO accepted the licence — resolved, the workaround is removed
 
 ## In progress
-- [~] R3 Done only with live + formal evidence — blocked on loop-bound · security · 5/5 stalled 0/3 · next: the CEO decides; round 4 -- QA PASS, glm-5 APPROVE, audit PASS-WITH-DEBT, gpt-5.6-sol REQUEST-CHANGES (the repository's own info/attributes), Security FAIL (--deployed proved every host at once) -- both fixed test-first, not yet applied
-- [~] R10 check_formal.py — blocked on loop-bound · security · 5/5 stalled 0/3 · next: the CEO decides, with R3
+- [~] R3 Done only with live + formal evidence — verifying · qa · 1/5 stalled 0/3 · next: round 4's blockers fixed test-first (a re-run refuses the repository's own info/attributes; --deployed proves each host it asks, not every host; the clone has no remote and its config is put back before each reset; three vacuous self-test cases made real), C22; one context-free QA + Security + auditor + two-reviewer round
+- [~] R10 check_formal.py — verifying · qa · 1/5 stalled 0/3 · next: with R3 (C22)
 
 ## Todo
 - [ ] C1 added assumption A5 (a file operation does not fail forever) so election liveness holds — undo: drop the SF terms in Election.tla's Fairness; ElectionLive then fails, as TLC shows
@@ -46,6 +46,7 @@ Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
 - [ ] C19 a process a probe detaches from its group (setsid, a daemon) is ruled the probe's to stop, in the command the reviewer reads -- R3 says so, re-signed -- undo: revert that sentence and re-sign
 - [ ] C20 R3's 'a re-run never passes what the plain run fails' now names its one intended exception: a stale record the re-run proves again at HEAD -- re-signed -- undo: revert that clause and keep the plain run's stale hit on a re-run
 - [ ] C21 open for the CEO: R8 and Aidlc.tla's JudgmentRecorded let a reversible production deploy that is not pre-authorized run as a Cn before the ship batch, while R6 lists 'production release' under ship; read here as R6 = a release to end users (a store, a public artifact), R8 = a reversible service deploy -- tick to keep, or rule that every production deploy waits for the ship batch
+- [ ] C22 the CEO ruled on the fourth loop-bound (2026-10-10, 「A」): apply round 4's fixes and run one more verification round; Loop A for R3/R10 restarts at 1/5 -- undo: revert the commit after 1d2011e
 - [ ] D1 SKILL.md grew 17% and is in every role's prompt: move Formal verification and the hash detail to contracts/ files only orchestrator, qa and implementers load (R6 keeps the gate map)
 - [ ] D2 the models job ran 9 m 56 s on a loaded machine: record CI's own time in the R12/R13 evidence once it has run
 - [ ] D3 ElectionV096.tla repeats Election.tla's lifecycle layer
@@ -67,3 +68,4 @@ Signed: requirements.md sha256:f2328d0084d0 · design.md sha256:7b44072f92d2
 - [ ] D26 check_tasks has no --live-host; boot.py's int() of DEVCREW_*_SECONDS at import (security)
 - [ ] D27 overlapping same-session beats can demote falsely; the escape-hatch scan does not follow imported modules (TLA+ EXTENDS); SKILL.md's Phase 5 row reads stricter than its paragraph (security, low)
 - [ ] D28 the self-test environment scrub is copied into three sensors; _drifted keeps a one-element loop (audit, low)
+- [ ] D29 the shared clone copies git's sample hooks (+88 KB a run): clone with an empty --template (audit, low)

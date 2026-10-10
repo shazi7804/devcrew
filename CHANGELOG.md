@@ -102,7 +102,10 @@ so the bounds became code first.
   at most one `Gate:` and nothing else before its sections; the reviewer and
   auditor get no core MCP on KiroCrew. A probe's checkout is a shared clone with refs, stash,
   config and hooks of its own, so a probe's `git stash pop` or branch never
-  reaches the user's repository, and nothing is registered in it. What no reset undoes is stated: a probe runs with the user's
+  reaches the user's repository, and nothing is registered in it. The clone has no
+  remote and its config is put back before each reset; the repository's own
+  `.git/info/attributes` makes a re-run refuse; `--deployed` proves the host
+  it asks, never every host at once. What no reset undoes is stated: a probe runs with the user's
   shell, so it can write outside the checkout and into the repo's shared
   refs and config; a reviewer reads the probe commands. Evidence
   goes stale on any change outside the run's record (the signed contracts,
